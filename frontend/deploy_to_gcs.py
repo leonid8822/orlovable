@@ -63,6 +63,11 @@ def deploy(key_path=KEY_FILE, bucket_name=BUCKET_NAME):
             
             print(f"  Uploading {blob_path} ({content_type})...")
             try:
+                # Disable caching for index.html to ensure updates are seen immediately
+                # 'private, max-age=0, no-store' is the strongest directive to prevent caching
+                cache_control = 'private, max-age=0, no-store' if file == 'index.html' else 'public, max-age=31536000'
+                
+                blob.cache_control = cache_control
                 blob.upload_from_filename(local_path, content_type=content_type)
                 
                 # Make public
