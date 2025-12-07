@@ -1,0 +1,127 @@
+id;created_at;input_image_url;user_comment;form_factor;material;size;output_images;prompt_used;cost_cents;model_used;session_id;application_id;execution_time_ms
+6da41df9-c695-4e68-a06c-1a8930df9c73;2025-12-03 10:01:10.238317+00;"data:image/webp;base64,UklGRtznAABXRUJQVlA4INDnAACwiwSdASqlAugDPpFCm0olo6YrpvgqqXASCWdBbtuW9dRV0Ncx/DQq1WW6P2fbJeiZ6LcgHxsbR99adD9pgQnHlxnn1eSfmn/5OQ3b//3sw/sHpP+mfbU9PZp3uZf5l/N97f5591/4vz6/43vFY4+43Uv+rfwD/t66e1f9j/y/Qa+N/+zx2d3Bz/mffOH8zz7Z2H01/d9gb9t/VPw2/ZvYL/X/rMf9vlU/ev+3+7HwIf1rz8P/5/6PhN+7//1/73w3/tZ/7zFaOUcOt4BNTBxSvNazzmxwWLJg0mDSJdrbXvWwVOCCrmvSmMj/i6X7r2uby+AOqizDRGyzT1mf3f44ZtmgKJ9qtLZkkN1kbpi2KKHOipRogxRk2UAFlHGNnMh72LdaVAKrSoBFmjN8w/oJxTyiCamDio+ddXpxSBTf8XKNZjMNBNFk1+7kKgW3ONwpt...";Возьми оленя для кулона;round;gold;pendant;"[""https://v3b.fal.media/files/b/0a84cdd4/yxm5WKhl9uZPSC22lgQ5z_32a23b8e5bd0438581a0683e1917d6c7.png"",""https://v3b.fal.media/files/b/0a84cdd4/hgJwAgp6AcbZpMIbNkZFA_f4c9860af20c406493644b1efbaa19f1.png"",""https://v3b.fal.media/files/b/0a84cdd5/BbgKvI-EHSrEeXHmme-ka_118e5f1c88c94eb9b345705f2ec67d91.png"",""https://v3b.fal.media/files/b/0a84cdd3/fS3gE3nlO8eJDFwInDiG4_824f4ee92f1a40a4a9cbf65b078c357d.png""]";"Сделай кулон из референса на картинке.
+Дополнительные пожелания заказчика: Возьми оленя для кулона
+Ушко — самое простое, ювелирное.
+Сделай только строго один вид спереди.
+Черный фон, изделие в золоте. Без красок.
+Готовое фото для генерации объекта в 3d. Цельное изделие (за исключением ушка).
+Максимальная детализация.
+Форма — круглая форма, размер 25мм, толщина 3мм.";12;seedream-v4-edit;;;
+c282923f-805d-44c5-8e8c-71c5c450b6ea;2025-12-03 10:11:29.394919+00;"data:image/webp;base64,UklGRtznAABXRUJQVlA4INDnAACwiwSdASqlAugDPpFCm0olo6YrpvgqqXASCWdBbtuW9dRV0Ncx/DQq1WW6P2fbJeiZ6LcgHxsbR99adD9pgQnHlxnn1eSfmn/5OQ3b//3sw/sHpP+mfbU9PZp3uZf5l/N97f5591/4vz6/43vFY4+43Uv+rfwD/t66e1f9j/y/Qa+N/+zx2d3Bz/mffOH8zz7Z2H01/d9gb9t/VPw2/ZvYL/X/rMf9vlU/ev+3+7HwIf1rz8P/5/6PhN+7//1/73w3/tZ/7zFaOUcOt4BNTBxSvNazzmxwWLJg0mDSJdrbXvWwVOCCrmvSmMj/i6X7r2uby+AOqizDRGyzT1mf3f44ZtmgKJ9qtLZkkN1kbpi2KKHOipRogxRk2UAFlHGNnMh72LdaVAKrSoBFmjN8w/oJxTyiCamDio+ddXpxSBTf8XKNZjMNBNFk1+7kKgW3ONwpt...";Возьми оленя для кулона;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84ce14/9wJskPToSIimkW8Uq9D-Q_99f33ad897044666bf99bc9a1389a56a.png"",""https://v3b.fal.media/files/b/0a84ce14/ScuLQt-PO3sJDRbBAcnjh_f392c25b87214aa28c479abb915aa638.png"",""https://v3b.fal.media/files/b/0a84ce14/Mpi8TDU4FgA36KhMrEpE0_8ce8efce08ee4758916d2147ffb5abec.png"",""https://v3b.fal.media/files/b/0a84ce14/p1I6zKI8NIzDsus4mVk5__634a2d120f8542a6905380586e8e44fe.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Возьми оленя для кулона
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур.
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";10;flux-pro-v1.1-ultra-edit;;;
+947bba6c-ec1c-40b2-99c5-2fa63fd2c111;2025-12-03 10:27:24.354159+00;"data:image/webp;base64,UklGRtznAABXRUJQVlA4INDnAACwiwSdASqlAugDPpFCm0olo6YrpvgqqXASCWdBbtuW9dRV0Ncx/DQq1WW6P2fbJeiZ6LcgHxsbR99adD9pgQnHlxnn1eSfmn/5OQ3b//3sw/sHpP+mfbU9PZp3uZf5l/N97f5591/4vz6/43vFY4+43Uv+rfwD/t66e1f9j/y/Qa+N/+zx2d3Bz/mffOH8zz7Z2H01/d9gb9t/VPw2/ZvYL/X/rMf9vlU/ev+3+7HwIf1rz8P/5/6PhN+7//1/73w3/tZ/7zFaOUcOt4BNTBxSvNazzmxwWLJg0mDSJdrbXvWwVOCCrmvSmMj/i6X7r2uby+AOqizDRGyzT1mf3f44ZtmgKJ9qtLZkkN1kbpi2KKHOipRogxRk2UAFlHGNnMh72LdaVAKrSoBFmjN8w/oJxTyiCamDio+ddXpxSBTf8XKNZjMNBNFk1+7kKgW3ONwpt...";Возьми оленя для кулона;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84ce74/N-FtSDT-R9sOBmOItCh3O_b65bbb6a805742ea9b57700de7c40fa7.png"",""https://v3b.fal.media/files/b/0a84ce74/jEKc8xl8pNdWvBbV9Srju_5b093de78b4d4f63908d5add89c177be.png"",""https://v3b.fal.media/files/b/0a84ce74/fy7qtjPYJetlu3L4zwmgL_d45cfb03911c4f03bf5de54503fa1347.png"",""https://v3b.fal.media/files/b/0a84ce74/uhKu2T1X_wuUKztwCzQ5__b390bbaf476a4a778a449369d0eb3b58.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Возьми оленя для кулона
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур.
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;;
+ab7c330c-043c-4ed1-85f7-67c24cea1c2e;2025-12-03 11:26:53.877856+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QCeRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAMb+AAIAAAAvAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABQ29weXJpZ2h0IFhpYW9taSBDb21tdW5pY2F0aW9ucyBDby4sIEx0ZC4gMjAyMgAA/+ICiElDQ19QUk9GSUxFAAEBAAACeAAAAAAEAAAAbW50clJHQiBYWVogB+YACAAIAAgACAAIYWNzcAAAAAAAAAAAWE0gIAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1hcHBsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKZGVzYwAAAPwAAABlY3BydAAAAWQAAAA2d3Rwd...";Сделай кулон с таким медвдем;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84cfd9/IQrgY0CZ3GCVuRLJkuibu_a3d44e971794491d8434471d0679ac5d.png"",""https://v3b.fal.media/files/b/0a84cfd9/nal9YjFaYcD5ywK_iL8YL_26d8e94ff5bb4175809f6a6a0f271aca.png"",""https://v3b.fal.media/files/b/0a84cfd9/trZm1YeUGcUQS1DOm3o1B_2d388b5d4b3c44439b8ef944b703fff5.png"",""https://v3b.fal.media/files/b/0a84cfd9/Vhf5nObJaKmBRipznhy7x_91676050605a432480c6a819cb30fff7.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай кулон с таким медвдем
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур.
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;;
+2fe5b680-7d63-49e4-9a37-d2136c8cb998;2025-12-03 12:02:22.234437+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QCeRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAMb+AAIAAAAvAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABQ29weXJpZ2h0IFhpYW9taSBDb21tdW5pY2F0aW9ucyBDby4sIEx0ZC4gMjAyMgAA/+ICiElDQ19QUk9GSUxFAAEBAAACeAAAAAAEAAAAbW50clJHQiBYWVogB+YACAAIAAgACAAIYWNzcAAAAAAAAAAAWE0gIAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1hcHBsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKZGVzYwAAAPwAAABlY3BydAAAAWQAAAA2d3Rwd...";Вощьми только медведя;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d0ae/_erb2KC24XVSQ7f43e8BS_ef8cab84494e4451b01729b052c3c975.png"",""https://v3b.fal.media/files/b/0a84d0ae/DGjT5VSFrTyCYWm5ng2GL_27ee7a770363498a9a2280a71bbfea36.png"",""https://v3b.fal.media/files/b/0a84d0ae/ZxU8lBSTc7aYGq_V9yfga_e08d52834f424d1d9ce035049b6946ab.png"",""https://v3b.fal.media/files/b/0a84d0ae/tWOi5gk9EfPME6Xg_CwCN_f247ce7a2fa84c48ba647107ddc397d1.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Вощьми только медведя
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур.
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;;
+a8989806-7daf-429e-aea8-7e6550fea9b7;2025-12-03 12:35:19.146559+00;;Хочу шаманского танцующего медведя;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d173/2enggrT5PNrlDp8g7oiyP_b58fdf14c369496889273bf3f04f0d2c.png"",""https://v3b.fal.media/files/b/0a84d173/jCHbc5qYJ_Qq_PVkskxSX_0c9adb1c4f6c4873850d13690967284c.png""]";"Создай ювелирный кулон. Описание: Хочу шаманского танцующего медведя
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур.
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-text-to-image;;;
+393fc6a7-d10c-4aef-b24e-bb9c5df5239c;2025-12-03 14:51:13.123562+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCAUAAtADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAgMAAQQFBgcI/8QAGgEAAwEBAQEAAAAAAAAAAAAAAAECAwQFBv/aAAwDAQACEAMQAAAB8OxZ8XrEYHLODFQ0YOauWyihJwqJVVyIqHACGQBRkms5Y5dGihKxjCgDRQBhkC7KwVGiAWcAWS1QwoA0wQWDqchbLTVbACxYIKpkaG2UnQHBCLKYtZ05CHTQ2wRrjRFQsIdUZKgKyTVRrclV0...";Сделай кулон с быком в полный рост;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d4a3/AORumgy2pKRNamGoEGuoE_222ed6742b25451f8ea17826f0c8dc2e.png"",""https://v3b.fal.media/files/b/0a84d4a3/iCHNrmUSg99XrISfybHUD_08141f2bf3e84c859eb304a410efd337.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай кулон с быком в полный рост
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;b009b270-8ade-4153-b8cf-12eded8e3e48;
+33b822c7-5902-4cc7-98e0-3350b5669f3b;2025-12-03 14:57:42.15696+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCAUAAtADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAgMAAQQFBgcI/8QAGgEAAwEBAQEAAAAAAAAAAAAAAAECAwQFBv/aAAwDAQACEAMQAAAB8OxZ8XrEYHLODFQ0YOauWyihJwqJVVyIqHACGQBRkms5Y5dGihKxjCgDRQBhkC7KwVGiAWcAWS1QwoA0wQWDqchbLTVbACxYIKpkaG2UnQHBCLKYtZ05CHTQ2wRrjRFQsIdUZKgKyTVRrclV0...";Сгенери быка в полный рост;contour;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d4ca/vt_KyqTDjVW6-O4Y2Shjx_4d4e0abe16ac4163b9a817d2772f7851.png"",""https://v3b.fal.media/files/b/0a84d4ca/TqklOfTI46M3tEw_RLg6E_223cc31885254fb49594ceba9aa2abcf.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сгенери быка в полный рост
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+
+Форма — по контуру выбранного объекта, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;da538781-e857-4c32-93ad-57a3e0861c0b;
+f3851419-7241-4823-89d2-ca1cd4a0e95a;2025-12-03 15:23:13.377417+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QB0RXhpZgAATU0AKgAAAAgABQEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAAITAAMAAAABAAEAAMb+AAIAAAARAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABR29vZ2xlIEluYy4gMjAxNgAA/+ICKElDQ19QUk9GSUxFAAEBAAACGAAAAAACEAAAbW50clJHQiBYWVogAAAAAAAAAAAAAAAAYWNzcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAPbWAAEAAAAA0y0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZGVzYwAAAPAAAAB0clhZWgAAAWQAAAAUZ1hZWgAAAXgAAAAUYlhZWgAAAYwAAAAUclRSQwAAAaAAAAAoZ1RSQwAAAaAAA...";Кулон с Вороном;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d563/V7N_AwBvqImCSjxiS_Tu2_725ef3f575514ba1b45232e773577d1f.png"",""https://v3b.fal.media/files/b/0a84d563/QaU-qbfX1hY8CVjfHpvT-_e6dec16730c343c4b475d773b9a1df6b.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Кулон с Вороном
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";12;seedream-v4-edit;;61688c76-f2d8-4ad2-bf76-a9992e52ad74;41578
+922c1997-68e2-4958-843b-4a639dff5802;2025-12-03 15:26:24.21512+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QB0RXhpZgAATU0AKgAAAAgABQEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAAITAAMAAAABAAEAAMb+AAIAAAARAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABR29vZ2xlIEluYy4gMjAxNgAA/+ICKElDQ19QUk9GSUxFAAEBAAACGAAAAAACEAAAbW50clJHQiBYWVogAAAAAAAAAAAAAAAAYWNzcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAPbWAAEAAAAA0y0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZGVzYwAAAPAAAAB0clhZWgAAAWQAAAAUZ1hZWgAAAXgAAAAUYlhZWgAAAYwAAAAUclRSQwAAAaAAAAAoZ1RSQwAAAaAAA...";Сделай кулон с вороном;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d576/2vjYXpUbLlaeQ0czNRoQ-_d989320314a44bee9e971cc03b2a7aff.png"",""https://v3b.fal.media/files/b/0a84d576/gXTTbJf1Xb6ZtMDYI6tAe_09e442448e8a4c7e80fd0ed343d9bae2.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай кулон с вороном
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено. Сделан целиком из серебра, без краски, эмали. МОжет быть рельфе / чернение.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";6;seedream-v4-edit;;d26f91c3-95ed-44d1-969d-dddee8c9033c;54010
+5423cba9-0e36-439e-89b3-a38fe481c967;2025-12-03 15:28:48.630593+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QB0RXhpZgAATU0AKgAAAAgABQEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAAITAAMAAAABAAEAAMb+AAIAAAARAAAAWgAAAAAAAABIAAAAAQAAAEgAAAABR29vZ2xlIEluYy4gMjAxNgAA/+ICKElDQ19QUk9GSUxFAAEBAAACGAAAAAACEAAAbW50clJHQiBYWVogAAAAAAAAAAAAAAAAYWNzcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAPbWAAEAAAAA0y0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJZGVzYwAAAPAAAAB0clhZWgAAAWQAAAAUZ1hZWgAAAXgAAAAUYlhZWgAAAYwAAAAUclRSQwAAAaAAAAAoZ1RSQwAAAaAAA...";Сделай кулон с вороном;round;silver;pendant;"[""https://v3b.fal.media/files/b/0a84d584/ph0cSJf4GtamCo6kA2i8O_7908168195de45ea87b747042b9824d8.png"",""https://v3b.fal.media/files/b/0a84d584/UdtgUQzB09Da03Fx5ddBm_3569c53955b24a06ba957e33639cd960.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай кулон с вороном
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено. Сделан целиком из серебра, без краски, эмали. МОжет быть рельфе / чернение.
+Объект вписан в круглую рамку-медальон.
+Форма — круглая форма, объект вписан в круг, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";6;seedream-v4-edit;;d26f91c3-95ed-44d1-969d-dddee8c9033c;54438
+91091345-af3c-485a-a996-de550e791dee;2025-12-05 09:51:22.803175+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCARQAuADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAAECAwQFBgcI/8QAGQEBAQEBAQEAAAAAAAAAAAAAAAECAwQF/9oADAMBAAIQAxAAAAH5iJ3IAAEAAAUAQADQKADAAABMABgZqGrAHSYyIxEADu7p5slGkMEMEwhDQDBAxAxAUAADgBADEMAAQAAACGAAADSgMQCCGJopgKhpBgAEAAAAAAMAFAAAABExDAUacomIAABQBYXy6WaqL+Xjd...";Сделай контурную подвеску;contour;silver;pendant;"[""https://v3b.fal.media/files/b/0a85111b/4-Grfre-Rgyeif9uZRiGb_d76669f199374da68451c66337b8dce1.png"",""https://v3b.fal.media/files/b/0a85111b/SV1eyadj8IBHcEwHd7Lye_c98a88f624614d9fa57c33a09290fb0b.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай контурную подвеску
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено. Сделан целиком из серебра, без краски, эмали. МОжет быть рельфе / чернение.
+
+Форма — по контуру выбранного объекта, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";6;seedream-v4-edit;;cbec1b20-5f9a-4925-808c-d884afe916bd;51461
+a7bd0564-7af9-44ea-8052-9598ab3f0a36;2025-12-05 09:59:44.960554+00;"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCARQAuADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAAECAwQFBgcI/8QAGQEBAQEBAQEAAAAAAAAAAAAAAAECAwQF/9oADAMBAAIQAxAAAAH5iJ3IAAEAAAUAQADQKADAAABMABgZqGrAHSYyIxEADu7p5slGkMEMEwhDQDBAxAxAUAADgBADEMAAQAAACGAAADSgMQCCGJopgKhpBgAEAAAAAAMAFAAAABExDAUacomIAABQBYXy6WaqL+Xjd...";Сделай контурный кулон только из головы быка;contour;silver;pendant;"[""https://v3b.fal.media/files/b/0a85114e/L7EHTjIw8yFjA7MEhEs-n_e015d7460e284d80981184bff88a30e7.png"",""https://v3b.fal.media/files/b/0a85114e/6xacHfYSejdQXccdrUs1H_24e0062ab2aa4eb4bbd7b1ac42c3fd35.png""]";"Создай ювелирный кулон из референса на картинке.
+Дополнительные пожелания заказчика: Сделай контурный кулон только из головы быка
+ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
+Ушко для цепочки — простое, классическое ювелирное.
+Строго один вид спереди.
+Черный фон, изделие из серебра (silver metal). Без красок, без дополнительных текстур. Гото
+Объект должен быть ЦЕЛОСТНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати — никаких отдельных частей, всё соединено. Сделан целиком из серебра, без краски, эмали. МОжет быть рельфе / чернение.
+
+Форма — по контуру выбранного объекта, размер 25мм, толщина 3мм.
+Максимальная детализация поверхности, ювелирное качество.";6;seedream-v4-edit;;1faf20b0-7b27-454f-9a11-edf147e7b94d;47777
