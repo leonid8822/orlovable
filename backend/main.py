@@ -1,23 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine
-from models import Base
 from api import router
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI()
+app = FastAPI(title="OLAI.art Jewelry API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8080",
-        "https://storage.googleapis.com", 
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://olai.art",
+        "https://storage.googleapis.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -26,6 +24,17 @@ app.add_middleware(
 
 app.include_router(router, prefix="/api")
 
+
+@app.get("/")
+async def root():
+    return {"message": "OLAI.art Jewelry API v2.0 - Supabase Edition"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

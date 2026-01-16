@@ -1,4 +1,4 @@
-const API_URL = 'https://jewelry-backend-nqev4d2b4a-lm.a.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export const api = {
     generate: async (payload: any) => {

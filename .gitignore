@@ -3,8 +3,12 @@ __pycache__/
 *$py.class
 venv/
 .env
+.env.local
 .DS_Store
 dist/
 node_modules/
 *.db
 google-credentials/
+backend/.env
+frontend/.env
+*.tgz

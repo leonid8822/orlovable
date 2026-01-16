@@ -1,61 +1,63 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { AppStep, STEP_TITLES, VISIBLE_STEPS } from "@/types/pendant";
 
 interface StepIndicatorProps {
-  currentStep: number;
-  totalSteps: number;
+  currentStep: AppStep;
 }
 
-const stepTitles = [
-  "Загрузка",
-  "Настройка",
-  "Обратная сторона",
-  "Оформление",
-];
+export function StepIndicator({ currentStep }: StepIndicatorProps) {
+  // Map GENERATING to appear as part of UPLOAD visually
+  const displayStep =
+    currentStep === AppStep.GENERATING ? AppStep.UPLOAD : currentStep;
+  const currentIndex = VISIBLE_STEPS.indexOf(displayStep);
 
-export function StepIndicator({ currentStep, totalSteps }: StepIndicatorProps) {
   return (
     <div className="flex items-center justify-center gap-2 md:gap-4">
-      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
-        <div key={step} className="flex items-center">
-          <div className="flex flex-col items-center">
-            <div
-              className={cn(
-                "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-display text-lg md:text-xl transition-all duration-500",
-                step < currentStep
-                  ? "bg-primary text-primary-foreground"
-                  : step === currentStep
-                  ? "bg-gradient-gold text-primary-foreground shadow-gold animate-pulse-gold"
-                  : "bg-secondary text-muted-foreground border border-border"
-              )}
-            >
-              {step < currentStep ? (
-                <Check className="w-5 h-5" />
-              ) : (
-                step
-              )}
+      {VISIBLE_STEPS.map((step, index) => {
+        const isCompleted = index < currentIndex;
+        const isCurrent = index === currentIndex;
+        const isGenerating =
+          currentStep === AppStep.GENERATING && step === AppStep.UPLOAD;
+
+        return (
+          <div key={step} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div
+                className={cn(
+                  "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-display text-lg md:text-xl transition-all duration-500",
+                  isCompleted
+                    ? "bg-primary text-primary-foreground"
+                    : isCurrent
+                    ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                    : "bg-secondary text-muted-foreground border border-border",
+                  isGenerating && "animate-pulse"
+                )}
+              >
+                {isCompleted ? <Check className="w-5 h-5" /> : index + 1}
+              </div>
+              <span
+                className={cn(
+                  "text-xs mt-2 hidden md:block transition-colors duration-300",
+                  isCurrent
+                    ? "text-gold-light font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                {isGenerating ? STEP_TITLES[AppStep.GENERATING] : STEP_TITLES[step]}
+              </span>
             </div>
-            <span
-              className={cn(
-                "text-xs mt-2 hidden md:block transition-colors duration-300",
-                step === currentStep
-                  ? "text-gold-light font-medium"
-                  : "text-muted-foreground"
-              )}
-            >
-              {stepTitles[step - 1]}
-            </span>
+            {index < VISIBLE_STEPS.length - 1 && (
+              <div
+                className={cn(
+                  "w-8 md:w-16 h-0.5 mx-2 transition-colors duration-500",
+                  isCompleted ? "bg-primary" : "bg-border"
+                )}
+              />
+            )}
           </div>
-          {step < totalSteps && (
-            <div
-              className={cn(
-                "w-8 md:w-16 h-0.5 mx-2 transition-colors duration-500",
-                step < currentStep ? "bg-primary" : "bg-border"
-              )}
-            />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
