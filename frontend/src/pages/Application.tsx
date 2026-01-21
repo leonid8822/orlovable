@@ -195,31 +195,44 @@ const Application = () => {
         return;
       }
 
-      // Map DB step to enum (handle legacy numeric steps)
-      const stepMap: Record<string | number, AppStep> = {
-        1: AppStep.UPLOAD,
-        2: AppStep.SELECTION,
-        3: AppStep.CHECKOUT,
-        4: AppStep.CHECKOUT,
-        UPLOAD: AppStep.UPLOAD,
-        GENERATING: AppStep.GENERATING,
-        SELECTION: AppStep.SELECTION,
-        CHECKOUT: AppStep.CHECKOUT,
-      };
+      // Determine step based on status and available data
+      let determinedStep: AppStep;
 
-      const mappedStep = stepMap[data.current_step] || AppStep.UPLOAD;
+      if (data.status === "generating") {
+        // Generation in progress
+        determinedStep = AppStep.GENERATING;
+      } else if (data.status === "generated") {
+        // Generation complete - check if user selected a variant
+        // Map DB step to enum (handle legacy numeric steps)
+        const stepMap: Record<string | number, AppStep> = {
+          1: AppStep.UPLOAD,
+          2: AppStep.SELECTION,
+          3: AppStep.CHECKOUT,
+          4: AppStep.CHECKOUT,
+          UPLOAD: AppStep.UPLOAD,
+          GENERATING: AppStep.GENERATING,
+          SELECTION: AppStep.SELECTION,
+          CHECKOUT: AppStep.CHECKOUT,
+        };
 
-      // If status is generating, stay on generating
-      const actualStep =
-        data.status === "generating" ? AppStep.GENERATING : mappedStep;
+        const savedStep = stepMap[data.current_step];
 
-      // If status is generated but no step set, go to selection
-      const finalStep =
-        data.status === "generated" && actualStep === AppStep.UPLOAD
-          ? AppStep.SELECTION
-          : actualStep;
+        // If saved step is CHECKOUT or SELECTION, use it
+        if (savedStep === AppStep.CHECKOUT) {
+          determinedStep = AppStep.CHECKOUT;
+        } else {
+          // Default to SELECTION after generation
+          determinedStep = AppStep.SELECTION;
+        }
+      } else if (data.status === "pending_generation" && data.input_image_url) {
+        // Has image but not generated yet - start generation
+        determinedStep = AppStep.GENERATING;
+      } else {
+        // Draft or no image - upload step
+        determinedStep = AppStep.UPLOAD;
+      }
 
-      setCurrentStep(finalStep);
+      setCurrentStep(determinedStep);
 
       // Map size to sizeOption
       const sizeToOption: Record<string, "s" | "m" | "l"> = {
@@ -231,6 +244,18 @@ const Application = () => {
       const sizeOption = sizeToOption[data.size] || "s";
       const sizeDefaults = getSizeConfigWithDefaults(sizeOption);
 
+      // Use generated_images from API (all variants) or fallback to generated_preview
+      const allGeneratedImages = data.generated_images && data.generated_images.length > 0
+        ? data.generated_images
+        : data.generated_preview
+          ? [data.generated_preview]
+          : [];
+
+      // Find selected index based on generated_preview
+      const selectedIndex = data.generated_preview
+        ? Math.max(0, allGeneratedImages.indexOf(data.generated_preview))
+        : 0;
+
       setConfig({
         ...initialPendantConfig,
         sizeOption,
@@ -238,16 +263,14 @@ const Application = () => {
         material: data.material || "silver",
         size: data.size || sizeDefaults.size,
         imagePreview: data.input_image_url,
-        generatedPreview: data.generated_preview,
+        generatedPreview: data.generated_preview || allGeneratedImages[0] || null,
         comment: data.user_comment || "",
-        generatedImages: data.generated_preview ? [data.generated_preview] : [],
-        selectedVariantIndex: 0,
+        generatedImages: allGeneratedImages,
+        selectedVariantIndex: selectedIndex,
       });
 
-      // If we have generated preview, set it in images array
-      if (data.generated_preview) {
-        setGeneratedImages([data.generated_preview]);
-      }
+      // Set generated images for selection step
+      setGeneratedImages(allGeneratedImages);
 
       setLoading(false);
     };

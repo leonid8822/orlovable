@@ -183,11 +183,30 @@ async def create_application(app: ApplicationCreate):
 
 @router.get("/applications/{app_id}")
 async def get_application(app_id: str):
-    """Get application by ID"""
+    """Get application by ID with its generations"""
     try:
         app = await supabase.select_one("applications", app_id)
         if not app:
             raise HTTPException(status_code=404, detail="Application not found")
+
+        # Get all generations for this application
+        generations = await supabase.select(
+            "pendant_generations",
+            filters={"application_id": app_id},
+            order="created_at.desc",
+            limit=10
+        )
+
+        # Get the latest generation's images
+        all_images = []
+        if generations:
+            latest_gen = generations[0]
+            if latest_gen.get("output_images"):
+                all_images = latest_gen["output_images"]
+
+        # Add generated_images to response
+        app["generated_images"] = all_images
+
         return app
     except HTTPException:
         raise
