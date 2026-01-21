@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
+import Landing from "./pages/Landing";
+import KidsLanding from "./pages/KidsLanding";
 import Index from "./pages/Index";
 import Application from "./pages/Application";
 import Admin from "./pages/Admin";
@@ -20,7 +22,9 @@ const App = () => (
       <Sonner />
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/kids" element={<KidsLanding />} />
+          <Route path="/create" element={<Index />} />
           <Route path="/application/:id" element={<Application />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/examples" element={<Examples />} />

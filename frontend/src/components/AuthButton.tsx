@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/integrations/supabase/client';
 import { User, LogOut, LogIn, FolderOpen } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
@@ -19,6 +19,8 @@ export function AuthButton() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!supabase) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
     });
@@ -31,6 +33,7 @@ export function AuthButton() {
   }, []);
 
   const handleLogout = async () => {
+    if (!supabase) return;
     setLoading(true);
     try {
       await supabase.auth.signOut();
@@ -42,6 +45,21 @@ export function AuthButton() {
       setLoading(false);
     }
   };
+
+  // If Supabase is not configured, show login button that redirects to auth page
+  if (!isSupabaseConfigured) {
+    return (
+      <Button
+        variant="goldOutline"
+        size="sm"
+        onClick={() => navigate('/auth')}
+        className="gap-2"
+      >
+        <LogIn className="w-4 h-4" />
+        <span className="hidden md:inline">Войти</span>
+      </Button>
+    );
+  }
 
   if (user) {
     return (

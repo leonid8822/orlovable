@@ -51,7 +51,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
+    <div className="min-h-screen bg-background">
       <Header />
 
       <main className="pt-24 pb-16 px-4">
@@ -97,7 +97,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>&copy; 2024 OLAI.art. Все права защищены.</p>
+          <p>© 2024 OLAI.art. Все права защищены.</p>
         </div>
       </footer>
     </div>

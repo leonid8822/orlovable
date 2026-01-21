@@ -1,9 +1,11 @@
-import { Gem } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AuthButton } from "./AuthButton";
+import { EagleIcon } from "./icons/EagleIcon";
+
 interface HeaderProps {
   applicationId?: string | null;
 }
+
 export function Header({
   applicationId
 }: HeaderProps) {
@@ -11,9 +13,9 @@ export function Header({
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold group-hover:shadow-glow transition-shadow duration-300">
-            <Gem className="w-5 h-5 text-primary-foreground" />
+            <EagleIcon className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display text-xl text-foreground tracking-wide">OL<span className="text-gradient-gold">Jewelry</span>
+          <span className="font-display text-xl text-muted-foreground tracking-wide">OLAI<span className="text-foreground">.art</span>
           </span>
         </Link>
 
@@ -21,9 +23,9 @@ export function Header({
           {applicationId && <span className="text-xs text-muted-foreground hidden sm:block font-mono">
               #{applicationId.slice(0, 8)}
             </span>}
-          
+
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
+            <Link to="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
               Создать
             </Link>
             <Link to="/examples" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">

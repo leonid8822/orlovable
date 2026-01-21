@@ -91,8 +91,6 @@ def deploy_backend():
                 "--platform", "managed",
                 "--allow-unauthenticated",
                 "--port", "8080",
-                "--allow-unauthenticated",
-                "--port", "8080",
                 # Enable Cloud SQL
                 "--add-cloudsql-instances", "jewelry-480514:me-west1:jewelry-db",
                 # Use Cloud SQL Socket for connection (overrides local .env)
