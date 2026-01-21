@@ -41,9 +41,9 @@
 ### Infrastructure
 | Компонент | Сервис |
 |-----------|--------|
-| Frontend Hosting | Google Cloud Storage (static) |
-| Backend | Google Cloud Run (Docker) |
-| Database | Google Cloud SQL (PostgreSQL) / SQLite (dev) |
+| Frontend Hosting | Vercel (static) |
+| Backend | Render (Docker) |
+| Database | Supabase (PostgreSQL) / SQLite (dev) |
 | AI Generation | FAL.ai (Bytedance SeedDream v4) |
 
 ---
@@ -115,9 +115,7 @@
 │   └── scripts/
 │       ├── deploy_backend.py          # Deployment script
 │       ├── migrate_csv.py             # CSV import
-│       ├── migrate_to_postgres.py     # SQLite -> PostgreSQL
-│       ├── debug_gcs.py               # GCS debugging
-│       └── enable_sql_api.py          # Cloud SQL API enabler
+│       └── migrate_to_postgres.py     # SQLite -> PostgreSQL
 │
 ├── db_migration/                       # Migration CSV files
 │   ├── applications-export-*.csv
@@ -166,14 +164,11 @@ docker run -p 8080:8080 -e FAL_KEY=xxx -e DATABASE_URL=xxx jewelry-backend
 ### Backend (.env)
 ```bash
 # Database
-DATABASE_URL=postgresql://user:pass@host:5432/dbname  # Production
+DATABASE_URL=postgresql://user:pass@host:5432/dbname  # Production (Supabase)
 DATABASE_URL=sqlite:///./jewelry.db                    # Development
 
 # AI Generation
 FAL_KEY=your_fal_ai_key
-
-# Google Cloud (для GCS хранения)
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 ```
 
 ### Frontend
@@ -464,7 +459,7 @@ model_name = "seedream-v4-text-to-image"
 ```
 
 **Почему HashRouter?**
-Для совместимости со статическим хостингом на GCS без server-side routing.
+Для совместимости со статическим хостингом без server-side routing.
 
 ### State Management
 - **Local state**: React hooks (`useState`, `useEffect`, `useCallback`)
@@ -524,24 +519,17 @@ export const api = {
 
 ## Deployment
 
-### Frontend -> GCS
+### Frontend -> Vercel
 ```bash
 cd frontend
 npm run build
-# Upload dist/ to GCS bucket
-gsutil -m cp -r dist/* gs://your-bucket/
+# Deploy via Vercel CLI or GitHub integration
+vercel deploy
 ```
 
-### Backend -> Cloud Run
-```bash
-cd backend
-gcloud builds submit --tag gcr.io/PROJECT_ID/jewelry-backend
-gcloud run deploy jewelry-backend \
-  --image gcr.io/PROJECT_ID/jewelry-backend \
-  --platform managed \
-  --allow-unauthenticated \
-  --set-env-vars FAL_KEY=xxx,DATABASE_URL=xxx
-```
+### Backend -> Render
+Deploy via Render Dashboard or render.yaml configuration.
+Environment variables: `FAL_KEY`, `DATABASE_URL` (Supabase connection string).
 
 ---
 
