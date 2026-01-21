@@ -1,22 +1,17 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
+import { LandingConstructor } from "@/components/LandingConstructor";
 import { EagleIcon } from "@/components/icons/EagleIcon";
 import {
   Sparkles,
   Shield,
   Compass,
-  Gem,
   ArrowRight,
   Mountain,
   Moon,
-  Feather,
-  Upload,
-  Image as ImageIcon
+  Feather
 } from "lucide-react";
-import { api } from "@/lib/api";
-import { toast } from "sonner";
 
 // Примеры до/после для тотемов
 const totemExamples = [
@@ -37,54 +32,13 @@ const totemExamples = [
   }
 ];
 
-const TotemsLanding = () => {
-  const navigate = useNavigate();
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+const scrollToConstructor = () => {
+  document.getElementById('constructor')?.scrollIntoView({ behavior: 'smooth' });
+};
 
+const TotemsLanding = () => {
   const brownColor = "hsl(25, 45%, 35%)";
   const brownLightColor = "hsl(25, 50%, 45%)";
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCreateTotem = async () => {
-    if (!imagePreview) {
-      toast.error("Загрузите изображение тотема");
-      return;
-    }
-
-    setIsCreating(true);
-
-    const sessionId = localStorage.getItem("sessionId") || crypto.randomUUID();
-    localStorage.setItem("sessionId", sessionId);
-    localStorage.setItem("appTheme", "totems");
-
-    const { data: newApp, error } = await api.createApplication({
-      session_id: sessionId,
-      form_factor: "round",
-      material: "silver",
-      size: "pendant",
-      input_image_url: imagePreview,
-      user_comment: "Тотем в скандинавском стиле",
-    });
-
-    if (error || !newApp) {
-      toast.error("Не удалось создать заявку");
-      setIsCreating(false);
-      return;
-    }
-
-    navigate(`/application/${newApp.id}`);
-  };
 
   return (
     <div className="min-h-screen bg-background theme-totems">
@@ -133,55 +87,16 @@ const TotemsLanding = () => {
                 Превратите значимое животное, руну или символ
                 в ювелирный артефакт силы
               </p>
-            </div>
 
-            {/* Upload Section - прямо на лендинге */}
-            <div className="max-w-xl mx-auto mb-16">
-              <div className="p-8 rounded-2xl bg-gradient-card border-2 border-dashed transition-colors" style={{ borderColor: imagePreview ? brownColor : 'hsl(25, 45%, 35%, 0.3)' }}>
-                {!imagePreview ? (
-                  <label className="flex flex-col items-center cursor-pointer">
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4" style={{ background: 'hsl(25, 45%, 35%, 0.1)' }}>
-                      <Upload className="w-10 h-10" style={{ color: brownColor }} />
-                    </div>
-                    <p className="text-lg font-display mb-2">Загрузите изображение тотема</p>
-                    <p className="text-sm text-muted-foreground text-center mb-4">
-                      Животное-хранитель, руна, сакральный символ
-                    </p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <Button variant="outline" style={{ borderColor: 'hsl(25, 45%, 35%, 0.5)', color: brownColor }}>
-                      <ImageIcon className="w-4 h-4 mr-2" />
-                      Выбрать файл
-                    </Button>
-                  </label>
-                ) : (
-                  <div className="text-center">
-                    <div className="relative w-48 h-48 mx-auto mb-4 rounded-xl overflow-hidden border-2" style={{ borderColor: brownColor }}>
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => setImagePreview(null)}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 flex items-center justify-center text-foreground hover:bg-background"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <Button
-                      size="lg"
-                      onClick={handleCreateTotem}
-                      disabled={isCreating}
-                      className="text-primary-foreground hover:opacity-90 px-8"
-                      style={{ background: `linear-gradient(135deg, ${brownLightColor} 0%, ${brownColor} 100%)`, boxShadow: '0 0 50px hsl(25, 45%, 35%, 0.3)' }}
-                    >
-                      {isCreating ? "Создаём..." : "Создать тотем"}
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <Button
+                size="lg"
+                onClick={scrollToConstructor}
+                className="text-primary-foreground hover:opacity-90 px-10"
+                style={{ background: `linear-gradient(135deg, ${brownLightColor} 0%, ${brownColor} 100%)`, boxShadow: '0 0 50px hsl(25, 45%, 35%, 0.3)' }}
+              >
+                Создать тотем
+                <Sparkles className="w-5 h-5 ml-2" />
+              </Button>
             </div>
 
             {/* Before/After Showcase */}
@@ -284,26 +199,8 @@ const TotemsLanding = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 px-4 bg-card/30">
-          <div className="container mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl md:text-4xl font-display mb-6">
-              Найдите свой <span className="text-gradient-brown">тотем</span>
-            </h2>
-            <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-              Загрузите изображение и превратите его в артефакт силы
-            </p>
-            <Button
-              size="lg"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="text-primary-foreground hover:opacity-90 px-10"
-              style={{ background: `linear-gradient(135deg, ${brownLightColor} 0%, ${brownColor} 100%)`, boxShadow: '0 0 50px hsl(25, 45%, 35%, 0.3)' }}
-            >
-              Создать тотем
-              <Sparkles className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        </section>
+        {/* Constructor Section */}
+        <LandingConstructor theme="totems" className="bg-card/30" />
 
         {/* Other landings */}
         <section className="py-12 px-4">

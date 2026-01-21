@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
+import { LandingConstructor } from "@/components/LandingConstructor";
 import { EagleIcon } from "@/components/icons/EagleIcon";
 import {
   Sparkles,
@@ -12,12 +12,8 @@ import {
   Star,
   Users,
   Palette,
-  Gem,
-  Upload,
-  Image as ImageIcon
+  Gem
 } from "lucide-react";
-import { api } from "@/lib/api";
-import { toast } from "sonner";
 
 // Примеры до/после для главной страницы
 const mainExamples = [
@@ -38,51 +34,11 @@ const mainExamples = [
   }
 ];
 
+const scrollToConstructor = () => {
+  document.getElementById('constructor')?.scrollIntoView({ behavior: 'smooth' });
+};
+
 const Landing = () => {
-  const navigate = useNavigate();
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!imagePreview) {
-      toast.error("Загрузите изображение");
-      return;
-    }
-
-    setIsCreating(true);
-
-    const sessionId = localStorage.getItem("sessionId") || crypto.randomUUID();
-    localStorage.setItem("sessionId", sessionId);
-    localStorage.setItem("appTheme", "main");
-
-    const { data: newApp, error } = await api.createApplication({
-      session_id: sessionId,
-      form_factor: "round",
-      material: "silver",
-      size: "pendant",
-      input_image_url: imagePreview,
-    });
-
-    if (error || !newApp) {
-      toast.error("Не удалось создать заявку");
-      setIsCreating(false);
-      return;
-    }
-
-    navigate(`/application/${newApp.id}`);
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -107,54 +63,14 @@ const Landing = () => {
                 для себя, близких или в подарок друзьям
               </p>
 
-            </div>
-
-            {/* Upload Section - прямо на лендинге */}
-            <div className="mt-12 max-w-xl mx-auto">
-              <div className="p-8 rounded-2xl bg-gradient-card border-2 border-dashed transition-colors border-gold/30 hover:border-gold/50">
-                {!imagePreview ? (
-                  <label className="flex flex-col items-center cursor-pointer">
-                    <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mb-4">
-                      <Upload className="w-10 h-10 text-gold" />
-                    </div>
-                    <p className="text-lg font-display mb-2">Загрузите изображение</p>
-                    <p className="text-sm text-muted-foreground text-center mb-4">
-                      Рисунок, фото, символ — всё, что несёт для вас смысл
-                    </p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <Button variant="outline" className="border-gold/50 text-gold hover:bg-gold/10">
-                      <ImageIcon className="w-4 h-4 mr-2" />
-                      Выбрать файл
-                    </Button>
-                  </label>
-                ) : (
-                  <div className="text-center">
-                    <div className="relative w-48 h-48 mx-auto mb-4 rounded-xl overflow-hidden border-2 border-gold">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => setImagePreview(null)}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 flex items-center justify-center text-foreground hover:bg-background"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <Button
-                      size="lg"
-                      onClick={handleCreate}
-                      disabled={isCreating}
-                      className="bg-gradient-gold text-primary-foreground hover:opacity-90 shadow-gold px-8"
-                    >
-                      {isCreating ? "Создаём..." : "Создать украшение"}
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <Button
+                size="lg"
+                onClick={scrollToConstructor}
+                className="bg-gradient-gold text-primary-foreground hover:opacity-90 shadow-gold px-10"
+              >
+                Создать украшение
+                <Sparkles className="w-5 h-5 ml-2" />
+              </Button>
             </div>
 
             {/* Before/After Showcase */}
@@ -270,23 +186,8 @@ const Landing = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 px-4 bg-card/30">
-          <div className="container mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl md:text-4xl font-display mb-6">
-              Готовы создать свой <span className="text-gradient-gold">артефакт</span>?
-            </h2>
-            <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-              Загрузите изображение и получите превью украшения за пару минут
-            </p>
-            <Link to="/create">
-              <Button size="lg" className="bg-gradient-gold text-primary-foreground hover:opacity-90 shadow-gold px-10">
-                Начать создание
-                <Sparkles className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </section>
+        {/* Constructor Section */}
+        <LandingConstructor theme="main" className="bg-card/30" />
       </main>
 
       {/* Footer */}
