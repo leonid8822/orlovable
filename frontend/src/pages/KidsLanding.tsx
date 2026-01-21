@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { EagleIcon } from "@/components/icons/EagleIcon";
@@ -12,8 +13,12 @@ import {
   Gift,
   Camera,
   Smile,
-  Play
+  Play,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 // Примеры до/после для детских рисунков
 const kidsExamples = [
@@ -35,8 +40,53 @@ const kidsExamples = [
 ];
 
 const KidsLanding = () => {
+  const navigate = useNavigate();
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
   const tiffanyColor = "hsl(174, 58%, 38%)";
   const tiffanyLightColor = "hsl(174, 58%, 50%)";
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!imagePreview) {
+      toast.error("Загрузите рисунок");
+      return;
+    }
+
+    setIsCreating(true);
+
+    const sessionId = localStorage.getItem("sessionId") || crypto.randomUUID();
+    localStorage.setItem("sessionId", sessionId);
+    localStorage.setItem("appTheme", "kids");
+
+    const { data: newApp, error } = await api.createApplication({
+      session_id: sessionId,
+      form_factor: "round",
+      material: "silver",
+      size: "pendant",
+      input_image_url: imagePreview,
+      user_comment: "Детский рисунок",
+    });
+
+    if (error || !newApp) {
+      toast.error("Не удалось создать заявку");
+      setIsCreating(false);
+      return;
+    }
+
+    navigate(`/application/${newApp.id}`);
+  };
 
   return (
     <div className="min-h-screen bg-background theme-kids">
@@ -86,18 +136,54 @@ const KidsLanding = () => {
                 драгоценный артефакт, который можно носить с собой
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/create">
-                  <Button size="lg" className="text-primary-foreground hover:opacity-90 px-8" style={{ background: 'linear-gradient(135deg, hsl(174, 58%, 45%) 0%, hsl(174, 58%, 32%) 100%)', boxShadow: '0 0 50px hsl(174, 58%, 38%, 0.3)' }}>
-                    Создать украшение
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </Link>
-                <Link to="/examples">
-                  <Button size="lg" variant="outline" className="hover:bg-coral/10" style={{ borderColor: 'hsl(174, 58%, 38%, 0.5)', color: tiffanyColor }}>
-                    Посмотреть примеры
-                  </Button>
-                </Link>
+            </div>
+
+            {/* Upload Section - прямо на лендинге */}
+            <div className="mt-12 max-w-xl mx-auto">
+              <div className="p-8 rounded-2xl bg-gradient-card border-2 border-dashed transition-colors" style={{ borderColor: imagePreview ? tiffanyColor : 'hsl(174, 58%, 38%, 0.3)' }}>
+                {!imagePreview ? (
+                  <label className="flex flex-col items-center cursor-pointer">
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4" style={{ background: 'hsl(174, 58%, 38%, 0.1)' }}>
+                      <Upload className="w-10 h-10" style={{ color: tiffanyColor }} />
+                    </div>
+                    <p className="text-lg font-display mb-2">Загрузите детский рисунок</p>
+                    <p className="text-sm text-muted-foreground text-center mb-4">
+                      Подойдёт любой рисунок — карандашом, красками, фломастерами
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button variant="outline" style={{ borderColor: 'hsl(174, 58%, 38%, 0.5)', color: tiffanyColor }}>
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      Выбрать файл
+                    </Button>
+                  </label>
+                ) : (
+                  <div className="text-center">
+                    <div className="relative w-48 h-48 mx-auto mb-4 rounded-xl overflow-hidden border-2" style={{ borderColor: tiffanyColor }}>
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setImagePreview(null)}
+                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/80 flex items-center justify-center text-foreground hover:bg-background"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <Button
+                      size="lg"
+                      onClick={handleCreate}
+                      disabled={isCreating}
+                      className="text-primary-foreground hover:opacity-90 px-8"
+                      style={{ background: 'linear-gradient(135deg, hsl(174, 58%, 45%) 0%, hsl(174, 58%, 32%) 100%)', boxShadow: '0 0 50px hsl(174, 58%, 38%, 0.3)' }}
+                    >
+                      {isCreating ? "Создаём..." : "Создать украшение"}
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 

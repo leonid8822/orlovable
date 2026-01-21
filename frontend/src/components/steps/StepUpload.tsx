@@ -1,10 +1,16 @@
-import { Sparkles, Circle, Hexagon, RectangleHorizontal } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, Circle, RectangleVertical, Hexagon, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUploader } from "@/components/ImageUploader";
 import { cn } from "@/lib/utils";
-import type { PendantConfig, SizeOption } from "@/types/pendant";
-import { SIZE_CONFIG, getSizeConfigWithDefaults } from "@/types/pendant";
+import type { PendantConfig, FormFactor } from "@/types/pendant";
+import { FORM_CONFIG } from "@/types/pendant";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface StepUploadProps {
   config: PendantConfig;
@@ -13,24 +19,24 @@ interface StepUploadProps {
   isDisabled?: boolean;
 }
 
-// Size card component
-function SizeCard({
-  size,
+// Form selection card component
+function FormCard({
+  formFactor,
   selected,
   onSelect,
   disabled,
 }: {
-  size: SizeOption;
+  formFactor: FormFactor;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
 }) {
-  const config = SIZE_CONFIG[size];
+  const config = FORM_CONFIG[formFactor];
 
-  const icons: Record<SizeOption, React.ReactNode> = {
-    s: <Circle className="w-8 h-8" />,
-    m: <RectangleHorizontal className="w-8 h-8" />,
-    l: <Hexagon className="w-8 h-8" />,
+  const icons: Record<FormFactor, React.ReactNode> = {
+    round: <Circle className="w-8 h-8" />,
+    oval: <RectangleVertical className="w-8 h-8" />,
+    contour: <Hexagon className="w-8 h-8" />,
   };
 
   return (
@@ -45,11 +51,10 @@ function SizeCard({
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      {icons[size]}
+      {icons[formFactor]}
       <div className="text-center">
-        <p className="text-2xl font-display font-bold">{config.label}</p>
-        <p className="text-sm">{config.dimensions}</p>
-        <p className="text-xs opacity-70">{config.gender}</p>
+        <p className="text-lg font-display font-bold">{config.label}</p>
+        <p className="text-xs opacity-70">{config.description}</p>
       </div>
     </button>
   );
@@ -61,7 +66,8 @@ export function StepUpload({
   onStartGeneration,
   isDisabled = false,
 }: StepUploadProps) {
-  const sizeOptions: SizeOption[] = ["s", "m", "l"];
+  const [showComment, setShowComment] = useState(false);
+  const formOptions: FormFactor[] = ["round", "oval", "contour"];
 
   const handleImageSelect = (file: File) => {
     const reader = new FileReader();
@@ -84,11 +90,9 @@ export function StepUpload({
     });
   };
 
-  const handleSizeSelect = (size: SizeOption) => {
-    const sizeDefaults = getSizeConfigWithDefaults(size);
+  const handleFormSelect = (formFactor: FormFactor) => {
     onConfigChange({
-      sizeOption: size,
-      ...sizeDefaults,
+      formFactor,
     });
   };
 
@@ -118,37 +122,53 @@ export function StepUpload({
           disabled={isDisabled}
         />
 
-        {/* Comment field */}
+        {/* Form factor selection */}
         <div className="space-y-3">
           <label className="text-sm font-medium text-foreground">
-            Комментарий к изображению (опционально)
-          </label>
-          <Textarea
-            placeholder="Опишите, какие элементы взять с рисунка..."
-            value={config.comment}
-            onChange={(e) => onConfigChange({ comment: e.target.value })}
-            className="min-h-[80px] bg-card border-border focus:border-gold resize-none"
-            disabled={isDisabled}
-          />
-        </div>
-
-        {/* Size selection */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-foreground">
-            Размер украшения
+            Форма украшения
           </label>
           <div className="grid grid-cols-3 gap-3">
-            {sizeOptions.map((size) => (
-              <SizeCard
-                key={size}
-                size={size}
-                selected={config.sizeOption === size}
-                onSelect={() => handleSizeSelect(size)}
+            {formOptions.map((form) => (
+              <FormCard
+                key={form}
+                formFactor={form}
+                selected={config.formFactor === form}
+                onSelect={() => handleFormSelect(form)}
                 disabled={isDisabled}
               />
             ))}
           </div>
         </div>
+
+        {/* Collapsible comment field */}
+        <Collapsible open={showComment} onOpenChange={setShowComment}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between text-muted-foreground hover:text-foreground"
+              disabled={isDisabled}
+            >
+              <span className="text-sm">
+                {config.comment ? "Комментарий добавлен" : "Добавить комментарий (опционально)"}
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  showComment && "rotate-180"
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <Textarea
+              placeholder="Если на картинке несколько объектов, укажите какой использовать..."
+              value={config.comment}
+              onChange={(e) => onConfigChange({ comment: e.target.value })}
+              className="min-h-[80px] bg-card border-border focus:border-gold resize-none"
+              disabled={isDisabled}
+            />
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Generate button */}
         <Button
@@ -183,8 +203,7 @@ export function StepUpload({
                     Загруженное изображение
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    Размер: {SIZE_CONFIG[config.sizeOption].label} (
-                    {SIZE_CONFIG[config.sizeOption].dimensions})
+                    Форма: {FORM_CONFIG[config.formFactor].label}
                   </p>
                 </div>
               </div>

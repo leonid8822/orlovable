@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { StepIndicator } from "@/components/StepIndicator";
@@ -15,6 +15,7 @@ import {
 import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 
 // State machine: valid transitions
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
@@ -27,6 +28,17 @@ const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
 const Application = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // Get theme from localStorage
+  const appTheme = useMemo<AppTheme>(() => {
+    const saved = localStorage.getItem("appTheme");
+    if (saved === "kids" || saved === "totems" || saved === "main") {
+      return saved;
+    }
+    return "main";
+  }, []);
+
+  const themeConfig = themeConfigs[appTheme];
 
   // State
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
@@ -243,35 +255,36 @@ const Application = () => {
     loadApplication();
   }, [id, navigate]);
 
+  // Get theme-specific classes
+  const themeClass = appTheme === "kids" ? "theme-kids" : appTheme === "totems" ? "theme-totems" : "";
+
   // Render loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-dark flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gold" />
+      <div className={`min-h-screen bg-background flex items-center justify-center ${themeClass}`}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: themeConfig.accentColor }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      <Header applicationId={applicationId} />
+    <ThemeProvider theme={appTheme}>
+      <div className={`min-h-screen bg-background ${themeClass}`}>
+        <Header applicationId={applicationId} />
 
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          {/* Hero section - only on UPLOAD without image */}
-          {currentStep === AppStep.UPLOAD && !config.imagePreview && (
-            <div className="text-center mb-12 animate-fade-in">
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-display mb-4">
-                Создайте <span className="text-gradient-gold">уникальное</span>
-                <br />
-                украшение
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-                Превратите ваш рисунок или фотографию в эксклюзивное ювелирное
-                изделие ручной работы
-              </p>
-            </div>
-          )}
+        <main className="pt-24 pb-16 px-4">
+          <div className="container mx-auto max-w-6xl">
+            {/* Hero section - only on UPLOAD without image */}
+            {currentStep === AppStep.UPLOAD && !config.imagePreview && (
+              <div className="text-center mb-12 animate-fade-in">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-display mb-4">
+                  {themeConfig.heroTitle}
+                </h1>
+                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+                  {themeConfig.heroSubtitle}
+                </p>
+              </div>
+            )}
 
           {/* Step indicator */}
           <div className="mb-12">
@@ -319,13 +332,14 @@ const Application = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>&copy; 2024 OLAI.art. Все права защищены.</p>
-        </div>
-      </footer>
-    </div>
+        {/* Footer */}
+        <footer className="border-t border-border/50 py-8">
+          <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+            <p>&copy; 2024 OLAI.art. Все права защищены.</p>
+          </div>
+        </footer>
+      </div>
+    </ThemeProvider>
   );
 };
 

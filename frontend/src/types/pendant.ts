@@ -17,29 +17,106 @@ export const STEP_TITLES: Record<AppStep, string> = {
 // Visible steps in indicator (GENERATING is part of UPLOAD visually)
 export const VISIBLE_STEPS: AppStep[] = [AppStep.UPLOAD, AppStep.SELECTION, AppStep.CHECKOUT];
 
-// Form factors
-export type FormFactor = 'round' | 'contour' | 'oval';
+// Form factors - теперь выбираются отдельно от размера
+export type FormFactor = 'round' | 'oval' | 'contour';
 export type Material = 'silver' | 'gold';
 export type Size = 'interior' | 'pendant' | 'bracelet';
 
-// New size option system
+// Size option - выбирается в конце, зависит от материала
 export type SizeOption = 's' | 'm' | 'l';
 
-export interface SizeConfig {
+// Конфигурация формы (выбирается в начале)
+export interface FormConfig {
   label: string;
-  dimensions: string;
-  dimensionsMm: number;
-  formFactor: FormFactor;
-  gender: string;
   description: string;
-  apiSize: Size; // for API compatibility
+  gender: string;
+  icon: string; // emoji или иконка
 }
 
-export const SIZE_CONFIG: Record<SizeOption, SizeConfig> = {
+export const FORM_CONFIG: Record<FormFactor, FormConfig> = {
+  round: {
+    label: 'Женская',
+    description: 'Круглый кулон',
+    gender: 'женский',
+    icon: '○'
+  },
+  oval: {
+    label: 'Мужская',
+    description: 'Вертикальный жетон',
+    gender: 'мужской',
+    icon: '⬭'
+  },
+  contour: {
+    label: 'Контурная',
+    description: 'По контуру рисунка',
+    gender: 'универсальный',
+    icon: '◇'
+  }
+};
+
+// Конфигурация размера (зависит от материала)
+export interface SizeConfig {
+  label: string;
+  dimensionsMm: number;
+  dimensions: string;
+  apiSize: Size;
+}
+
+// Размеры для серебра: S=13мм, M=19мм, L=25мм
+export const SILVER_SIZE_CONFIG: Record<SizeOption, SizeConfig> = {
   s: {
     label: 'S',
-    dimensions: '11мм',
-    dimensionsMm: 11,
+    dimensionsMm: 13,
+    dimensions: '13мм',
+    apiSize: 'bracelet'
+  },
+  m: {
+    label: 'M',
+    dimensionsMm: 19,
+    dimensions: '19мм',
+    apiSize: 'pendant'
+  },
+  l: {
+    label: 'L',
+    dimensionsMm: 25,
+    dimensions: '25мм',
+    apiSize: 'interior'
+  }
+};
+
+// Размеры для золота: S=10мм, M=13мм, L=19мм
+export const GOLD_SIZE_CONFIG: Record<SizeOption, SizeConfig> = {
+  s: {
+    label: 'S',
+    dimensionsMm: 10,
+    dimensions: '10мм',
+    apiSize: 'bracelet'
+  },
+  m: {
+    label: 'M',
+    dimensionsMm: 13,
+    dimensions: '13мм',
+    apiSize: 'pendant'
+  },
+  l: {
+    label: 'L',
+    dimensionsMm: 19,
+    dimensions: '19мм',
+    apiSize: 'interior'
+  }
+};
+
+// Функция для получения конфига размеров по материалу
+export function getSizeConfigByMaterial(material: Material): Record<SizeOption, SizeConfig> {
+  return material === 'gold' ? GOLD_SIZE_CONFIG : SILVER_SIZE_CONFIG;
+}
+
+// Legacy SIZE_CONFIG для совместимости (используем серебро по умолчанию)
+export const SIZE_CONFIG: Record<SizeOption, SizeConfig & { formFactor: FormFactor; gender: string; description: string }> = {
+  s: {
+    label: 'S',
+    dimensions: '13мм',
+    dimensionsMm: 13,
     formFactor: 'round',
     gender: 'женский',
     description: 'Круглый кулон',
@@ -47,8 +124,8 @@ export const SIZE_CONFIG: Record<SizeOption, SizeConfig> = {
   },
   m: {
     label: 'M',
-    dimensions: '18мм',
-    dimensionsMm: 18,
+    dimensions: '19мм',
+    dimensionsMm: 19,
     formFactor: 'oval',
     gender: 'мужской',
     description: 'Жетон',
@@ -112,7 +189,13 @@ export const initialPendantConfig: PendantConfig = {
   hasBackEngraving: false,
 };
 
-// Helper to get size config and update related fields
+// Helper to get API size from size option and material
+export function getApiSizeFromOption(sizeOption: SizeOption, material: Material): Size {
+  const config = getSizeConfigByMaterial(material);
+  return config[sizeOption].apiSize;
+}
+
+// Legacy helper (kept for compatibility)
 export function getSizeConfigWithDefaults(sizeOption: SizeOption): {
   formFactor: FormFactor;
   size: Size;
@@ -133,8 +216,8 @@ export const sizeLabels: Record<Size, string> = {
 
 export const sizeDimensions: Record<Size, string> = {
   interior: '25 мм',
-  pendant: '18 мм',
-  bracelet: '11 мм',
+  pendant: '19 мм',
+  bracelet: '13 мм',
 };
 
 export const materialLabels: Record<Material, string> = {
@@ -143,7 +226,7 @@ export const materialLabels: Record<Material, string> = {
 };
 
 export const formFactorLabels: Record<FormFactor, string> = {
-  round: 'Круглый',
-  contour: 'Контурный',
+  round: 'Круглая',
   oval: 'Жетон',
+  contour: 'Контурная',
 };

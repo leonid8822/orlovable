@@ -61,11 +61,17 @@
     --tiffany-light: 174 58% 50%;
     --tiffany-dark: 174 58% 28%;
 
+    /* Brown for totems theme */
+    --brown: 25 45% 35%;
+    --brown-light: 25 50% 45%;
+    --brown-dark: 25 40% 25%;
+
     /* Gradients */
     --gradient-gold: linear-gradient(135deg, hsl(43 74% 55%) 0%, hsl(43 74% 40%) 100%);
     --gradient-dark: linear-gradient(180deg, hsl(40 30% 97%) 0%, hsl(40 25% 92%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(40 20% 95%) 100%);
     --gradient-tiffany: linear-gradient(135deg, hsl(174 58% 45%) 0%, hsl(174 58% 32%) 100%);
+    --gradient-brown: linear-gradient(135deg, hsl(25 50% 45%) 0%, hsl(25 40% 30%) 100%);
 
     /* Shadows */
     --shadow-gold: 0 4px 24px hsl(43 74% 45% / 0.2);
@@ -73,6 +79,8 @@
     --shadow-glow: 0 0 50px hsl(43 74% 45% / 0.15);
     --shadow-tiffany: 0 4px 24px hsl(174 58% 38% / 0.2);
     --shadow-glow-tiffany: 0 0 50px hsl(174 58% 38% / 0.15);
+    --shadow-brown: 0 4px 24px hsl(25 45% 35% / 0.2);
+    --shadow-glow-brown: 0 0 50px hsl(25 45% 35% / 0.15);
 
     /* Typography */
     --font-display: 'Cormorant Garamond', Georgia, serif;
@@ -257,6 +265,26 @@
 
   .shadow-glow-tiffany {
     box-shadow: var(--shadow-glow-tiffany);
+  }
+
+  /* Totems theme utilities - brown */
+  .text-gradient-brown {
+    background: linear-gradient(135deg, hsl(var(--brown-light)) 0%, hsl(var(--brown)) 50%, hsl(var(--brown-dark)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-brown {
+    background: var(--gradient-brown);
+  }
+
+  .shadow-brown {
+    box-shadow: var(--shadow-brown);
+  }
+
+  .shadow-glow-brown {
+    box-shadow: var(--shadow-glow-brown);
   }
 
   .border-gold {

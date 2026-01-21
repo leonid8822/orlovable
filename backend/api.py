@@ -19,6 +19,7 @@ class GenerateRequest(BaseModel):
     material: str = 'silver'
     sessionId: Optional[str] = None
     applicationId: Optional[str] = None
+    theme: str = 'main'  # main, kids, totems
 
 
 class ApplicationCreate(BaseModel):
@@ -29,6 +30,7 @@ class ApplicationCreate(BaseModel):
     size: str = 'pendant'
     input_image_url: Optional[str] = None
     user_comment: Optional[str] = None
+    theme: str = 'main'  # main, kids, totems
 
 
 class ApplicationUpdate(BaseModel):
@@ -38,6 +40,7 @@ class ApplicationUpdate(BaseModel):
     user_comment: Optional[str] = None
     form_factor: Optional[str] = None
     size: Optional[str] = None
+    theme: Optional[str] = None
 
 
 class SettingsUpdate(BaseModel):
@@ -56,12 +59,25 @@ async def get_settings():
         "main_prompt": "",
         "main_prompt_no_image": "",
         "form_factors": {
-            "round": {"label": "Круглый кулон", "addition": "Объект вписан в круглую рамку-медальон."},
-            "contour": {"label": "Контурный кулон", "addition": ""}
+            "round": {
+                "label": "Женская (круглый)",
+                "addition": "Объект вписан в круглую рамку-медальон, изящный женственный дизайн.",
+                "shape": "круглая форма, объект вписан в круг"
+            },
+            "oval": {
+                "label": "Мужская (жетон)",
+                "addition": "Вертикальный жетон, строгий мужской дизайн, слегка вытянутая овальная форма.",
+                "shape": "вертикальный овал (жетон), вытянутая форма"
+            },
+            "contour": {
+                "label": "Контурный (универсальный)",
+                "addition": "Форма повторяет контур изображения, универсальный дизайн.",
+                "shape": "по контуру выбранного объекта"
+            }
         },
         "sizes": {
-            "bracelet": {"label": "S", "dimensions": "11мм"},
-            "pendant": {"label": "M", "dimensions": "18мм"},
+            "bracelet": {"label": "S", "dimensions": "13мм"},
+            "pendant": {"label": "M", "dimensions": "19мм"},
             "interior": {"label": "L", "dimensions": "25мм"}
         }
     }
@@ -155,6 +171,7 @@ async def create_application(app: ApplicationCreate):
             "size": app.size,
             "input_image_url": app.input_image_url,
             "user_comment": app.user_comment,
+            "theme": app.theme,
             "status": "pending_generation",
             "current_step": 1
         }
@@ -210,8 +227,66 @@ async def get_history(limit: int = 20):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Cost constants (fal.ai seedream v4 pricing)
+# Cost constants (fal.ai pricing)
 COST_PER_IMAGE_CENTS = 3
+COST_REMOVE_BG_CENTS = 1  # Background removal cost
+
+
+async def remove_background(image_url: str, fal_key: str) -> str:
+    """Remove background from image using FAL.ai birefnet model"""
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(
+                "https://queue.fal.run/fal-ai/birefnet",
+                json={
+                    "image_url": image_url,
+                    "model": "General Use (Light)",
+                    "operating_resolution": "1024x1024",
+                    "output_format": "png"
+                },
+                headers={
+                    "Authorization": f"Key {fal_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            # Poll for results if queued
+            if "request_id" in result and "status_url" in result:
+                attempts = 0
+                max_attempts = 60
+
+                while attempts < max_attempts:
+                    await asyncio.sleep(1)
+                    status_res = await client.get(
+                        result["status_url"],
+                        headers={"Authorization": f"Key {fal_key}"}
+                    )
+                    status_data = status_res.json()
+
+                    if status_data.get("status") == "COMPLETED":
+                        result_res = await client.get(
+                            result["response_url"],
+                            headers={"Authorization": f"Key {fal_key}"}
+                        )
+                        final_result = result_res.json()
+                        if "image" in final_result:
+                            return final_result["image"]["url"]
+                        break
+                    elif status_data.get("status") == "FAILED":
+                        print(f"Background removal failed")
+                        return image_url
+
+                    attempts += 1
+
+            elif "image" in result:
+                return result["image"]["url"]
+
+            return image_url
+    except Exception as e:
+        print(f"Error removing background: {e}")
+        return image_url  # Return original on error
 
 
 @router.post("/generate")
@@ -236,11 +311,8 @@ async def generate_pendant(req: GenerateRequest):
 
     form_config = settings["form_factors"].get(req.formFactor, settings["form_factors"]["round"])
     form_addition = form_config.get("addition", "")
-
-    if req.formFactor == 'round':
-        form_shape = f"круглая форма, объект вписан в круг, размер {size_dimensions}"
-    else:
-        form_shape = f"по контуру выбранного объекта, размер {size_dimensions}"
+    form_shape_base = form_config.get("shape", "круглая форма, объект вписан в круг")
+    form_shape = f"{form_shape_base}, размер {size_dimensions}"
 
     if has_image:
         pendant_prompt = f"""Создай ювелирный кулон из референса на картинке.
@@ -320,8 +392,18 @@ async def generate_pendant(req: GenerateRequest):
             if not image_urls:
                 raise Exception("No images generated")
 
+            # Remove background from all generated images
+            print(f"Removing background from {len(image_urls)} images...")
+            images_with_transparent_bg = []
+            for img_url in image_urls:
+                transparent_url = await remove_background(img_url, fal_key)
+                images_with_transparent_bg.append(transparent_url)
+
+            image_urls = images_with_transparent_bg
+            print(f"Background removal complete")
+
             execution_time_ms = int((time.time() - start_time) * 1000)
-            cost_cents = len(image_urls) * COST_PER_IMAGE_CENTS
+            cost_cents = len(image_urls) * COST_PER_IMAGE_CENTS + len(image_urls) * COST_REMOVE_BG_CENTS
 
             # Save to Supabase
             gen_data = {
@@ -331,6 +413,7 @@ async def generate_pendant(req: GenerateRequest):
                 "form_factor": req.formFactor,
                 "material": req.material,
                 "size": req.size,
+                "theme": req.theme,
                 "output_images": image_urls,
                 "prompt_used": pendant_prompt,
                 "cost_cents": cost_cents,

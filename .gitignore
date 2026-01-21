@@ -12,3 +12,4 @@ google-credentials/
 backend/.env
 frontend/.env
 *.tgz
+frontend/gcs_key.json
