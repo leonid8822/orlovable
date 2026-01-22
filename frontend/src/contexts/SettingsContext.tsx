@@ -38,14 +38,21 @@ const defaultSettings: AppSettings = {
   main_prompt_no_image: "",
   form_factors: {
     round: {
-      label: "Женская",
-      description: "Круглый кулон",
+      label: "Круглый кулон",
+      description: "Женский круглый кулон",
       icon: "circle",
       addition: "Объект вписан в круглую рамку-медальон, изящный женственный дизайн.",
       shape: "круглая форма, объект вписан в круг"
     },
+    oval: {
+      label: "Жетон",
+      description: "Мужской жетон",
+      icon: "rectangle-vertical",
+      addition: "Вертикальный жетон, строгий мужской дизайн.",
+      shape: "вертикальный овал (жетон)"
+    },
     contour: {
-      label: "Контурная",
+      label: "Контурный кулон",
       description: "По контуру рисунка",
       icon: "hexagon",
       addition: "Форма повторяет контур изображения, универсальный дизайн.",
@@ -101,16 +108,16 @@ function normalizeSettings(data: any): AppSettings {
   if (data.main_prompt) result.main_prompt = data.main_prompt;
   if (data.main_prompt_no_image) result.main_prompt_no_image = data.main_prompt_no_image;
 
-  // Normalize form_factors - add missing fields
+  // Normalize form_factors - merge with defaults to preserve missing keys (like 'oval')
   if (data.form_factors) {
-    result.form_factors = {};
+    result.form_factors = { ...defaultSettings.form_factors };
     for (const [key, value] of Object.entries(data.form_factors as Record<string, any>)) {
       result.form_factors[key] = {
-        label: value.label || key,
-        description: value.description || '',
-        icon: value.icon || (key === 'round' ? 'circle' : key === 'contour' ? 'hexagon' : 'square'),
-        addition: value.addition || '',
-        shape: value.shape || '',
+        label: value.label || defaultSettings.form_factors[key]?.label || key,
+        description: value.description || defaultSettings.form_factors[key]?.description || '',
+        icon: value.icon || defaultSettings.form_factors[key]?.icon || 'square',
+        addition: value.addition || defaultSettings.form_factors[key]?.addition || '',
+        shape: value.shape || defaultSettings.form_factors[key]?.shape || '',
       };
     }
   }
