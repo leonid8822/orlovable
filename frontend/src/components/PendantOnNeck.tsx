@@ -2,7 +2,7 @@ import { FC, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { Material, SizeOption as PendantSizeOption, FormFactor } from "@/types/pendant";
 import { getSizeConfigByMaterial } from "@/types/pendant";
-import { useVisualization } from "@/contexts/SettingsContext";
+import { useVisualization, useSettings } from "@/contexts/SettingsContext";
 
 type SizeOption = "s" | "m" | "l";
 
@@ -26,14 +26,15 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
   className = "",
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
-  const [isZoomed, setIsZoomed] = useState(false);
+  const { settings } = useSettings();
   const visualization = useVisualization();
   const sizeConfig = getSizeConfigByMaterial(material);
   const currentSize = sizeConfig[selectedSize];
 
-  // Determine which neck SVG and attachment point to use based on form factor
-  const isMale = formFactor === "oval";
-  const neckSvg = isMale ? "/man-neck-2.svg" : "/woman-neck.svg";
+  // Determine which neck photo and attachment point to use based on form factor gender from settings
+  const formFactorConfig = settings.form_factors[formFactor];
+  const isMale = formFactorConfig?.gender === "male";
+  const neckPhoto = isMale ? "/man-back.jpg" : "/woman-back.jpg";
   const attachPoint = isMale ? visualization.male : visualization.female;
 
   // Calculate pendant size based on real mm dimensions and image width
@@ -62,51 +63,34 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
     ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
     : "none";
 
-  // Calculate zoom transform origin to center on pendant
-  const zoomScale = 2.2;
-  const zoomOriginX = pendantX;
-  const zoomOriginY = pendantY;
-
   return (
     <div className={cn("flex flex-col items-center", className)}>
       {/* Preview container */}
       <div
-        className="relative w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden cursor-pointer"
-        style={{
-          background: "linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(40, 20%, 97%) 100%)",
-        }}
-        onClick={() => setIsZoomed(!isZoomed)}
+        className="relative w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden"
       >
-        {/* Zoomable content wrapper */}
-        <div
-          className="absolute inset-0 transition-transform duration-500 ease-out"
-          style={{
-            transform: isZoomed ? `scale(${zoomScale})` : "scale(1)",
-            transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
-          }}
-        >
-          {/* Neck silhouette from SVG file */}
+        {/* Content wrapper */}
+        <div className="absolute inset-0">
+          {/* Neck photo background */}
           <img
-            src={neckSvg}
-            alt="Neck silhouette"
-            className="absolute inset-0 w-full h-full object-contain"
-            style={{
-              opacity: 0.3,
-              filter: "sepia(0.3) brightness(0.8)",
-            }}
+            src={neckPhoto}
+            alt="Neck photo"
+            className="absolute inset-0 w-full h-full object-cover"
           />
 
-          {/* Pendant - positioned at attachment point */}
+          {/* Pendant - positioned at attachment point (grows from top) */}
           {pendantImage && (
             <div
               className={cn(
-                "absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-out",
+                "absolute transition-all duration-300 ease-out",
                 isAnimating && "scale-105"
               )}
               style={{
                 left: `${pendantX}%`,
                 top: `${pendantY}%`,
                 width: `${pendantSizePercent}%`,
+                transform: 'translate(-50%, -10%)',
+                transformOrigin: 'top center',
               }}
             >
               <img
@@ -115,7 +99,6 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
                 className="w-full h-full object-contain"
                 style={{
                   filter: pendantFilter,
-                  mixBlendMode: "multiply", // Makes black background transparent on light bg
                 }}
               />
             </div>
@@ -124,12 +107,14 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
           {/* Placeholder if no image */}
           {!pendantImage && (
             <div
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-out flex items-center justify-center rounded-xl"
+              className="absolute transition-all duration-300 ease-out flex items-center justify-center rounded-xl"
               style={{
                 left: `${pendantX}%`,
                 top: `${pendantY}%`,
                 width: `${pendantSizePercent}%`,
                 aspectRatio: "1",
+                transform: 'translate(-50%, -10%)',
+                transformOrigin: 'top center',
                 background: `linear-gradient(135deg, ${chainColor}40 0%, ${chainColor}20 100%)`,
                 border: `2px dashed ${chainColor}60`,
               }}
@@ -138,40 +123,7 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
             </div>
           )}
         </div>
-
-        {/* Size indicator badge */}
-        <div
-          className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-sm font-medium z-10"
-          style={{
-            background: `${chainColor}20`,
-            color: chainColor,
-            border: `1px solid ${chainColor}40`,
-          }}
-        >
-          {currentSize.dimensions}
-        </div>
-
-        {/* Zoom hint */}
-        <div
-          className={cn(
-            "absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs z-10 transition-opacity duration-300",
-            isZoomed ? "opacity-0" : "opacity-70"
-          )}
-          style={{
-            background: "rgba(0,0,0,0.5)",
-            color: "white",
-          }}
-        >
-          Нажмите для увеличения
-        </div>
       </div>
-
-      {/* Size description */}
-      <p className="mt-4 text-sm text-muted-foreground text-center max-w-[280px]">
-        {selectedSize === "s" && "Компактный размер — изящный миниатюрный кулон"}
-        {selectedSize === "m" && "Классический размер — универсальный выбор"}
-        {selectedSize === "l" && "Выразительный размер — заметный акцент"}
-      </p>
     </div>
   );
 };

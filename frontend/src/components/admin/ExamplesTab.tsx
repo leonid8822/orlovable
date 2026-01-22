@@ -110,6 +110,7 @@ export function ExamplesTab() {
         title: 'Новый пример',
         display_order: maxOrder + 1,
         is_active: false,
+        theme: themeFilter !== 'all' ? themeFilter : 'main',
       })
       .select()
       .single();
@@ -139,6 +140,7 @@ export function ExamplesTab() {
       after_image_url: afterUrl,
       display_order: maxOrder + 1,
       is_active: false,
+      theme: themeFilter !== 'all' ? themeFilter : 'main',
     };
 
     console.log('Insert data:', insertData);
@@ -161,8 +163,8 @@ export function ExamplesTab() {
   };
 
   const handleSave = async (id: string) => {
-    // Remove fields that shouldn't be updated (theme column doesn't exist in DB)
-    const { id: _, created_at, theme, ...updateData } = editData as Example;
+    // Remove fields that shouldn't be updated
+    const { id: _, created_at, ...updateData } = editData as Example;
 
     console.log('Saving example:', id, updateData);
 
