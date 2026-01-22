@@ -72,18 +72,28 @@ export function ExamplesTab() {
   };
 
   const fetchGenerations = async () => {
+    console.log('Fetching generations...');
     const { data, error } = await supabase
       .from('pendant_generations')
       .select('id, input_image_url, output_images, form_factor, material, size, created_at')
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (!error && data) {
+    console.log('Generations fetched:', { data, error });
+
+    if (error) {
+      console.error('Error fetching generations:', error);
+      toast.error(`Ошибка загрузки генераций: ${error.message}`);
+      return;
+    }
+
+    if (data) {
       // Filter out generations with base64 input images (too large) and empty output
-      const validGenerations = data.filter(g => 
+      const validGenerations = data.filter(g =>
         g.output_images && g.output_images.length > 0 &&
         (!g.input_image_url || !g.input_image_url.startsWith('data:'))
       );
+      console.log('Valid generations:', validGenerations.length, 'of', data.length);
       setGenerations(validGenerations);
     }
   };
@@ -100,7 +110,6 @@ export function ExamplesTab() {
         title: 'Новый пример',
         display_order: maxOrder + 1,
         is_active: false,
-        theme: themeFilter !== 'all' ? themeFilter : 'main',
       })
       .select()
       .single();
@@ -117,26 +126,34 @@ export function ExamplesTab() {
 
   const handleImportFromGeneration = async (generation: Generation) => {
     const maxOrder = examples.reduce((max, e) => Math.max(max, e.display_order || 0), 0);
-    
+
     // Use first output image as after_image
     const afterUrl = generation.output_images[0] || null;
-    
+
+    console.log('Importing generation:', generation.id, 'afterUrl:', afterUrl);
+
+    const insertData = {
+      title: `${generation.form_factor === 'round' ? 'Круглый' : 'По контуру'} кулон`,
+      description: `${generation.material === 'gold' ? 'Золото' : 'Серебро'}, ${generation.size === 'pendant' ? 'подвеска' : generation.size === 'bracelet' ? 'браслет' : 'интерьер'}`,
+      before_image_url: null,
+      after_image_url: afterUrl,
+      display_order: maxOrder + 1,
+      is_active: false,
+    };
+
+    console.log('Insert data:', insertData);
+
     const { data, error } = await supabase
       .from('examples')
-      .insert({
-        title: `${generation.form_factor === 'round' ? 'Круглый' : 'По контуру'} кулон`,
-        description: `${generation.material === 'gold' ? 'Золото' : 'Серебро'}, ${generation.size === 'pendant' ? 'подвеска' : generation.size === 'bracelet' ? 'браслет' : 'интерьер'}`,
-        before_image_url: null, // We don't store input images as URLs anymore
-        after_image_url: afterUrl,
-        display_order: maxOrder + 1,
-        is_active: false,
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      toast.error('Ошибка импорта');
+      console.error('Import error:', error);
+      toast.error(`Ошибка импорта: ${error.message}`);
     } else {
+      console.log('Import success:', data);
       setExamples([...examples, data]);
       toast.success('Пример импортирован');
       setImportDialogOpen(false);
@@ -144,15 +161,21 @@ export function ExamplesTab() {
   };
 
   const handleSave = async (id: string) => {
+    // Remove fields that shouldn't be updated (theme column doesn't exist in DB)
+    const { id: _, created_at, theme, ...updateData } = editData as Example;
+
+    console.log('Saving example:', id, updateData);
+
     const { error } = await supabase
       .from('examples')
-      .update(editData)
+      .update(updateData)
       .eq('id', id);
 
     if (error) {
-      toast.error('Ошибка сохранения');
+      console.error('Save error:', error);
+      toast.error(`Ошибка сохранения: ${error.message}`);
     } else {
-      setExamples(examples.map(e => e.id === id ? { ...e, ...editData } : e));
+      setExamples(examples.map(e => e.id === id ? { ...e, ...updateData } : e));
       setEditingId(null);
       setEditData({});
       toast.success('Сохранено');
