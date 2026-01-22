@@ -50,6 +50,7 @@ class SettingsUpdate(BaseModel):
     form_factors: Optional[dict] = None
     sizes: Optional[dict] = None
     materials: Optional[dict] = None
+    visualization: Optional[dict] = None
 
 
 @router.get("/settings")
@@ -97,6 +98,11 @@ async def get_settings():
         "materials": {
             "silver": {"label": "Серебро 925", "enabled": True},
             "gold": {"label": "Золото 585", "enabled": False}
+        },
+        "visualization": {
+            "imageWidthMm": 250,
+            "female": {"attachX": 0.5, "attachY": 0.5},
+            "male": {"attachX": 0.5, "attachY": 0.75}
         }
     }
 
@@ -122,6 +128,8 @@ async def get_settings():
                 result['sizes'] = value
             elif key == 'materials' and isinstance(value, dict):
                 result['materials'] = value
+            elif key == 'visualization' and isinstance(value, dict):
+                result['visualization'] = value
             elif key in ['main_prompt', 'main_prompt_no_image']:
                 result[key] = str(value) if value else ""
 
@@ -158,6 +166,8 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('sizes', updates.sizes)
         if updates.materials:
             await set_val('materials', updates.materials)
+        if updates.visualization:
+            await set_val('visualization', updates.visualization)
 
         return {"success": True}
     except Exception as e:
