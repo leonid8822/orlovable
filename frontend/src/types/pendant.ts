@@ -178,10 +178,10 @@ export const initialPendantConfig: PendantConfig = {
   generatedPreview: null,
   comment: '',
   orderComment: '',
-  sizeOption: 's',
+  sizeOption: 'm',  // Default: M
   formFactor: 'round',
   material: 'silver',
-  size: 'bracelet',
+  size: 'pendant',  // M = pendant
   // Legacy
   backImage: null,
   backImagePreview: null,

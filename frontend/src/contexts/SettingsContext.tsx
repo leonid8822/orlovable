@@ -22,6 +22,19 @@ export interface MaterialConfig {
   enabled: boolean;
 }
 
+// Visualization settings for pendant on neck preview
+export interface VisualizationConfig {
+  imageWidthMm: number; // Width of the preview image in mm (for scale calculation)
+  female: {
+    attachX: number; // X position of pendant attachment (0-1, from left)
+    attachY: number; // Y position of pendant attachment (0-1, from top)
+  };
+  male: {
+    attachX: number;
+    attachY: number;
+  };
+}
+
 export interface AppSettings {
   num_images: number;
   main_prompt: string;
@@ -29,6 +42,7 @@ export interface AppSettings {
   form_factors: Record<string, FormFactorConfig>;
   sizes: Record<string, Record<string, SizeConfig>>; // material -> size -> config
   materials: Record<string, MaterialConfig>;
+  visualization: VisualizationConfig;
 }
 
 // Default settings (fallback)
@@ -61,8 +75,8 @@ const defaultSettings: AppSettings = {
   },
   sizes: {
     silver: {
-      s: { label: "S", dimensionsMm: 13, apiSize: "bracelet", price: 5000 },
-      m: { label: "M", dimensionsMm: 19, apiSize: "pendant", price: 8000 },
+      s: { label: "S", dimensionsMm: 11, apiSize: "bracelet", price: 5000 },
+      m: { label: "M", dimensionsMm: 18, apiSize: "pendant", price: 8000 },
       l: { label: "L", dimensionsMm: 25, apiSize: "interior", price: 12000 }
     },
     gold: {
@@ -74,6 +88,17 @@ const defaultSettings: AppSettings = {
   materials: {
     silver: { label: "Серебро 925", enabled: true },
     gold: { label: "Золото 585", enabled: false }
+  },
+  visualization: {
+    imageWidthMm: 250, // Preview image represents 250mm width
+    female: {
+      attachX: 0.5,  // Center horizontally
+      attachY: 0.5   // Middle of image
+    },
+    male: {
+      attachX: 0.5,  // Center horizontally
+      attachY: 0.75  // Lower on image (user specified -0.75 from top = 0.75 from top in 0-1 scale)
+    }
   }
 };
 
@@ -162,6 +187,21 @@ function normalizeSettings(data: any): AppSettings {
     result.materials = data.materials;
   }
 
+  // Normalize visualization
+  if (data.visualization) {
+    result.visualization = {
+      imageWidthMm: data.visualization.imageWidthMm || defaultSettings.visualization.imageWidthMm,
+      female: {
+        attachX: data.visualization.female?.attachX ?? defaultSettings.visualization.female.attachX,
+        attachY: data.visualization.female?.attachY ?? defaultSettings.visualization.female.attachY,
+      },
+      male: {
+        attachX: data.visualization.male?.attachX ?? defaultSettings.visualization.male.attachX,
+        attachY: data.visualization.male?.attachY ?? defaultSettings.visualization.male.attachY,
+      }
+    };
+  }
+
   return result;
 }
 
@@ -219,4 +259,9 @@ export const useMaterials = () => {
 export const usePrice = (material: string, size: string) => {
   const { settings } = useSettings();
   return settings.sizes[material]?.[size]?.price || 0;
+};
+
+export const useVisualization = () => {
+  const { settings } = useSettings();
+  return settings.visualization;
 };

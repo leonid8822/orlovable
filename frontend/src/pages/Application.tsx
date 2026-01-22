@@ -47,9 +47,18 @@ const Application = () => {
         console.log(`Transition: ${currentStep} -> ${nextStep}`);
         setCurrentStep(nextStep);
 
-        // Persist step to DB (map enum to string for storage)
+        // Persist step and status to DB
         if (applicationId) {
-          api.updateApplication(applicationId, { current_step: nextStep });
+          const updates: Record<string, unknown> = { current_step: nextStep };
+
+          // Update status when transitioning to checkout
+          if (nextStep === AppStep.CHECKOUT) {
+            updates.status = "checkout";
+          } else if (nextStep === AppStep.SELECTION) {
+            updates.status = "generated";
+          }
+
+          api.updateApplication(applicationId, updates);
         }
       } else {
         console.warn(`Invalid transition from ${currentStep} to ${nextStep}`);
@@ -196,41 +205,31 @@ const Application = () => {
         return;
       }
 
-      // Determine step based on status and available data
+      // Determine step based on status
       let determinedStep: AppStep;
 
-      if (data.status === "generating") {
-        // Generation in progress
-        determinedStep = AppStep.GENERATING;
-      } else if (data.status === "generated") {
-        // Generation complete - check if user selected a variant
-        // Map DB step to enum (handle legacy numeric steps)
-        const stepMap: Record<string | number, AppStep> = {
-          1: AppStep.UPLOAD,
-          2: AppStep.SELECTION,
-          3: AppStep.CHECKOUT,
-          4: AppStep.CHECKOUT,
-          UPLOAD: AppStep.UPLOAD,
-          GENERATING: AppStep.GENERATING,
-          SELECTION: AppStep.SELECTION,
-          CHECKOUT: AppStep.CHECKOUT,
-        };
-
-        const savedStep = stepMap[data.current_step];
-
-        // If saved step is CHECKOUT or SELECTION, use it
-        if (savedStep === AppStep.CHECKOUT) {
+      switch (data.status) {
+        case "generating":
+          determinedStep = AppStep.GENERATING;
+          break;
+        case "checkout":
+          // User is on checkout step - return them there
           determinedStep = AppStep.CHECKOUT;
-        } else {
-          // Default to SELECTION after generation
+          break;
+        case "generated":
+          // Generation complete - go to selection
           determinedStep = AppStep.SELECTION;
-        }
-      } else if (data.status === "pending_generation" && data.input_image_url) {
-        // Has image but not generated yet - start generation
-        determinedStep = AppStep.GENERATING;
-      } else {
-        // Draft or no image - upload step
-        determinedStep = AppStep.UPLOAD;
+          break;
+        case "pending_generation":
+          if (data.input_image_url) {
+            determinedStep = AppStep.GENERATING;
+          } else {
+            determinedStep = AppStep.UPLOAD;
+          }
+          break;
+        default:
+          // Draft or unknown - upload step
+          determinedStep = AppStep.UPLOAD;
       }
 
       setCurrentStep(determinedStep);
