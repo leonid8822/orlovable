@@ -21,7 +21,7 @@ interface ThemeConfig {
 export const themeConfigs: Record<AppTheme, ThemeConfig> = {
   main: {
     name: "main",
-    label: "OLAI.art",
+    label: "OLAI.ART",
     accentColor: "hsl(43, 74%, 45%)",
     accentColorLight: "hsl(43, 74%, 55%)",
     accentColorDark: "hsl(43, 74%, 35%)",
@@ -36,7 +36,7 @@ export const themeConfigs: Record<AppTheme, ThemeConfig> = {
   },
   kids: {
     name: "kids",
-    label: "OLAI Kids",
+    label: "OLAI.KIDS",
     accentColor: "hsl(174, 58%, 38%)",
     accentColorLight: "hsl(174, 58%, 50%)",
     accentColorDark: "hsl(174, 58%, 28%)",
@@ -51,7 +51,7 @@ export const themeConfigs: Record<AppTheme, ThemeConfig> = {
   },
   totems: {
     name: "totems",
-    label: "OLAI Totems",
+    label: "OLAI.TOTEMS",
     accentColor: "hsl(25, 45%, 35%)",
     accentColorLight: "hsl(25, 50%, 45%)",
     accentColorDark: "hsl(25, 40%, 25%)",

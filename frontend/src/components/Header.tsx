@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { AuthButton } from "./AuthButton";
 import { EagleIcon } from "./icons/EagleIcon";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 interface HeaderProps {
   applicationId?: string | null;
@@ -9,13 +10,23 @@ interface HeaderProps {
 export function Header({
   applicationId
 }: HeaderProps) {
+  const { config: themeConfig } = useAppTheme();
+
   return <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold group-hover:shadow-glow transition-shadow duration-300">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-shadow duration-300"
+            style={{
+              background: `linear-gradient(135deg, ${themeConfig.accentColor} 0%, ${themeConfig.accentColorDark} 100%)`,
+              boxShadow: `0 4px 14px ${themeConfig.accentColor}40`,
+            }}
+          >
             <EagleIcon className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display text-xl text-muted-foreground tracking-wide">OLAI<span className="text-foreground">.art</span>
+          <span className="font-display text-xl text-muted-foreground tracking-wide">
+            {themeConfig.label.split('.')[0]}
+            <span className="text-foreground">.{themeConfig.label.split('.')[1] || 'art'}</span>
           </span>
         </Link>
 

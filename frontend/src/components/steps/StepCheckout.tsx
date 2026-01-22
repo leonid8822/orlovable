@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, CreditCard, MessageCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, MessageCircle, Image, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PendantOnNeck, SizeOption } from "@/components/PendantOnNeck";
@@ -11,6 +11,8 @@ import {
   FORM_CONFIG,
 } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
+
+type PreviewMode = "pendant" | "on-neck";
 
 interface StepCheckoutProps {
   config: PendantConfig;
@@ -32,6 +34,7 @@ export function StepCheckout({
   onBack,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("on-neck");
   const { config: themeConfig } = useAppTheme();
 
   const sizeConfig = getSizeConfigByMaterial(config.material);
@@ -234,20 +237,88 @@ export function StepCheckout({
         </div>
       </div>
 
-      {/* Right: Pendant on Neck Preview */}
+      {/* Right: Preview with mode toggle */}
       <div
-        className="flex items-center justify-center animate-scale-in"
+        className="flex flex-col items-center animate-scale-in"
         style={{ animationDelay: "0.2s" }}
       >
-        <PendantOnNeck
-          pendantImage={config.generatedPreview}
-          selectedSize={config.sizeOption}
-          onSizeChange={handleSizeChange}
-          accentColor={themeConfig.accentColor}
-          material={config.material}
-          formFactor={config.formFactor}
-          className="w-full"
-        />
+        {/* Preview mode toggle */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setPreviewMode("pendant")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+              previewMode === "pendant"
+                ? "bg-card border-2"
+                : "bg-transparent border border-border hover:border-gold/50"
+            )}
+            style={{
+              borderColor: previewMode === "pendant" ? themeConfig.accentColor : undefined,
+            }}
+          >
+            <Image className="w-4 h-4" />
+            <span className="text-sm">Кулон</span>
+          </button>
+          <button
+            onClick={() => setPreviewMode("on-neck")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+              previewMode === "on-neck"
+                ? "bg-card border-2"
+                : "bg-transparent border border-border hover:border-gold/50"
+            )}
+            style={{
+              borderColor: previewMode === "on-neck" ? themeConfig.accentColor : undefined,
+            }}
+          >
+            <User className="w-4 h-4" />
+            <span className="text-sm">На шее</span>
+          </button>
+        </div>
+
+        {/* Preview content */}
+        {previewMode === "pendant" ? (
+          <div className="w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden bg-black flex items-center justify-center">
+            {config.generatedPreview ? (
+              <img
+                src={config.generatedPreview}
+                alt="Pendant preview"
+                className="w-full h-full object-contain"
+                style={{
+                  filter: config.material === "gold"
+                    ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
+                    : "none"
+                }}
+              />
+            ) : (
+              <span className="text-muted-foreground">Превью недоступно</span>
+            )}
+          </div>
+        ) : (
+          <PendantOnNeck
+            pendantImage={config.generatedPreview}
+            selectedSize={config.sizeOption}
+            onSizeChange={handleSizeChange}
+            accentColor={themeConfig.accentColor}
+            material={config.material}
+            formFactor={config.formFactor}
+            className="w-full"
+          />
+        )}
+
+        {/* Size indicator for pendant mode */}
+        {previewMode === "pendant" && (
+          <div
+            className="mt-3 px-3 py-1.5 rounded-full text-sm font-medium"
+            style={{
+              background: `${themeConfig.accentColor}20`,
+              color: themeConfig.accentColor,
+              border: `1px solid ${themeConfig.accentColor}40`,
+            }}
+          >
+            {currentSizeConfig.dimensions}
+          </div>
+        )}
       </div>
     </div>
   );

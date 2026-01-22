@@ -43,10 +43,9 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
   const basePendantSize = 18;
   const pendantSize = basePendantSize * visualConfig.scale;
 
-  // Position pendant at center-bottom of décolleté area
-  // These are percentages for absolute positioning
+  // Position pendant - attachment point at TOP of pendant (chain connects to top)
   const pendantX = 50; // Center horizontally
-  const pendantY = visualConfig.chainLength; // Varies by size
+  const pendantY = visualConfig.chainLength; // This is where the TOP of pendant attaches
 
   // Trigger animation on size change
   useEffect(() => {
@@ -55,12 +54,13 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
     return () => clearTimeout(timer);
   }, [selectedSize]);
 
-  // Get accent color based on material
-  const materialAccent = material === "gold"
-    ? "hsl(43, 74%, 50%)"
-    : "hsl(0, 0%, 70%)";
+  // Chain/accent color from theme
+  const displayAccent = accentColor || "hsl(0, 0%, 70%)";
 
-  const displayAccent = accentColor || materialAccent;
+  // Pendant tint based on material (applied as CSS filter)
+  const pendantFilter = material === "gold"
+    ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
+    : "none";
 
   return (
     <div className={cn("flex flex-col items-center", className)}>
@@ -89,12 +89,12 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
           style={{ pointerEvents: "none" }}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Chain - curves from sides of neck down to pendant attachment point */}
+          {/* Chain - curves from sides of neck down to pendant attachment point (TOP of pendant) */}
           <path
             d={`M 38 28
-                Q 44 38, 50 ${pendantY - pendantSize / 2 - 1}
+                Q 44 38, 50 ${pendantY - 1}
                 M 62 28
-                Q 56 38, 50 ${pendantY - pendantSize / 2 - 1}`}
+                Q 56 38, 50 ${pendantY - 1}`}
             stroke={displayAccent}
             strokeWidth="0.5"
             fill="none"
@@ -102,39 +102,35 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
             className="transition-all duration-300 ease-out"
           />
 
-          {/* Small bail/loop where pendant attaches */}
+          {/* Small bail/loop where pendant attaches at the bottom of chain */}
           <circle
             cx="50"
-            cy={pendantY - pendantSize / 2 - 1}
+            cy={pendantY - 1}
             r="0.8"
             fill={displayAccent}
             opacity="0.8"
           />
         </svg>
 
-        {/* Pendant */}
+        {/* Pendant - positioned with TOP at attachment point, no shape overlay */}
         {pendantImage && (
           <div
             className={cn(
-              "absolute transform -translate-x-1/2 -translate-y-1/2 overflow-hidden shadow-lg transition-all duration-300 ease-out",
-              isAnimating && "scale-105",
-              formFactor === "round" && "rounded-full",
-              formFactor === "oval" && "rounded-[40%]",
-              formFactor === "contour" && "rounded-xl"
+              "absolute transform -translate-x-1/2 overflow-hidden shadow-lg transition-all duration-300 ease-out",
+              isAnimating && "scale-105"
             )}
             style={{
               left: `${pendantX}%`,
               top: `${pendantY}%`,
               width: `${pendantSize}%`,
-              aspectRatio: formFactor === "oval" ? "0.7" : "1",
-              boxShadow: `0 4px 20px ${displayAccent}40`,
-              border: `2px solid ${displayAccent}`,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
             }}
           >
             <img
               src={pendantImage}
               alt="Pendant preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
+              style={{ filter: pendantFilter }}
             />
           </div>
         )}
@@ -142,17 +138,12 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
         {/* Placeholder if no image */}
         {!pendantImage && (
           <div
-            className={cn(
-              "absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-out flex items-center justify-center",
-              formFactor === "round" && "rounded-full",
-              formFactor === "oval" && "rounded-[40%]",
-              formFactor === "contour" && "rounded-xl"
-            )}
+            className="absolute transform -translate-x-1/2 transition-all duration-300 ease-out flex items-center justify-center rounded-xl"
             style={{
               left: `${pendantX}%`,
               top: `${pendantY}%`,
               width: `${pendantSize}%`,
-              aspectRatio: formFactor === "oval" ? "0.7" : "1",
+              aspectRatio: "1",
               background: `linear-gradient(135deg, ${displayAccent}40 0%, ${displayAccent}20 100%)`,
               border: `2px dashed ${displayAccent}60`,
             }}
