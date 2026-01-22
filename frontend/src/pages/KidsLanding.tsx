@@ -13,8 +13,7 @@ import {
   ArrowRight,
   Star,
   Gift,
-  Camera,
-  Play
+  Camera
 } from "lucide-react";
 
 // Fallback примеры для детских рисунков
@@ -103,62 +102,51 @@ const KidsLanding = () => {
         {/* Hero Section */}
         <section className="pt-28 pb-20 px-4">
           <div className="container mx-auto max-w-6xl">
-            <div className="text-center animate-fade-in">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-8" style={{ backgroundColor: 'hsl(174, 58%, 38%, 0.1)', borderColor: 'hsl(174, 58%, 38%, 0.2)' }}>
-                <Pencil className="w-4 h-4" style={{ color: tiffanyColor }} />
-                <span className="text-sm" style={{ color: tiffanyColor }}>Детские рисунки в украшениях</span>
+            {/* Desktop: side by side, Mobile: stacked */}
+            <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+              {/* Text content */}
+              <div className="flex-1 text-center lg:text-left animate-fade-in">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-8" style={{ backgroundColor: 'hsl(174, 58%, 38%, 0.1)', borderColor: 'hsl(174, 58%, 38%, 0.2)' }}>
+                  <Pencil className="w-4 h-4" style={{ color: tiffanyColor }} />
+                  <span className="text-sm" style={{ color: tiffanyColor }}>Детские рисунки в украшениях</span>
+                </div>
+
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-display mb-6 leading-tight">
+                  Сохраните <span className="text-gradient-tiffany">детское творчество</span>
+                  <br />навсегда
+                </h1>
+
+                <p className="text-lg md:text-xl text-muted-foreground max-w-xl lg:max-w-none mb-10">
+                  Превратите рисунок вашего ребёнка в ювелирное украшение —
+                  драгоценный артефакт, который можно носить с собой
+                </p>
+
+                <Button
+                  size="lg"
+                  onClick={scrollToConstructor}
+                  className="text-primary-foreground hover:opacity-90 px-10"
+                  style={{ background: 'linear-gradient(135deg, hsl(174, 58%, 45%) 0%, hsl(174, 58%, 32%) 100%)', boxShadow: '0 0 50px hsl(174, 58%, 38%, 0.3)' }}
+                >
+                  Создать украшение
+                  <Heart className="w-5 h-5 ml-2" />
+                </Button>
               </div>
 
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-display mb-6 leading-tight">
-                Сохраните <span className="text-gradient-tiffany">детское творчество</span>
-                <br />навсегда
-              </h1>
-
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-                Превратите рисунок вашего ребёнка в ювелирное украшение —
-                драгоценный артефакт, который можно носить с собой
-              </p>
-
-              <Button
-                size="lg"
-                onClick={scrollToConstructor}
-                className="text-primary-foreground hover:opacity-90 px-10"
-                style={{ background: 'linear-gradient(135deg, hsl(174, 58%, 45%) 0%, hsl(174, 58%, 32%) 100%)', boxShadow: '0 0 50px hsl(174, 58%, 38%, 0.3)' }}
-              >
-                Создать украшение
-                <Heart className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-
-            {/* Video Section */}
-            <div className="mt-16 max-w-4xl mx-auto">
-              <div className="relative rounded-2xl overflow-hidden border-2" style={{ borderColor: 'hsl(174, 58%, 38%, 0.3)' }}>
-                <div className="absolute -inset-1 rounded-2xl blur-xl" style={{ background: 'hsl(174, 58%, 38%, 0.2)' }} />
-                <div className="relative aspect-video bg-gradient-card">
-                  {/* Video placeholder - replace with actual video */}
-                  <video
-                    className="w-full h-full object-cover"
-                    poster="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&h=450&fit=crop"
-                    controls
-                    playsInline
-                  >
-                    {/* Add your video source here */}
-                    <source src="" type="video/mp4" />
-                  </video>
-                  {/* Play overlay when no video */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors cursor-pointer group">
-                    <div
-                      className="w-20 h-20 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                      style={{ background: 'linear-gradient(135deg, hsl(174, 58%, 45%) 0%, hsl(174, 58%, 32%) 100%)', boxShadow: '0 0 50px hsl(174, 58%, 38%, 0.5)' }}
+              {/* Video - vertical format */}
+              <div className="w-full lg:w-auto lg:flex-shrink-0">
+                <div className="relative rounded-2xl overflow-hidden border-2 mx-auto" style={{ borderColor: 'hsl(174, 58%, 38%, 0.3)', maxWidth: '320px' }}>
+                  <div className="absolute -inset-1 rounded-2xl blur-xl" style={{ background: 'hsl(174, 58%, 38%, 0.2)' }} />
+                  <div className="relative bg-gradient-card" style={{ aspectRatio: '9/16' }}>
+                    <video
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
                     >
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    </div>
+                      <source src="/olai_kids_main_2.mp4" type="video/mp4" />
+                    </video>
                   </div>
-                </div>
-                <div className="p-4 bg-card/80 backdrop-blur-sm">
-                  <p className="text-center text-sm text-muted-foreground">
-                    Посмотрите, как рисунок превращается в украшение
-                  </p>
                 </div>
               </div>
             </div>
