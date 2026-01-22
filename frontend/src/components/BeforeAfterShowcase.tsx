@@ -10,7 +10,7 @@ interface Example {
 
 interface BeforeAfterShowcaseProps {
   examples: Example[];
-  accentColor?: "gold" | "tiffany";
+  accentColor?: "gold" | "tiffany" | "brown";
   autoPlayInterval?: number;
 }
 
@@ -44,8 +44,39 @@ export function BeforeAfterShowcase({
   };
 
   const currentExample = examples[activeIndex];
-  const isGold = accentColor === "gold";
-  const tiffanyColor = "hsl(174,58%,38%)";
+
+  // Color configurations
+  const colorConfig = {
+    gold: {
+      bgLight: "bg-gold/20",
+      bgMedium: "bg-gold/30",
+      bgHeavy: "bg-gold/80",
+      borderLight: "border-gold/30",
+      borderMedium: "border-gold/50",
+      gradient: "bg-gradient-gold shadow-gold",
+      dot: "bg-gold",
+    },
+    tiffany: {
+      bgLight: "bg-[hsl(174,58%,38%)]/20",
+      bgMedium: "bg-[hsl(174,58%,38%)]/30",
+      bgHeavy: "bg-[hsl(174,58%,38%)]/80",
+      borderLight: "border-[hsl(174,58%,38%)]/30",
+      borderMedium: "border-[hsl(174,58%,38%)]/50",
+      gradient: "bg-[linear-gradient(135deg,hsl(174,58%,45%)_0%,hsl(174,58%,32%)_100%)] shadow-[0_0_50px_hsl(174,58%,38%,0.3)]",
+      dot: "bg-[hsl(174,58%,38%)]",
+    },
+    brown: {
+      bgLight: "bg-[hsl(25,45%,35%)]/20",
+      bgMedium: "bg-[hsl(25,45%,35%)]/30",
+      bgHeavy: "bg-[hsl(25,45%,35%)]/80",
+      borderLight: "border-[hsl(25,45%,35%)]/30",
+      borderMedium: "border-[hsl(25,45%,35%)]/50",
+      gradient: "bg-[linear-gradient(135deg,hsl(25,50%,45%)_0%,hsl(25,45%,30%)_100%)] shadow-[0_0_50px_hsl(25,45%,35%,0.3)]",
+      dot: "bg-[hsl(25,45%,35%)]",
+    },
+  };
+
+  const colors = colorConfig[accentColor];
 
   return (
     <div className="space-y-6">
@@ -57,22 +88,28 @@ export function BeforeAfterShowcase({
             <div
               className={cn(
                 "absolute -inset-1 rounded-2xl blur-xl transition-opacity duration-500",
-                isGold ? "bg-gold/20" : "bg-[hsl(174,58%,38%)]/20",
+                colors.bgLight,
                 isTransitioning ? "opacity-0" : "opacity-100"
               )}
             />
             <div
               className={cn(
                 "relative aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-500",
-                isGold ? "border-gold/30" : "border-[hsl(174,58%,38%)]/30",
+                colors.borderLight,
                 isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}
             >
-              <img
-                src={currentExample.before}
-                alt="До"
-                className="w-full h-full object-cover"
-              />
+              {currentExample.before ? (
+                <img
+                  src={currentExample.before}
+                  alt="До"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted/50 flex items-center justify-center">
+                  <span className="text-muted-foreground text-lg">До</span>
+                </div>
+              )}
               <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-full text-sm font-medium">
                 До
               </div>
@@ -84,9 +121,7 @@ export function BeforeAfterShowcase({
             <div
               className={cn(
                 "w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500",
-                isGold
-                  ? "bg-gradient-gold shadow-gold"
-                  : "bg-[linear-gradient(135deg,hsl(174,58%,45%)_0%,hsl(174,58%,32%)_100%)] shadow-[0_0_50px_hsl(350,80%,60%,0.3)]",
+                colors.gradient,
                 isTransitioning ? "scale-75 opacity-50" : "scale-100 opacity-100"
               )}
             >
@@ -99,14 +134,14 @@ export function BeforeAfterShowcase({
             <div
               className={cn(
                 "absolute -inset-1 rounded-2xl blur-xl transition-opacity duration-500",
-                isGold ? "bg-gold/30" : "bg-[hsl(174,58%,38%)]/30",
+                colors.bgMedium,
                 isTransitioning ? "opacity-0" : "opacity-100"
               )}
             />
             <div
               className={cn(
                 "relative aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-500",
-                isGold ? "border-gold/50" : "border-[hsl(174,58%,38%)]/50",
+                colors.borderMedium,
                 isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}
             >
@@ -118,9 +153,7 @@ export function BeforeAfterShowcase({
               <div
                 className={cn(
                   "absolute bottom-3 right-3 px-3 py-1.5 backdrop-blur-sm rounded-full text-sm font-medium text-white",
-                  isGold
-                    ? "bg-gold/80"
-                    : "bg-[hsl(174,58%,38%)]/80"
+                  colors.bgHeavy
                 )}
               >
                 Кулон
@@ -149,9 +182,7 @@ export function BeforeAfterShowcase({
             className={cn(
               "w-2 h-2 rounded-full transition-all duration-300",
               index === activeIndex
-                ? isGold
-                  ? "w-8 bg-gold"
-                  : "w-8 bg-[hsl(174,58%,38%)]"
+                ? cn("w-8", colors.dot)
                 : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
             )}
           />
