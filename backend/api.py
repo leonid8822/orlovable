@@ -357,8 +357,10 @@ async def generate_pendant(req: GenerateRequest):
     print(f"Starting pendant generation. Has image: {has_image}, Form: {req.formFactor}")
 
     # Build prompt
-    size_config = settings["sizes"].get(req.size, settings["sizes"]["pendant"])
-    size_dimensions = size_config.get("dimensions", "18мм")
+    # sizes structure: sizes[material][size_key] -> {label, price, apiSize, dimensionsMm}
+    material_sizes = settings["sizes"].get(req.material, settings["sizes"].get("silver", {}))
+    size_config = material_sizes.get(req.size, material_sizes.get("m", {}))
+    size_dimensions = f"{size_config.get('dimensionsMm', 18)}мм"
 
     form_config = settings["form_factors"].get(req.formFactor, settings["form_factors"]["round"])
     form_addition = form_config.get("addition", "")
