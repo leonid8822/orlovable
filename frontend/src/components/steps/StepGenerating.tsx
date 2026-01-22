@@ -4,7 +4,8 @@ import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { PendantConfig } from "@/types/pendant";
-import { SIZE_CONFIG } from "@/types/pendant";
+import { useFormFactors } from "@/contexts/SettingsContext";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 const funFacts = [
   "Первые ювелирные украшения появились более 100 000 лет назад...",
@@ -133,15 +134,23 @@ export function StepGenerating({
     return () => clearInterval(interval);
   }, []);
 
-  const sizeConfig = SIZE_CONFIG[config.sizeOption];
+  const formFactors = useFormFactors();
+  const { config: themeConfig } = useAppTheme();
+  const formFactorConfig = formFactors[config.formFactor];
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[500px] gap-8 animate-fade-in">
       {/* Uploaded image preview */}
       {config.imagePreview && (
         <div className="relative">
-          <div className="absolute inset-0 blur-2xl bg-gold/20 rounded-full" />
-          <div className="relative w-48 h-48 rounded-xl overflow-hidden border-2 border-gold/30 bg-card">
+          <div
+            className="absolute inset-0 blur-2xl rounded-full"
+            style={{ backgroundColor: `${themeConfig.accentColor}20` }}
+          />
+          <div
+            className="relative w-48 h-48 rounded-xl overflow-hidden bg-card"
+            style={{ borderWidth: 2, borderColor: `${themeConfig.accentColor}50` }}
+          >
             <img
               src={config.imagePreview}
               alt="Ваше изображение"
@@ -156,23 +165,37 @@ export function StepGenerating({
       {/* Loading animation */}
       <div className="text-center space-y-6">
         <div className="relative">
-          <Sparkles className="w-16 h-16 text-gold animate-pulse mx-auto" />
-          <div className="absolute inset-0 blur-xl bg-gold/30 rounded-full animate-pulse" />
+          <Sparkles
+            className="w-16 h-16 animate-pulse mx-auto"
+            style={{ color: themeConfig.accentColor }}
+          />
+          <div
+            className="absolute inset-0 blur-xl rounded-full animate-pulse"
+            style={{ backgroundColor: `${themeConfig.accentColor}30` }}
+          />
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-2xl md:text-3xl font-display text-gradient-gold">
+          <h2
+            className={`text-2xl md:text-3xl font-display ${themeConfig.textGradientClass}`}
+          >
             Создаём варианты вашего украшения...
           </h2>
           <p className="text-sm text-muted-foreground">
-            Размер {sizeConfig.label} ({sizeConfig.dimensions}) &bull;{" "}
-            {sizeConfig.description}
+            {formFactorConfig?.label || config.formFactor}
           </p>
         </div>
 
         {/* Progress bar */}
         <div className="w-64 md:w-80 mx-auto space-y-2">
-          <Progress value={progress} className="h-2" />
+          <Progress
+            value={progress}
+            className="h-2"
+            style={{
+              // @ts-ignore - CSS variable for progress indicator color
+              "--progress-color": themeConfig.accentColor
+            } as React.CSSProperties}
+          />
           <p className="text-xs text-muted-foreground">
             {Math.round(progress)}% завершено
           </p>
@@ -181,7 +204,12 @@ export function StepGenerating({
 
       {/* Fun facts */}
       <div className="max-w-md p-4 bg-card/50 rounded-xl border border-border/50">
-        <p className="text-sm text-gold-light font-medium mb-2">А вы знали?</p>
+        <p
+          className="text-sm font-medium mb-2"
+          style={{ color: themeConfig.accentColorLight }}
+        >
+          А вы знали?
+        </p>
         <p
           className="text-sm text-muted-foreground animate-fade-in"
           key={currentFactIndex}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { StepIndicator } from "@/components/StepIndicator";
@@ -29,23 +29,16 @@ const Application = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Get theme from localStorage
-  const appTheme = useMemo<AppTheme>(() => {
-    const saved = localStorage.getItem("appTheme");
-    if (saved === "kids" || saved === "totems" || saved === "main") {
-      return saved;
-    }
-    return "main";
-  }, []);
-
-  const themeConfig = themeConfigs[appTheme];
-
   // State
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
   const [config, setConfig] = useState<PendantConfig>(initialPendantConfig);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [applicationId, setApplicationId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(true);
+  const [appTheme, setAppTheme] = useState<AppTheme>("main");
+
+  // Theme config derived from appTheme state
+  const themeConfig = themeConfigs[appTheme];
 
   // State machine transition function with validation
   const transitionTo = useCallback(
@@ -98,6 +91,9 @@ const Application = () => {
         localStorage.getItem("sessionId") || crypto.randomUUID();
       localStorage.setItem("sessionId", sessionId);
 
+      // Get theme from localStorage for new applications
+      const currentTheme = localStorage.getItem("appTheme") || "main";
+
       const { data: newApp, error } = await api.createApplication({
         session_id: sessionId,
         form_factor: config.formFactor,
@@ -105,6 +101,7 @@ const Application = () => {
         size: config.size,
         input_image_url: config.imagePreview,
         user_comment: config.comment,
+        theme: currentTheme,
       });
 
       if (error || !newApp) {
@@ -113,6 +110,10 @@ const Application = () => {
       }
 
       setApplicationId(newApp.id);
+      // Set theme for new application
+      if (currentTheme === "kids" || currentTheme === "totems" || currentTheme === "main") {
+        setAppTheme(currentTheme as AppTheme);
+      }
       navigate(`/application/${newApp.id}`, { replace: true });
 
       // Transition will happen after navigation completes and component reloads
@@ -233,6 +234,18 @@ const Application = () => {
       }
 
       setCurrentStep(determinedStep);
+
+      // Set theme from application (or fallback to localStorage)
+      const savedTheme = data.theme as AppTheme;
+      if (savedTheme === "kids" || savedTheme === "totems" || savedTheme === "main") {
+        setAppTheme(savedTheme);
+      } else {
+        // Fallback to localStorage for old applications without theme
+        const localTheme = localStorage.getItem("appTheme") as AppTheme;
+        if (localTheme === "kids" || localTheme === "totems" || localTheme === "main") {
+          setAppTheme(localTheme);
+        }
+      }
 
       // Map size to sizeOption
       const sizeToOption: Record<string, "s" | "m" | "l"> = {
