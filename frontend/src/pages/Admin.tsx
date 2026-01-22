@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -45,12 +45,33 @@ interface Application {
   generated_preview: string | null;
 }
 
+interface FormFactorSettings {
+  label: string;
+  description: string;
+  icon: string;
+  addition: string;
+  shape: string;
+}
+
+interface SizeSettings {
+  label: string;
+  dimensionsMm: number;
+  apiSize: string;
+  price: number;
+}
+
+interface MaterialSettings {
+  label: string;
+  enabled: boolean;
+}
+
 interface SettingsMap {
   main_prompt: string;
   main_prompt_no_image: string;
   num_images: number;
-  form_factors: Record<string, { label: string; addition: string }>;
-  sizes: Record<string, { label: string; dimensions: string }>;
+  form_factors: Record<string, FormFactorSettings>;
+  sizes: Record<string, Record<string, SizeSettings>>;
+  materials: Record<string, MaterialSettings>;
 }
 
 const Admin = () => {
@@ -73,6 +94,7 @@ const Admin = () => {
     num_images: 4,
     form_factors: {},
     sizes: {},
+    materials: {},
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -146,7 +168,7 @@ const Admin = () => {
   const totalCost = generations.reduce((sum, g) => sum + (g.cost_cents || 0), 0);
   const uniqueModels = [...new Set(generations.map(g => g.model_used).filter(Boolean))];
 
-  const updateFormFactor = (key: string, field: 'label' | 'addition', value: string) => {
+  const updateFormFactor = (key: string, field: keyof FormFactorSettings, value: string) => {
     setSettings(prev => ({
       ...prev,
       form_factors: {
@@ -156,14 +178,51 @@ const Admin = () => {
     }));
   };
 
-  const updateSize = (key: string, field: 'label' | 'dimensions', value: string) => {
+  const updateSize = (material: string, sizeKey: string, field: keyof SizeSettings, value: string | number) => {
     setSettings(prev => ({
       ...prev,
       sizes: {
         ...prev.sizes,
-        [key]: { ...prev.sizes[key], [field]: value }
+        [material]: {
+          ...prev.sizes[material],
+          [sizeKey]: { ...prev.sizes[material]?.[sizeKey], [field]: value }
+        }
       }
     }));
+  };
+
+  const updateMaterial = (key: string, field: keyof MaterialSettings, value: string | boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      materials: {
+        ...prev.materials,
+        [key]: { ...prev.materials[key], [field]: value }
+      }
+    }));
+  };
+
+  const addFormFactor = () => {
+    const newKey = `form_${Date.now()}`;
+    setSettings(prev => ({
+      ...prev,
+      form_factors: {
+        ...prev.form_factors,
+        [newKey]: {
+          label: 'Новая форма',
+          description: 'Описание',
+          icon: 'circle',
+          addition: '',
+          shape: ''
+        }
+      }
+    }));
+  };
+
+  const deleteFormFactor = (key: string) => {
+    setSettings(prev => {
+      const { [key]: _, ...rest } = prev.form_factors;
+      return { ...prev, form_factors: rest };
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -700,16 +759,27 @@ const Admin = () => {
 
             {/* Form Factors */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Форм-факторы</CardTitle>
+                <Button onClick={addFormFactor} size="sm" variant="outline">
+                  + Добавить форму
+                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 {Object.entries(settings.form_factors).map(([key, value]) => (
                   <div key={key} className="p-4 border rounded-lg space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between">
                       <Badge>{key}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => deleteFormFactor(key)}
+                      >
+                        Удалить
+                      </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm text-muted-foreground">Название</label>
                         <Input
@@ -718,10 +788,50 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm text-muted-foreground">Дополнение к промпту</label>
+                        <label className="text-sm text-muted-foreground">Описание</label>
                         <Input
-                          value={value.addition}
+                          value={value.description || ''}
+                          onChange={(e) => updateFormFactor(key, 'description', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Иконка (lucide)</label>
+                        <Select
+                          value={value.icon || 'circle'}
+                          onValueChange={(v) => updateFormFactor(key, 'icon', v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="circle">Circle (круг)</SelectItem>
+                            <SelectItem value="hexagon">Hexagon (шестиугольник)</SelectItem>
+                            <SelectItem value="rectangle-vertical">Rectangle (прямоугольник)</SelectItem>
+                            <SelectItem value="square">Square (квадрат)</SelectItem>
+                            <SelectItem value="star">Star (звезда)</SelectItem>
+                            <SelectItem value="heart">Heart (сердце)</SelectItem>
+                            <SelectItem value="diamond">Diamond (ромб)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Дополнение к промпту</label>
+                        <Textarea
+                          value={value.addition || ''}
                           onChange={(e) => updateFormFactor(key, 'addition', e.target.value)}
+                          rows={3}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Описание формы (shape)</label>
+                        <Textarea
+                          value={value.shape || ''}
+                          onChange={(e) => updateFormFactor(key, 'shape', e.target.value)}
+                          rows={3}
+                          className="text-sm"
                         />
                       </div>
                     </div>
@@ -730,32 +840,93 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Sizes */}
+            {/* Materials */}
             <Card>
               <CardHeader>
-                <CardTitle>Размеры</CardTitle>
+                <CardTitle>Материалы</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Object.entries(settings.sizes).map(([key, value]) => (
+                {Object.entries(settings.materials || {}).map(([key, value]) => (
                   <div key={key} className="p-4 border rounded-lg space-y-3">
                     <div className="flex items-center gap-2">
-                      <Badge>{key}</Badge>
+                      <Badge variant={value.enabled ? 'default' : 'secondary'}>{key}</Badge>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm text-muted-foreground">Название</label>
                         <Input
                           value={value.label}
-                          onChange={(e) => updateSize(key, 'label', e.target.value)}
+                          onChange={(e) => updateMaterial(key, 'label', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm text-muted-foreground">Размеры (для промпта)</label>
-                        <Input
-                          value={value.dimensions}
-                          onChange={(e) => updateSize(key, 'dimensions', e.target.value)}
-                        />
+                        <label className="text-sm text-muted-foreground">Включен</label>
+                        <Select
+                          value={value.enabled ? 'true' : 'false'}
+                          onValueChange={(v) => updateMaterial(key, 'enabled', v === 'true')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Да</SelectItem>
+                            <SelectItem value="false">Нет (Скоро)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Sizes by Material */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Размеры и цены</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {Object.entries(settings.sizes || {}).map(([materialKey, materialSizes]) => (
+                  <div key={materialKey} className="space-y-4">
+                    <h4 className="font-medium text-lg border-b pb-2">
+                      {settings.materials?.[materialKey]?.label || materialKey}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {Object.entries(materialSizes || {}).map(([sizeKey, sizeValue]) => (
+                        <div key={sizeKey} className="p-4 border rounded-lg space-y-3">
+                          <Badge>{sizeKey.toUpperCase()}</Badge>
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">Название</label>
+                            <Input
+                              value={sizeValue.label}
+                              onChange={(e) => updateSize(materialKey, sizeKey, 'label', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">Размер (мм)</label>
+                            <Input
+                              type="number"
+                              value={sizeValue.dimensionsMm}
+                              onChange={(e) => updateSize(materialKey, sizeKey, 'dimensionsMm', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">API Size</label>
+                            <Input
+                              value={sizeValue.apiSize}
+                              onChange={(e) => updateSize(materialKey, sizeKey, 'apiSize', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">Цена (₽)</label>
+                            <Input
+                              type="number"
+                              value={sizeValue.price}
+                              onChange={(e) => updateSize(materialKey, sizeKey, 'price', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}

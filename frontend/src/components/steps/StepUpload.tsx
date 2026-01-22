@@ -1,16 +1,33 @@
 import { useState } from "react";
-import { Sparkles, Circle, RectangleVertical, Hexagon, ChevronDown } from "lucide-react";
+import { Sparkles, Circle, RectangleVertical, Hexagon, ChevronDown, Square, Pentagon, Octagon, Star, Heart, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUploader } from "@/components/ImageUploader";
 import { cn } from "@/lib/utils";
 import type { PendantConfig, FormFactor } from "@/types/pendant";
-import { FORM_CONFIG } from "@/types/pendant";
+import { useFormFactors, FormFactorConfig } from "@/contexts/SettingsContext";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+
+// Icon mapping from string to component
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  circle: Circle,
+  "rectangle-vertical": RectangleVertical,
+  hexagon: Hexagon,
+  square: Square,
+  pentagon: Pentagon,
+  octagon: Octagon,
+  star: Star,
+  heart: Heart,
+  diamond: Diamond,
+};
+
+function getIconComponent(iconName: string): React.ComponentType<{ className?: string }> {
+  return iconMap[iconName.toLowerCase()] || Hexagon;
+}
 
 interface StepUploadProps {
   config: PendantConfig;
@@ -21,23 +38,19 @@ interface StepUploadProps {
 
 // Form selection card component
 function FormCard({
-  formFactor,
+  formKey,
+  config,
   selected,
   onSelect,
   disabled,
 }: {
-  formFactor: FormFactor;
+  formKey: string;
+  config: FormFactorConfig;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
 }) {
-  const config = FORM_CONFIG[formFactor];
-
-  const icons: Record<FormFactor, React.ReactNode> = {
-    round: <Circle className="w-8 h-8" />,
-    oval: <RectangleVertical className="w-8 h-8" />,
-    contour: <Hexagon className="w-8 h-8" />,
-  };
+  const IconComponent = getIconComponent(config.icon);
 
   return (
     <button
@@ -51,7 +64,7 @@ function FormCard({
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      {icons[formFactor]}
+      <IconComponent className="w-8 h-8" />
       <div className="text-center">
         <p className="text-lg font-display font-bold">{config.label}</p>
         <p className="text-xs opacity-70">{config.description}</p>
@@ -67,7 +80,8 @@ export function StepUpload({
   isDisabled = false,
 }: StepUploadProps) {
   const [showComment, setShowComment] = useState(false);
-  const formOptions: FormFactor[] = ["round", "oval", "contour"];
+  const formFactors = useFormFactors();
+  const formOptions = Object.keys(formFactors) as FormFactor[];
 
   const handleImageSelect = (file: File) => {
     const reader = new FileReader();
@@ -127,13 +141,17 @@ export function StepUpload({
           <label className="text-sm font-medium text-foreground">
             Форма украшения
           </label>
-          <div className="grid grid-cols-3 gap-3">
-            {formOptions.map((form) => (
+          <div className={cn(
+            "grid gap-3",
+            formOptions.length === 2 ? "grid-cols-2" : "grid-cols-3"
+          )}>
+            {formOptions.map((formKey) => (
               <FormCard
-                key={form}
-                formFactor={form}
-                selected={config.formFactor === form}
-                onSelect={() => handleFormSelect(form)}
+                key={formKey}
+                formKey={formKey}
+                config={formFactors[formKey]}
+                selected={config.formFactor === formKey}
+                onSelect={() => handleFormSelect(formKey)}
                 disabled={isDisabled}
               />
             ))}
@@ -203,7 +221,7 @@ export function StepUpload({
                     Загруженное изображение
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    Форма: {FORM_CONFIG[config.formFactor].label}
+                    Форма: {formFactors[config.formFactor]?.label || config.formFactor}
                   </p>
                 </div>
               </div>

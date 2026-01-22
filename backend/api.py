@@ -49,6 +49,7 @@ class SettingsUpdate(BaseModel):
     main_prompt_no_image: Optional[str] = None
     form_factors: Optional[dict] = None
     sizes: Optional[dict] = None
+    materials: Optional[dict] = None
 
 
 @router.get("/settings")
@@ -60,25 +61,35 @@ async def get_settings():
         "main_prompt_no_image": "",
         "form_factors": {
             "round": {
-                "label": "Женская (круглый)",
+                "label": "Женская",
+                "description": "Круглый кулон",
+                "icon": "circle",
                 "addition": "Объект вписан в круглую рамку-медальон, изящный женственный дизайн.",
                 "shape": "круглая форма, объект вписан в круг"
             },
-            "oval": {
-                "label": "Мужская (жетон)",
-                "addition": "Вертикальный жетон, строгий мужской дизайн, слегка вытянутая овальная форма.",
-                "shape": "вертикальный овал (жетон), вытянутая форма"
-            },
             "contour": {
-                "label": "Контурный (универсальный)",
+                "label": "Контурная",
+                "description": "По контуру рисунка",
+                "icon": "hexagon",
                 "addition": "Форма повторяет контур изображения, универсальный дизайн.",
                 "shape": "по контуру выбранного объекта"
             }
         },
         "sizes": {
-            "bracelet": {"label": "S", "dimensions": "13мм"},
-            "pendant": {"label": "M", "dimensions": "19мм"},
-            "interior": {"label": "L", "dimensions": "25мм"}
+            "silver": {
+                "s": {"label": "S", "dimensionsMm": 13, "apiSize": "bracelet", "price": 5000},
+                "m": {"label": "M", "dimensionsMm": 19, "apiSize": "pendant", "price": 8000},
+                "l": {"label": "L", "dimensionsMm": 25, "apiSize": "interior", "price": 12000}
+            },
+            "gold": {
+                "s": {"label": "S", "dimensionsMm": 10, "apiSize": "bracelet", "price": 15000},
+                "m": {"label": "M", "dimensionsMm": 13, "apiSize": "pendant", "price": 22000},
+                "l": {"label": "L", "dimensionsMm": 19, "apiSize": "interior", "price": 35000}
+            }
+        },
+        "materials": {
+            "silver": {"label": "Серебро 925", "enabled": True},
+            "gold": {"label": "Золото 585", "enabled": False}
         }
     }
 
@@ -102,6 +113,8 @@ async def get_settings():
                 result['form_factors'] = value
             elif key == 'sizes' and isinstance(value, dict):
                 result['sizes'] = value
+            elif key == 'materials' and isinstance(value, dict):
+                result['materials'] = value
             elif key in ['main_prompt', 'main_prompt_no_image']:
                 result[key] = str(value) if value else ""
 
@@ -136,6 +149,8 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('form_factors', updates.form_factors)
         if updates.sizes:
             await set_val('sizes', updates.sizes)
+        if updates.materials:
+            await set_val('materials', updates.materials)
 
         return {"success": True}
     except Exception as e:

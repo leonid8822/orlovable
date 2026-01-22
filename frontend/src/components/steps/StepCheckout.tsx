@@ -4,13 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PendantOnNeck, SizeOption } from "@/components/PendantOnNeck";
 import { cn } from "@/lib/utils";
-import type { PendantConfig, Material } from "@/types/pendant";
-import {
-  materialLabels,
-  getSizeConfigByMaterial,
-  FORM_CONFIG,
-} from "@/types/pendant";
+import type { PendantConfig, Material, Size } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useSettings, useFormFactors, useMaterials, useSizes } from "@/contexts/SettingsContext";
 
 type PreviewMode = "pendant" | "on-neck";
 
@@ -19,14 +15,6 @@ interface StepCheckoutProps {
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onBack: () => void;
 }
-
-// Prices per material and size
-// Серебро: S=13мм, M=19мм, L=25мм
-// Золото: S=10мм, M=13мм, L=19мм
-const PRICES: Record<Material, Record<SizeOption, number>> = {
-  silver: { s: 5000, m: 8000, l: 12000 },
-  gold: { s: 15000, m: 22000, l: 35000 },
-};
 
 export function StepCheckout({
   config,
@@ -37,26 +25,32 @@ export function StepCheckout({
   const [previewMode, setPreviewMode] = useState<PreviewMode>("on-neck");
   const { config: themeConfig } = useAppTheme();
 
-  const sizeConfig = getSizeConfigByMaterial(config.material);
-  const currentSizeConfig = sizeConfig[config.sizeOption];
-  const price = PRICES[config.material]?.[config.sizeOption] || 0;
+  // Get data from settings context
+  const { settings } = useSettings();
+  const formFactors = settings.form_factors;
+  const materialsConfig = settings.materials;
+  const sizes = settings.sizes[config.material] || settings.sizes.silver;
+
+  const currentSizeConfig = sizes[config.sizeOption];
+  const price = currentSizeConfig?.price || 0;
   const depositAmount = Math.round(price / 2);
 
   const handleSizeChange = (size: SizeOption) => {
-    const newSizeConfig = getSizeConfigByMaterial(config.material)[size];
+    const newSizeConfig = sizes[size];
     onConfigChange({
       sizeOption: size,
-      size: newSizeConfig.apiSize,
+      size: (newSizeConfig?.apiSize || 'pendant') as Size,
     });
   };
 
   const handleMaterialChange = (material: Material) => {
     // Reset size to 's' when changing material since sizes differ
-    const newSizeConfig = getSizeConfigByMaterial(material).s;
+    const newSizes = settings.sizes[material] || settings.sizes.silver;
+    const newSizeConfig = newSizes.s;
     onConfigChange({
       material,
       sizeOption: 's',
-      size: newSizeConfig.apiSize,
+      size: (newSizeConfig?.apiSize || 'bracelet') as Size,
     });
   };
 
@@ -85,9 +79,9 @@ export function StepCheckout({
         {/* Form info (readonly) */}
         <div className="bg-card/50 rounded-xl border border-border p-4">
           <p className="text-sm text-muted-foreground">Форма украшения</p>
-          <p className="font-medium">{FORM_CONFIG[config.formFactor].label}</p>
+          <p className="font-medium">{formFactors[config.formFactor]?.label || config.formFactor}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {FORM_CONFIG[config.formFactor].description}
+            {formFactors[config.formFactor]?.description || ''}
           </p>
         </div>
 
@@ -95,41 +89,51 @@ export function StepCheckout({
         <div className="space-y-3">
           <h3 className="font-medium">Материал</h3>
           <div className="grid grid-cols-2 gap-3">
-            {/* Silver */}
-            <button
-              onClick={() => handleMaterialChange("silver")}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all duration-300",
-                config.material === "silver"
-                  ? "border-silver bg-silver/10"
-                  : "border-border hover:border-silver/50"
-              )}
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 mx-auto mb-2 shadow-inner" />
-              <p className="font-medium text-center">
-                {materialLabels.silver}
-              </p>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                S: 13мм · M: 19мм · L: 25мм
-              </p>
-            </button>
+            {Object.entries(materialsConfig).map(([materialKey, materialInfo]) => {
+              const materialSizes = settings.sizes[materialKey];
+              const sizesText = materialSizes
+                ? Object.entries(materialSizes)
+                    .map(([k, v]) => `${v.label}: ${v.dimensionsMm}мм`)
+                    .join(' · ')
+                : '';
+              const isGold = materialKey === 'gold';
+              const isDisabled = !materialInfo.enabled;
 
-            {/* Gold - now active */}
-            <button
-              onClick={() => handleMaterialChange("gold")}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all duration-300",
-                config.material === "gold"
-                  ? "border-gold bg-gold/10"
-                  : "border-border hover:border-gold/50"
-              )}
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-600 mx-auto mb-2 shadow-inner" />
-              <p className="font-medium text-center">{materialLabels.gold}</p>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                S: 10мм · M: 13мм · L: 19мм
-              </p>
-            </button>
+              return (
+                <button
+                  key={materialKey}
+                  onClick={() => !isDisabled && handleMaterialChange(materialKey as Material)}
+                  disabled={isDisabled}
+                  className={cn(
+                    "p-4 rounded-xl border-2 transition-all duration-300 relative",
+                    config.material === materialKey
+                      ? isGold
+                        ? "border-gold bg-gold/10"
+                        : "border-silver bg-silver/10"
+                      : "border-border hover:border-gold/50",
+                    isDisabled && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {isDisabled && (
+                    <span className="absolute top-2 right-2 text-xs bg-muted px-2 py-0.5 rounded-full">
+                      Скоро
+                    </span>
+                  )}
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-full mx-auto mb-2 shadow-inner",
+                      isGold
+                        ? "bg-gradient-to-br from-yellow-300 to-yellow-600"
+                        : "bg-gradient-to-br from-gray-200 to-gray-400"
+                    )}
+                  />
+                  <p className="font-medium text-center">{materialInfo.label}</p>
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    {sizesText}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -137,16 +141,14 @@ export function StepCheckout({
         <div className="space-y-3">
           <h3 className="font-medium">Размер</h3>
           <div className="grid grid-cols-3 gap-3">
-            {(["s", "m", "l"] as SizeOption[]).map((size) => {
-              const sizeInfo = sizeConfig[size];
-              const sizePrice = PRICES[config.material][size];
+            {Object.entries(sizes).map(([sizeKey, sizeInfo]) => {
               return (
                 <button
-                  key={size}
-                  onClick={() => handleSizeChange(size)}
+                  key={sizeKey}
+                  onClick={() => handleSizeChange(sizeKey as SizeOption)}
                   className={cn(
                     "p-3 rounded-xl border-2 transition-all duration-300",
-                    config.sizeOption === size
+                    config.sizeOption === sizeKey
                       ? config.material === "gold"
                         ? "border-gold bg-gold/10"
                         : "border-silver bg-silver/10"
@@ -154,9 +156,9 @@ export function StepCheckout({
                   )}
                 >
                   <p className="text-xl font-display font-bold">{sizeInfo.label}</p>
-                  <p className="text-sm">{sizeInfo.dimensions}</p>
+                  <p className="text-sm">{sizeInfo.dimensionsMm}мм</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {sizePrice.toLocaleString("ru-RU")} ₽
+                    {sizeInfo.price.toLocaleString("ru-RU")} ₽
                   </p>
                 </button>
               );
@@ -307,7 +309,7 @@ export function StepCheckout({
         )}
 
         {/* Size indicator for pendant mode */}
-        {previewMode === "pendant" && (
+        {previewMode === "pendant" && currentSizeConfig && (
           <div
             className="mt-3 px-3 py-1.5 rounded-full text-sm font-medium"
             style={{
@@ -316,7 +318,7 @@ export function StepCheckout({
               border: `1px solid ${themeConfig.accentColor}40`,
             }}
           >
-            {currentSizeConfig.dimensions}
+            {currentSizeConfig.dimensionsMm}мм
           </div>
         )}
       </div>
