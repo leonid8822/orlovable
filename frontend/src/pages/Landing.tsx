@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
-import { EagleIcon } from "@/components/icons/EagleIcon";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
@@ -220,26 +220,7 @@ const Landing = () => {
         <LandingConstructor theme="main" className="bg-card/30" />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-gold flex items-center justify-center">
-                <EagleIcon className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-display text-lg text-muted-foreground">OLAI<span className="text-foreground">.art</span></span>
-            </div>
-            <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/kids" className="hover:text-foreground transition-colors">Детские рисунки</Link>
-              <Link to="/totems" className="hover:text-foreground transition-colors">Тотемы</Link>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 OLAI.art
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

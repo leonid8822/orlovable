@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
-import { EagleIcon } from "@/components/icons/EagleIcon";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Heart,
   Pencil,
   Gem,
-  ArrowRight,
   Star,
   Gift,
   Camera
@@ -72,31 +71,7 @@ const KidsLanding = () => {
 
   return (
     <div className="min-h-screen bg-background theme-kids">
-      {/* Custom Kids Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/kids" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center transition-shadow duration-300" style={{ background: `linear-gradient(135deg, ${tiffanyLightColor} 0%, ${tiffanyColor} 100%)`, boxShadow: `0 0 40px hsl(174, 58%, 38%, 0.25)` }}>
-              <EagleIcon className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl tracking-wide">
-              <span className="text-muted-foreground">OLAI</span>
-              <span style={{ color: tiffanyColor }}>Kids</span>
-            </span>
-          </Link>
-
-          <div className="flex items-center gap-6">
-            <nav className="hidden md:flex items-center gap-6">
-              <Link to="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
-                Создать
-              </Link>
-              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
-                Главная
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main>
         {/* Hero Section */}
@@ -302,50 +277,9 @@ const KidsLanding = () => {
 
         {/* Constructor Section */}
         <LandingConstructor theme="kids" />
-
-        {/* Back to main */}
-        <section className="py-12 px-4 bg-card/30">
-          <div className="container mx-auto max-w-6xl">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-gradient-card border border-border/50">
-              <div>
-                <h3 className="text-lg font-display mb-1">Не только детские рисунки</h3>
-                <p className="text-sm text-muted-foreground">
-                  Создавайте украшения из любых изображений — фото, символов, логотипов
-                </p>
-              </div>
-              <Link to="/">
-                <Button variant="outline" className="border-gold/50 text-gold hover:bg-gold/10 whitespace-nowrap">
-                  На главную
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${tiffanyLightColor} 0%, ${tiffanyColor} 100%)` }}>
-                <EagleIcon className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-display text-lg">
-                <span className="text-muted-foreground">OLAI</span>
-                <span style={{ color: tiffanyColor }}>Kids</span>
-              </span>
-            </div>
-            <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/" className="hover:text-foreground transition-colors">Главная</Link>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 OLAI.art
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
