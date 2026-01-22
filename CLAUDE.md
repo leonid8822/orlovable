@@ -51,8 +51,9 @@
 **ВАЖНО: Backend деплоится АВТОМАТИЧЕСКИ из ветки `main` через Render.**
 
 ```bash
-# Frontend -> Vercel (manual or via Vercel Dashboard)
-cd frontend && vercel --prod --token $VERCEL_TOKEN
+# Frontend -> Vercel
+# Токен хранится в secrets/.env (VERCEL_TOKEN)
+cd frontend && VERCEL_TOKEN=$(grep VERCEL_TOKEN ../secrets/.env | cut -d'=' -f2) vercel --prod --yes
 
 # Backend -> Render (АВТОМАТИЧЕСКИ из main!)
 # НЕ НУЖНО деплоить вручную - просто merge в main и Render сам задеплоит
