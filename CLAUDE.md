@@ -39,12 +39,24 @@
 | httpx | 0.27.0 | HTTP client |
 
 ### Infrastructure
-| Компонент | Сервис |
-|-----------|--------|
-| Frontend Hosting | Vercel (static) |
-| Backend | Render (Docker) |
-| Database | Supabase (PostgreSQL) / SQLite (dev) |
-| AI Generation | FAL.ai (Bytedance SeedDream v4) |
+| Компонент | Сервис | URL |
+|-----------|--------|-----|
+| Frontend Hosting | Vercel (static) | https://olai.art |
+| Backend | Google Cloud Run (Docker) | https://jewelry-backend-nqev4d2b4a-lm.a.run.app |
+| Database | Supabase (PostgreSQL) | https://vofigcbihwkmocrsfowt.supabase.co |
+| AI Generation | FAL.ai (Bytedance SeedDream v4) | - |
+
+### Deployment Commands
+```bash
+# Frontend -> Vercel
+cd frontend && vercel --prod --token $VERCEL_TOKEN
+
+# Backend -> Cloud Run (auto-deploy via GitHub)
+# Manual: gcloud run deploy jewelry-backend --source backend/
+
+# Keep-alive pinger (prevents cold starts)
+./scripts/keep-alive.sh
+```
 
 ---
 
