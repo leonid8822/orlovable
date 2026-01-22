@@ -100,6 +100,7 @@ export function ExamplesTab() {
         title: 'Новый пример',
         display_order: maxOrder + 1,
         is_active: false,
+        theme: themeFilter !== 'all' ? themeFilter : 'main',
       })
       .select()
       .single();
@@ -533,7 +534,7 @@ export function ExamplesTab() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => { setEditingId(example.id); setEditData(example); }}
+                            onClick={() => { setEditingId(example.id); setEditData({ ...example, theme: example.theme || 'main' }); }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>

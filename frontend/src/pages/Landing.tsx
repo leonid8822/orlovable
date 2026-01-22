@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
 import { EagleIcon } from "@/components/icons/EagleIcon";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Heart,
@@ -15,8 +17,8 @@ import {
   Gem
 } from "lucide-react";
 
-// Примеры до/после для главной страницы
-const mainExamples = [
+// Fallback примеры если база пустая
+const fallbackExamples = [
   {
     before: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=400&fit=crop",
     after: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop",
@@ -39,6 +41,34 @@ const scrollToConstructor = () => {
 };
 
 const Landing = () => {
+  const [examples, setExamples] = useState(fallbackExamples);
+
+  useEffect(() => {
+    const fetchExamples = async () => {
+      const { data, error } = await supabase
+        .from('examples')
+        .select('*')
+        .eq('is_active', true)
+        .or('theme.eq.main,theme.is.null')
+        .order('display_order', { ascending: true })
+        .limit(5);
+
+      if (!error && data && data.length > 0) {
+        const formatted = data
+          .filter(e => e.before_image_url && e.after_image_url)
+          .map(e => ({
+            before: e.before_image_url!,
+            after: e.after_image_url!,
+            title: e.description || e.title || ''
+          }));
+        if (formatted.length > 0) {
+          setExamples(formatted);
+        }
+      }
+    };
+    fetchExamples();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -75,7 +105,7 @@ const Landing = () => {
 
             {/* Before/After Showcase */}
             <div className="mt-16 max-w-2xl mx-auto">
-              <BeforeAfterShowcase examples={mainExamples} accentColor="gold" />
+              <BeforeAfterShowcase examples={examples} accentColor="gold" />
             </div>
           </div>
         </section>

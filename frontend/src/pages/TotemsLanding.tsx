@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
 import { EagleIcon } from "@/components/icons/EagleIcon";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Shield,
@@ -13,8 +15,8 @@ import {
   Feather
 } from "lucide-react";
 
-// Примеры до/после для тотемов
-const totemExamples = [
+// Fallback примеры для тотемов
+const fallbackTotemExamples = [
   {
     before: "https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=400&h=400&fit=crop",
     after: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop",
@@ -39,6 +41,33 @@ const scrollToConstructor = () => {
 const TotemsLanding = () => {
   const brownColor = "hsl(25, 45%, 35%)";
   const brownLightColor = "hsl(25, 50%, 45%)";
+  const [examples, setExamples] = useState(fallbackTotemExamples);
+
+  useEffect(() => {
+    const fetchExamples = async () => {
+      const { data, error } = await supabase
+        .from('examples')
+        .select('*')
+        .eq('is_active', true)
+        .eq('theme', 'totems')
+        .order('display_order', { ascending: true })
+        .limit(5);
+
+      if (!error && data && data.length > 0) {
+        const formatted = data
+          .filter(e => e.before_image_url && e.after_image_url)
+          .map(e => ({
+            before: e.before_image_url!,
+            after: e.after_image_url!,
+            title: e.description || e.title || ''
+          }));
+        if (formatted.length > 0) {
+          setExamples(formatted);
+        }
+      }
+    };
+    fetchExamples();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background theme-totems">
@@ -104,7 +133,7 @@ const TotemsLanding = () => {
               <h3 className="text-xl font-display text-center mb-8">
                 Примеры <span className="text-gradient-brown">тотемов</span>
               </h3>
-              <BeforeAfterShowcase examples={totemExamples} accentColor="brown" />
+              <BeforeAfterShowcase examples={examples} accentColor="brown" />
             </div>
           </div>
         </section>

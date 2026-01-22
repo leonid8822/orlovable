@@ -83,15 +83,59 @@ export function StepUpload({
   const formFactors = useFormFactors();
   const formOptions = Object.keys(formFactors) as FormFactor[];
 
-  const handleImageSelect = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onConfigChange({
-        image: file,
-        imagePreview: e.target?.result as string,
+  const handleImageSelect = async (file: File) => {
+    // Resize large images to improve performance
+    const MAX_SIZE = 1200;
+
+    const resizeImage = (file: File): Promise<string> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+
+          // Only resize if image is larger than MAX_SIZE
+          if (width > MAX_SIZE || height > MAX_SIZE) {
+            if (width > height) {
+              height = (height / width) * MAX_SIZE;
+              width = MAX_SIZE;
+            } else {
+              width = (width / height) * MAX_SIZE;
+              height = MAX_SIZE;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Use JPEG for photos (smaller size), PNG for drawings
+          const isPhoto = file.type === 'image/jpeg' || file.type === 'image/jpg';
+          resolve(canvas.toDataURL(isPhoto ? 'image/jpeg' : 'image/png', 0.85));
+        };
+        img.src = URL.createObjectURL(file);
       });
     };
-    reader.readAsDataURL(file);
+
+    try {
+      const resizedDataUrl = await resizeImage(file);
+      onConfigChange({
+        image: file,
+        imagePreview: resizedDataUrl,
+      });
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      // Fallback to original method
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onConfigChange({
+          image: file,
+          imagePreview: e.target?.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleImageClear = () => {

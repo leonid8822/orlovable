@@ -41,6 +41,7 @@ class ApplicationUpdate(BaseModel):
     form_factor: Optional[str] = None
     size: Optional[str] = None
     theme: Optional[str] = None
+    last_error: Optional[str] = None
 
 
 class SettingsUpdate(BaseModel):
@@ -503,8 +504,22 @@ async def generate_pendant(req: GenerateRequest):
             }
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        print(f"Error: {error_msg}")
+
+        # Save error to application if exists
+        if req.applicationId:
+            import traceback
+            full_error = f"{error_msg}\n\nTraceback:\n{traceback.format_exc()}"
+            try:
+                await supabase.update("applications", req.applicationId, {
+                    "status": "error",
+                    "last_error": full_error[:4000]  # Limit to 4000 chars
+                })
+            except:
+                pass  # Don't fail if error logging fails
+
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 # ============== EXAMPLES API ==============

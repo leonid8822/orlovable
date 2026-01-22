@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
 import { EagleIcon } from "@/components/icons/EagleIcon";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Heart,
@@ -15,8 +17,8 @@ import {
   Play
 } from "lucide-react";
 
-// Примеры до/после для детских рисунков
-const kidsExamples = [
+// Fallback примеры для детских рисунков
+const fallbackKidsExamples = [
   {
     before: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=400&fit=crop",
     after: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=400&h=400&fit=crop",
@@ -41,6 +43,33 @@ const scrollToConstructor = () => {
 const KidsLanding = () => {
   const tiffanyColor = "hsl(174, 58%, 38%)";
   const tiffanyLightColor = "hsl(174, 58%, 50%)";
+  const [examples, setExamples] = useState(fallbackKidsExamples);
+
+  useEffect(() => {
+    const fetchExamples = async () => {
+      const { data, error } = await supabase
+        .from('examples')
+        .select('*')
+        .eq('is_active', true)
+        .eq('theme', 'kids')
+        .order('display_order', { ascending: true })
+        .limit(5);
+
+      if (!error && data && data.length > 0) {
+        const formatted = data
+          .filter(e => e.before_image_url && e.after_image_url)
+          .map(e => ({
+            before: e.before_image_url!,
+            after: e.after_image_url!,
+            title: e.description || e.title || ''
+          }));
+        if (formatted.length > 0) {
+          setExamples(formatted);
+        }
+      }
+    };
+    fetchExamples();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background theme-kids">
@@ -139,7 +168,7 @@ const KidsLanding = () => {
               <h3 className="text-xl font-display text-center mb-8">
                 Примеры <span className="text-gradient-tiffany">превращений</span>
               </h3>
-              <BeforeAfterShowcase examples={kidsExamples} accentColor="tiffany" />
+              <BeforeAfterShowcase examples={examples} accentColor="tiffany" />
             </div>
           </div>
         </section>
