@@ -43,7 +43,7 @@ export function StepSelection({
       {/* Left: Variants Grid */}
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h2 className="text-3xl md:text-4xl font-display text-gradient-gold mb-3">
+          <h2 className="text-3xl md:text-4xl font-display text-gradient-theme mb-3">
             Выберите вариант
           </h2>
           <p className="text-muted-foreground">
@@ -60,8 +60,8 @@ export function StepSelection({
               className={cn(
                 "relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-300",
                 config.selectedVariantIndex === index
-                  ? "border-gold ring-2 ring-gold/30 scale-[1.02]"
-                  : "border-border hover:border-gold/50"
+                  ? "border-theme ring-2 ring-theme/30 scale-[1.02]"
+                  : "border-border hover:border-theme/50"
               )}
             >
               <img
@@ -70,7 +70,7 @@ export function StepSelection({
                 className="w-full h-full object-cover"
               />
               {config.selectedVariantIndex === index && (
-                <div className="absolute top-2 right-2 w-6 h-6 bg-gold rounded-full flex items-center justify-center">
+                <div className="absolute top-2 right-2 w-6 h-6 bg-theme rounded-full flex items-center justify-center">
                   <Check className="w-4 h-4 text-background" />
                 </div>
               )}
@@ -85,14 +85,14 @@ export function StepSelection({
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <Button
-              variant="goldOutline"
+              variant="themeOutline"
               className="flex-1"
               onClick={() => setShowRegenerateConfirm(true)}
             >
               <RefreshCw className="w-4 h-4" />
               Перегенерировать
             </Button>
-            <Button variant="gold" className="flex-1" onClick={onNext}>
+            <Button variant="theme" className="flex-1" onClick={onNext}>
               Далее
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -136,8 +136,8 @@ export function StepSelection({
         style={{ animationDelay: "0.2s" }}
       >
         <div className="relative w-full max-w-md">
-          <div className="absolute inset-0 blur-3xl bg-gold/10 rounded-full" />
-          <div className="relative aspect-square rounded-2xl overflow-hidden border-2 border-gold/30 bg-card">
+          <div className="absolute inset-0 blur-3xl bg-theme/10 rounded-full" />
+          <div className="relative aspect-square rounded-2xl overflow-hidden border-2 border-theme/30 bg-card">
             {generatedImages[config.selectedVariantIndex] ? (
               <img
                 src={generatedImages[config.selectedVariantIndex]}

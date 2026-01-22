@@ -503,3 +503,165 @@ async def generate_pendant(req: GenerateRequest):
     except Exception as e:
         print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== EXAMPLES API ==============
+
+class ExampleCreate(BaseModel):
+    title: str = "Новый пример"
+    description: Optional[str] = None
+    before_image_url: Optional[str] = None
+    after_image_url: Optional[str] = None
+    model_3d_url: Optional[str] = None
+    theme: str = 'main'  # main, kids, totems
+    is_active: bool = False
+
+
+class ExampleUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    before_image_url: Optional[str] = None
+    after_image_url: Optional[str] = None
+    model_3d_url: Optional[str] = None
+    display_order: Optional[int] = None
+    theme: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ImportFromApplicationRequest(BaseModel):
+    application_id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    theme: str = 'main'
+
+
+@router.get("/examples")
+async def list_examples(theme: Optional[str] = None, active_only: bool = False):
+    """List examples, optionally filtered by theme"""
+    try:
+        examples = await supabase.select(
+            "examples",
+            order="display_order.asc"
+        )
+
+        # Filter by theme if specified
+        if theme:
+            examples = [e for e in examples if e.get('theme', 'main') == theme]
+
+        # Filter active only if requested
+        if active_only:
+            examples = [e for e in examples if e.get('is_active', True)]
+
+        return examples
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/examples")
+async def create_example(example: ExampleCreate):
+    """Create a new example"""
+    try:
+        # Get max display_order
+        all_examples = await supabase.select("examples")
+        max_order = max([e.get('display_order', 0) for e in all_examples], default=0)
+
+        data = {
+            "id": str(uuid.uuid4()),
+            "title": example.title,
+            "description": example.description,
+            "before_image_url": example.before_image_url,
+            "after_image_url": example.after_image_url,
+            "model_3d_url": example.model_3d_url,
+            "theme": example.theme,
+            "display_order": max_order + 1,
+            "is_active": example.is_active
+        }
+        result = await supabase.insert("examples", data)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/examples/{example_id}")
+async def update_example(example_id: str, updates: ExampleUpdate):
+    """Update an example"""
+    try:
+        update_data = updates.model_dump(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No updates provided")
+
+        result = await supabase.update("examples", example_id, update_data)
+        if not result:
+            raise HTTPException(status_code=404, detail="Example not found")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/examples/{example_id}")
+async def delete_example(example_id: str):
+    """Delete an example"""
+    try:
+        await supabase.delete("examples", example_id)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/examples/import-from-application")
+async def import_example_from_application(req: ImportFromApplicationRequest):
+    """Import an application as an example (copies input and generated images)"""
+    try:
+        # Get the application
+        app = await supabase.select_one("applications", req.application_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        # Get max display_order
+        all_examples = await supabase.select("examples")
+        max_order = max([e.get('display_order', 0) for e in all_examples], default=0)
+
+        # Determine title based on form factor
+        form_factor = app.get('form_factor', 'round')
+        title = req.title
+        if not title:
+            form_labels = {
+                'round': 'Круглый кулон',
+                'oval': 'Жетон',
+                'contour': 'Контурный кулон'
+            }
+            title = form_labels.get(form_factor, 'Кулон')
+
+        # Get theme from application or use provided
+        app_theme = app.get('theme', 'main')
+        theme = req.theme if req.theme else app_theme
+
+        # Create description
+        material = app.get('material', 'silver')
+        size = app.get('size', 'pendant')
+        description = req.description
+        if not description:
+            material_labels = {'gold': 'Золото', 'silver': 'Серебро'}
+            size_labels = {'bracelet': 'S', 'pendant': 'M', 'interior': 'L'}
+            description = f"{material_labels.get(material, 'Серебро')}, размер {size_labels.get(size, 'M')}"
+
+        data = {
+            "id": str(uuid.uuid4()),
+            "title": title,
+            "description": description,
+            "before_image_url": app.get('input_image_url'),
+            "after_image_url": app.get('generated_preview'),
+            "model_3d_url": None,
+            "theme": theme,
+            "display_order": max_order + 1,
+            "is_active": False
+        }
+
+        result = await supabase.insert("examples", data)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

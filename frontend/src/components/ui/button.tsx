@@ -18,6 +18,9 @@ const buttonVariants = cva(
         gold: "bg-gradient-to-r from-gold-light via-gold to-gold-dark text-primary-foreground font-semibold shadow-[0_0_20px_hsl(43_74%_49%/0.3)] hover:shadow-[0_0_30px_hsl(43_74%_49%/0.4)] hover:scale-[1.02] active:scale-[0.98]",
         goldOutline: "border-2 border-gold bg-transparent text-gold-light hover:bg-gold/10 hover:border-gold-light",
         luxury: "bg-card border border-gold/30 text-foreground hover:border-gold/60 hover:shadow-[0_0_20px_hsl(43_74%_49%/0.2)]",
+        // Dynamic theme variants - automatically adapt to current theme (main/kids/totems)
+        theme: "bg-gradient-theme text-primary-foreground font-semibold shadow-theme hover:shadow-glow-theme hover:scale-[1.02] active:scale-[0.98]",
+        themeOutline: "border-2 border-theme bg-transparent text-theme-light hover:bg-theme/10 hover:border-theme/50",
       },
       size: {
         default: "h-11 px-6 py-2",

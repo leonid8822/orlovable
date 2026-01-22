@@ -59,8 +59,8 @@ function FormCard({
       className={cn(
         "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-300",
         selected
-          ? "border-gold bg-gold/10 text-gold-light"
-          : "border-border bg-card hover:border-gold/50 text-muted-foreground hover:text-foreground",
+          ? "border-theme bg-theme/10 text-theme-light"
+          : "border-border bg-card hover:border-theme/50 text-muted-foreground hover:text-foreground",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
@@ -117,7 +117,7 @@ export function StepUpload({
       {/* Left: Upload form */}
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h2 className="text-3xl md:text-4xl font-display text-gradient-gold mb-3">
+          <h2 className="text-3xl md:text-4xl font-display text-gradient-theme mb-3">
             Загрузите ваш рисунок
           </h2>
           <p className="text-muted-foreground">
@@ -182,7 +182,7 @@ export function StepUpload({
               placeholder="Если на картинке несколько объектов, укажите какой использовать..."
               value={config.comment}
               onChange={(e) => onConfigChange({ comment: e.target.value })}
-              className="min-h-[80px] bg-card border-border focus:border-gold resize-none"
+              className="min-h-[80px] bg-card border-border focus:border-theme resize-none"
               disabled={isDisabled}
             />
           </CollapsibleContent>
@@ -190,7 +190,7 @@ export function StepUpload({
 
         {/* Generate button */}
         <Button
-          variant="gold"
+          variant="theme"
           size="xl"
           className="w-full"
           onClick={onStartGeneration}

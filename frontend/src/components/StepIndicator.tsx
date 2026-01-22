@@ -27,9 +27,9 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
                 className={cn(
                   "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-display text-lg md:text-xl transition-all duration-500",
                   isCompleted
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-theme text-primary-foreground"
                     : isCurrent
-                    ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                    ? "bg-gradient-theme text-primary-foreground shadow-theme"
                     : "bg-secondary text-muted-foreground border border-border",
                   isGenerating && "animate-pulse"
                 )}
@@ -40,7 +40,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
                 className={cn(
                   "text-xs mt-2 hidden md:block transition-colors duration-300",
                   isCurrent
-                    ? "text-gold-light font-medium"
+                    ? "text-theme-light font-medium"
                     : "text-muted-foreground"
                 )}
               >
@@ -51,7 +51,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               <div
                 className={cn(
                   "w-8 md:w-16 h-0.5 mx-2 transition-colors duration-500",
-                  isCompleted ? "bg-primary" : "bg-border"
+                  isCompleted ? "bg-theme" : "bg-border"
                 )}
               />
             )}

@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface Generation {
   id: string;
@@ -26,6 +27,7 @@ interface Generation {
   user_comment: string | null;
   output_images: string[];
   prompt_used: string;
+  input_image_url: string | null;
   application_id: string | null;
   execution_time_ms: number | null;
 }
@@ -43,6 +45,9 @@ interface Application {
   size: string | null;
   user_comment: string | null;
   generated_preview: string | null;
+  input_image_url: string | null;
+  generated_images?: string[];
+  theme?: string | null;
 }
 
 interface FormFactorSettings {
@@ -51,6 +56,7 @@ interface FormFactorSettings {
   icon: string;
   addition: string;
   shape: string;
+  gender?: 'male' | 'female'; // For neck visualization
 }
 
 interface SizeSettings {
@@ -65,6 +71,12 @@ interface MaterialSettings {
   enabled: boolean;
 }
 
+interface VisualizationSettings {
+  imageWidthMm: number;
+  female: { attachX: number; attachY: number };
+  male: { attachX: number; attachY: number };
+}
+
 interface SettingsMap {
   main_prompt: string;
   main_prompt_no_image: string;
@@ -72,9 +84,13 @@ interface SettingsMap {
   form_factors: Record<string, FormFactorSettings>;
   sizes: Record<string, Record<string, SizeSettings>>;
   materials: Record<string, MaterialSettings>;
+  visualization: VisualizationSettings;
 }
 
 const Admin = () => {
+  // Global settings context for refetching after save
+  const { refetch: refetchGlobalSettings } = useSettings();
+
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +101,12 @@ const Admin = () => {
   const [minCost, setMinCost] = useState('');
   const [maxCost, setMaxCost] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [editingApplication, setEditingApplication] = useState<Partial<Application>>({});
+  const [savingApplication, setSavingApplication] = useState(false);
+  const [importingToExamples, setImportingToExamples] = useState(false);
 
   // Settings state
   const [settings, setSettings] = useState<SettingsMap>({
@@ -95,6 +116,11 @@ const Admin = () => {
     form_factors: {},
     sizes: {},
     materials: {},
+    visualization: {
+      imageWidthMm: 250,
+      female: { attachX: 0.5, attachY: 0.5 },
+      male: { attachX: 0.5, attachY: 0.75 }
+    }
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -155,6 +181,9 @@ const Admin = () => {
       return;
     }
 
+    // Refetch global settings so other components get the updated values
+    await refetchGlobalSettings();
+
     toast.success('Настройки сохранены');
     setSavingSettings(false);
   };
@@ -164,6 +193,50 @@ const Admin = () => {
     fetchApplications();
     fetchSettings();
   }, []);
+
+  // Open application detail with full data
+  const openApplicationDetail = async (app: Application) => {
+    // Fetch full application data including generated_images
+    const { data, error } = await api.getApplication(app.id);
+    if (error) {
+      toast.error('Ошибка загрузки заявки');
+      return;
+    }
+    setSelectedApplication(data);
+    setEditingApplication({
+      status: data.status,
+      form_factor: data.form_factor,
+      material: data.material,
+      size: data.size,
+      generated_preview: data.generated_preview,
+      theme: data.theme || 'main',
+    });
+  };
+
+  // Save application changes
+  const saveApplicationChanges = async () => {
+    if (!selectedApplication) return;
+
+    setSavingApplication(true);
+    const { error } = await api.updateApplication(selectedApplication.id, editingApplication);
+
+    if (error) {
+      toast.error('Ошибка сохранения');
+      setSavingApplication(false);
+      return;
+    }
+
+    // Update local state
+    setApplications(prev => prev.map(app =>
+      app.id === selectedApplication.id
+        ? { ...app, ...editingApplication }
+        : app
+    ));
+
+    toast.success('Заявка обновлена');
+    setSavingApplication(false);
+    setSelectedApplication(null);
+  };
 
   const totalCost = generations.reduce((sum, g) => sum + (g.cost_cents || 0), 0);
   const uniqueModels = [...new Set(generations.map(g => g.model_used).filter(Boolean))];
@@ -428,7 +501,7 @@ const Admin = () => {
                             <TableCell>
                               {app.form_factor ? (
                                 <Badge variant="secondary">
-                                  {app.form_factor === 'round' ? 'Круглый' : 'Контурный'}
+                                  {app.form_factor === 'round' ? 'Круглый' : app.form_factor === 'oval' ? 'Жетон' : 'Контурный'}
                                 </Badge>
                               ) : '—'}
                             </TableCell>
@@ -440,11 +513,21 @@ const Admin = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Link to={`/application/${app.id}`} target="_blank">
-                                <Button variant="ghost" size="sm">
-                                  <ExternalLink className="h-4 w-4" />
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openApplicationDetail(app)}
+                                  title="Редактировать"
+                                >
+                                  <Edit2 className="h-4 w-4" />
                                 </Button>
-                              </Link>
+                                <Link to={`/application/${app.id}`} target="_blank">
+                                  <Button variant="ghost" size="sm" title="Открыть">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -609,14 +692,12 @@ const Admin = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Дата</TableHead>
-                          <TableHead>Превью</TableHead>
+                          <TableHead>Исходник</TableHead>
+                          <TableHead>Результат</TableHead>
                           <TableHead>Заявка</TableHead>
                           <TableHead>Форма</TableHead>
-                          <TableHead>Размер</TableHead>
-                          <TableHead>Модель</TableHead>
-                          <TableHead>Время</TableHead>
                           <TableHead>Стоимость</TableHead>
-                          <TableHead>Комментарий</TableHead>
+                          <TableHead>Детали</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -627,6 +708,18 @@ const Admin = () => {
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 {format(new Date(gen.created_at), 'dd MMM yyyy HH:mm', { locale: ru })}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {gen.input_image_url ? (
+                                <img
+                                  src={gen.input_image_url}
+                                  alt="Исходник"
+                                  className="w-10 h-10 rounded object-cover cursor-pointer hover:ring-2 ring-primary transition-all"
+                                  onClick={() => setSelectedImage(gen.input_image_url)}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
@@ -652,31 +745,22 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">
-                                {gen.form_factor === 'round' ? 'Круглый' : 'Контурный'}
+                                {gen.form_factor === 'round' ? 'Круглый' : gen.form_factor === 'oval' ? 'Жетон' : 'Контурный'}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">
-                                {gen.size === 'pendant' ? 'Кулон' : gen.size === 'bracelet' ? 'Браслет' : 'Интерьер'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {gen.model_used || '—'}
-                              </code>
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-mono text-xs">
-                                {gen.execution_time_ms ? `${(gen.execution_time_ms / 1000).toFixed(1)}с` : '—'}
-                              </span>
                             </TableCell>
                             <TableCell>
                               <span className="font-mono">
                                 {gen.cost_cents ? `${gen.cost_cents}¢` : '—'}
                               </span>
                             </TableCell>
-                            <TableCell className="max-w-[200px] truncate">
-                              {gen.user_comment || '—'}
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedGeneration(gen)}
+                              >
+                                Детали
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -815,6 +899,23 @@ const Admin = () => {
                         </Select>
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Шея для визуализации</label>
+                        <Select
+                          value={value.gender || 'female'}
+                          onValueChange={(v) => updateFormFactor(key, 'gender', v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="female">Женская</SelectItem>
+                            <SelectItem value="male">Мужская</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm text-muted-foreground">Дополнение к промпту</label>
@@ -933,6 +1034,135 @@ const Admin = () => {
               </CardContent>
             </Card>
 
+            {/* Visualization Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Визуализация кулона на шее</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Ширина превью (мм)</label>
+                  <Input
+                    type="number"
+                    value={settings.visualization?.imageWidthMm || 250}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      visualization: {
+                        ...prev.visualization,
+                        imageWidthMm: parseInt(e.target.value) || 250
+                      }
+                    }))}
+                    className="w-32"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Сколько миллиметров представляет ширина картинки декольте
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Female attachment */}
+                  <div className="p-4 border rounded-lg space-y-4">
+                    <h4 className="font-medium">Женский силуэт</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">X (0-1)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          value={settings.visualization?.female?.attachX ?? 0.5}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            visualization: {
+                              ...prev.visualization,
+                              female: {
+                                ...prev.visualization?.female,
+                                attachX: parseFloat(e.target.value) || 0.5
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Y (0-1)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          value={settings.visualization?.female?.attachY ?? 0.5}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            visualization: {
+                              ...prev.visualization,
+                              female: {
+                                ...prev.visualization?.female,
+                                attachY: parseFloat(e.target.value) || 0.5
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Точка крепления кулона (0,0 = верхний левый угол, 1,1 = нижний правый)
+                    </p>
+                  </div>
+
+                  {/* Male attachment */}
+                  <div className="p-4 border rounded-lg space-y-4">
+                    <h4 className="font-medium">Мужской силуэт</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">X (0-1)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          value={settings.visualization?.male?.attachX ?? 0.5}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            visualization: {
+                              ...prev.visualization,
+                              male: {
+                                ...prev.visualization?.male,
+                                attachX: parseFloat(e.target.value) || 0.5
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">Y (0-1)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          value={settings.visualization?.male?.attachY ?? 0.75}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            visualization: {
+                              ...prev.visualization,
+                              male: {
+                                ...prev.visualization?.male,
+                                attachY: parseFloat(e.target.value) || 0.75
+                              }
+                            }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Точка крепления кулона (0,0 = верхний левый угол, 1,1 = нижний правый)
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Save Button */}
             <div className="flex justify-end">
               <Button
@@ -959,6 +1189,392 @@ const Admin = () => {
               alt="Превью"
               className="max-w-full max-h-full rounded-lg"
             />
+          </div>
+        )}
+
+        {/* Generation Detail Modal */}
+        {selectedGeneration && (
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedGeneration(null)}
+          >
+            <div
+              className="bg-background rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Детали генерации</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedGeneration(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left column - Images */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Исходное изображение</h3>
+                    {selectedGeneration.input_image_url ? (
+                      <img
+                        src={selectedGeneration.input_image_url}
+                        alt="Исходник"
+                        className="w-full max-w-xs rounded-lg border cursor-pointer"
+                        onClick={() => setSelectedImage(selectedGeneration.input_image_url)}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground">Нет изображения (text-to-image)</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Результаты генерации</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedGeneration.output_images?.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`Вариант ${idx + 1}`}
+                          className="w-full rounded-lg border cursor-pointer hover:ring-2 ring-primary transition-all"
+                          onClick={() => setSelectedImage(url)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right column - Info */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Дата</h3>
+                      <p>{format(new Date(selectedGeneration.created_at), 'dd MMM yyyy HH:mm:ss', { locale: ru })}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">ID</h3>
+                      <code className="text-xs">{selectedGeneration.id}</code>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Форма</h3>
+                      <Badge variant="outline">
+                        {selectedGeneration.form_factor === 'round' ? 'Круглый' : selectedGeneration.form_factor === 'oval' ? 'Жетон' : 'Контурный'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Размер</h3>
+                      <Badge variant="secondary">
+                        {selectedGeneration.size === 'pendant' ? 'Кулон' : selectedGeneration.size === 'bracelet' ? 'Браслет' : 'Интерьер'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Материал</h3>
+                      <Badge>{selectedGeneration.material}</Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Стоимость</h3>
+                      <p className="font-mono text-lg">{selectedGeneration.cost_cents ? `${selectedGeneration.cost_cents}¢` : '—'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Время</h3>
+                      <p className="font-mono">{selectedGeneration.execution_time_ms ? `${(selectedGeneration.execution_time_ms / 1000).toFixed(1)}с` : '—'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Модель</h3>
+                      <code className="text-xs bg-muted px-2 py-1 rounded">{selectedGeneration.model_used || '—'}</code>
+                    </div>
+                  </div>
+
+                  {selectedGeneration.application_id && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Заявка</h3>
+                      <Link to={`/application/${selectedGeneration.application_id}`} target="_blank">
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent">
+                          {selectedGeneration.application_id}
+                        </Badge>
+                      </Link>
+                    </div>
+                  )}
+
+                  {selectedGeneration.user_comment && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Комментарий пользователя</h3>
+                      <p className="text-sm bg-muted p-2 rounded">{selectedGeneration.user_comment}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Промпт</h3>
+                    <div className="bg-muted p-3 rounded-lg max-h-60 overflow-y-auto">
+                      <pre className="text-xs whitespace-pre-wrap font-mono">
+                        {selectedGeneration.prompt_used || 'Промпт не сохранён'}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Application Detail Modal */}
+        {selectedApplication && (
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedApplication(null)}
+          >
+            <div
+              className="bg-background rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Детали заявки</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedApplication(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left column - Images */}
+                <div className="space-y-4">
+                  {/* Input image */}
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Исходное изображение</h3>
+                    {selectedApplication.input_image_url ? (
+                      <img
+                        src={selectedApplication.input_image_url}
+                        alt="Исходник"
+                        className="w-full max-w-xs rounded-lg border cursor-pointer"
+                        onClick={() => setSelectedImage(selectedApplication.input_image_url)}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground text-sm">Нет изображения</div>
+                    )}
+                  </div>
+
+                  {/* Generated images */}
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Сгенерированные варианты
+                      {selectedApplication.generated_images?.length ? ` (${selectedApplication.generated_images.length})` : ''}
+                    </h3>
+                    {selectedApplication.generated_images && selectedApplication.generated_images.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedApplication.generated_images.map((url, idx) => (
+                          <div
+                            key={idx}
+                            className={`relative cursor-pointer rounded-lg border-2 transition-all ${
+                              editingApplication.generated_preview === url
+                                ? 'border-primary ring-2 ring-primary/30'
+                                : 'border-transparent hover:border-muted'
+                            }`}
+                            onClick={() => setEditingApplication(prev => ({ ...prev, generated_preview: url }))}
+                          >
+                            <img
+                              src={url}
+                              alt={`Вариант ${idx + 1}`}
+                              className="w-full rounded-lg"
+                            />
+                            {editingApplication.generated_preview === url && (
+                              <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded">
+                                Выбран
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground text-sm">Нет сгенерированных изображений</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right column - Form fields */}
+                <div className="space-y-4">
+                  {/* Read-only info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">ID</h3>
+                      <code className="text-xs">{selectedApplication.id}</code>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Дата создания</h3>
+                      <p className="text-sm">{format(new Date(selectedApplication.created_at), 'dd MMM yyyy HH:mm', { locale: ru })}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Шаг</h3>
+                      <Badge variant="outline">{selectedApplication.current_step}/4</Badge>
+                    </div>
+                  </div>
+
+                  {/* Editable fields */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="font-medium">Редактируемые поля</h3>
+
+                    {/* Theme */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Тема</label>
+                      <Select
+                        value={editingApplication.theme || selectedApplication.theme || 'main'}
+                        onValueChange={(v) => setEditingApplication(prev => ({ ...prev, theme: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="main">main (Основной)</SelectItem>
+                          <SelectItem value="kids">kids (Детский)</SelectItem>
+                          <SelectItem value="totems">totems (Тотемы)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Статус</label>
+                      <Select
+                        value={editingApplication.status || ''}
+                        onValueChange={(v) => setEditingApplication(prev => ({ ...prev, status: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">draft</SelectItem>
+                          <SelectItem value="pending_generation">pending_generation</SelectItem>
+                          <SelectItem value="generating">generating</SelectItem>
+                          <SelectItem value="generated">generated</SelectItem>
+                          <SelectItem value="checkout">checkout</SelectItem>
+                          <SelectItem value="completed">completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Form factor */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Форма</label>
+                      <Select
+                        value={editingApplication.form_factor || ''}
+                        onValueChange={(v) => setEditingApplication(prev => ({ ...prev, form_factor: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(settings.form_factors).map(([key, value]) => (
+                            <SelectItem key={key} value={key}>{value.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Material */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Материал</label>
+                      <Select
+                        value={editingApplication.material || ''}
+                        onValueChange={(v) => setEditingApplication(prev => ({ ...prev, material: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(settings.materials).map(([key, value]) => (
+                            <SelectItem key={key} value={key}>{value.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Size */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Размер (API)</label>
+                      <Select
+                        value={editingApplication.size || ''}
+                        onValueChange={(v) => setEditingApplication(prev => ({ ...prev, size: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bracelet">bracelet (S)</SelectItem>
+                          <SelectItem value="pendant">pendant (M)</SelectItem>
+                          <SelectItem value="interior">interior (L)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* User comment */}
+                  {selectedApplication.user_comment && (
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Комментарий пользователя</label>
+                      <p className="text-sm bg-muted p-2 rounded">{selectedApplication.user_comment}</p>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-col gap-3 pt-4">
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedApplication(null)}
+                      >
+                        Отмена
+                      </Button>
+                      <Button
+                        onClick={saveApplicationChanges}
+                        disabled={savingApplication}
+                        className="flex-1"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {savingApplication ? 'Сохранение...' : 'Сохранить изменения'}
+                      </Button>
+                    </div>
+
+                    {/* Import to examples button */}
+                    {selectedApplication.generated_preview && (
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          setImportingToExamples(true);
+                          const theme = editingApplication.theme || selectedApplication.theme || 'main';
+                          const { error } = await api.importApplicationToExample(
+                            selectedApplication.id,
+                            undefined,
+                            undefined,
+                            theme
+                          );
+                          if (error) {
+                            toast.error('Ошибка импорта в примеры');
+                          } else {
+                            toast.success('Импортировано в примеры');
+                          }
+                          setImportingToExamples(false);
+                        }}
+                        disabled={importingToExamples}
+                        className="w-full"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {importingToExamples ? 'Импорт...' : 'Импортировать в примеры'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

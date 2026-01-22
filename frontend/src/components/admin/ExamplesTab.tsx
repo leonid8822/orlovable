@@ -14,6 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Example {
   id: string;
@@ -24,6 +31,7 @@ interface Example {
   model_3d_url: string | null;
   display_order: number | null;
   is_active: boolean | null;
+  theme: string | null;
   created_at: string;
 }
 
@@ -45,6 +53,7 @@ export function ExamplesTab() {
   const [editData, setEditData] = useState<Partial<Example>>({});
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [themeFilter, setThemeFilter] = useState<string>('all');
 
   const fetchExamples = async () => {
     setLoading(true);
@@ -290,7 +299,18 @@ export function ExamplesTab() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Примеры работ</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Select value={themeFilter} onValueChange={setThemeFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Все темы" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все темы</SelectItem>
+                <SelectItem value="main">main (Основной)</SelectItem>
+                <SelectItem value="kids">kids (Детский)</SelectItem>
+                <SelectItem value="totems">totems (Тотемы)</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={fetchExamples} variant="outline" size="sm">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -353,12 +373,14 @@ export function ExamplesTab() {
             </div>
           ) : (
             <div className="space-y-4">
-              {examples.map((example, index) => (
+              {examples
+                .filter(e => themeFilter === 'all' || (e.theme || 'main') === themeFilter)
+                .map((example, index) => (
                 <Card key={example.id} className={`${!example.is_active ? 'opacity-60' : ''}`}>
                   <CardContent className="pt-4">
                     {editingId === example.id ? (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           <div>
                             <label className="text-sm text-muted-foreground">Название</label>
                             <Input
@@ -373,6 +395,22 @@ export function ExamplesTab() {
                               value={editData.display_order ?? 0}
                               onChange={(e) => setEditData({ ...editData, display_order: parseInt(e.target.value) })}
                             />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground">Тема</label>
+                            <Select
+                              value={editData.theme || 'main'}
+                              onValueChange={(v) => setEditData({ ...editData, theme: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="main">main (Основной)</SelectItem>
+                                <SelectItem value="kids">kids (Детский)</SelectItem>
+                                <SelectItem value="totems">totems (Тотемы)</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                         <div>
@@ -478,6 +516,9 @@ export function ExamplesTab() {
                           <div className="font-medium">{example.title || 'Без названия'}</div>
                           <div className="text-sm text-muted-foreground truncate">{example.description || 'Нет описания'}</div>
                         </div>
+                        <Badge variant="outline" className="mr-1">
+                          {example.theme || 'main'}
+                        </Badge>
                         <Badge variant={example.is_active ? 'default' : 'secondary'}>
                           {example.is_active ? 'Активен' : 'Скрыт'}
                         </Badge>

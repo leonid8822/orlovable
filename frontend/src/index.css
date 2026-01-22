@@ -184,14 +184,34 @@
     --radius: 0.625rem;
   }
 
-  /* Kids theme - тиффани/зеленый акцент */
+  /* Theme accent colors - default is gold (main theme) */
+  :root {
+    --theme-accent: 43 74% 45%;
+    --theme-accent-light: 43 74% 55%;
+    --theme-accent-dark: 43 74% 35%;
+    --theme-gradient: linear-gradient(135deg, hsl(43 74% 55%) 0%, hsl(43 74% 40%) 100%);
+    --theme-shadow: 0 4px 24px hsl(43 74% 45% / 0.2);
+    --theme-glow: 0 0 50px hsl(43 74% 45% / 0.15);
+  }
+
+  /* Kids theme - tiffany green */
   .theme-kids {
-    --tiffany: 174 58% 38%;
-    --tiffany-light: 174 58% 50%;
-    --tiffany-dark: 174 58% 28%;
-    --gradient-tiffany: linear-gradient(135deg, hsl(174 58% 45%) 0%, hsl(174 58% 32%) 100%);
-    --shadow-tiffany: 0 0 50px hsl(174 58% 38% / 0.3);
-    --shadow-glow-tiffany: 0 0 80px hsl(174 58% 38% / 0.25);
+    --theme-accent: 174 58% 38%;
+    --theme-accent-light: 174 58% 50%;
+    --theme-accent-dark: 174 58% 28%;
+    --theme-gradient: linear-gradient(135deg, hsl(174 58% 45%) 0%, hsl(174 58% 32%) 100%);
+    --theme-shadow: 0 4px 24px hsl(174 58% 38% / 0.2);
+    --theme-glow: 0 0 50px hsl(174 58% 38% / 0.15);
+  }
+
+  /* Totems theme - brown */
+  .theme-totems {
+    --theme-accent: 25 45% 35%;
+    --theme-accent-light: 25 50% 45%;
+    --theme-accent-dark: 25 40% 25%;
+    --theme-gradient: linear-gradient(135deg, hsl(25 50% 45%) 0%, hsl(25 40% 30%) 100%);
+    --theme-shadow: 0 4px 24px hsl(25 45% 35% / 0.2);
+    --theme-glow: 0 0 50px hsl(25 45% 35% / 0.15);
   }
 }
 
@@ -285,6 +305,74 @@
 
   .shadow-glow-brown {
     box-shadow: var(--shadow-glow-brown);
+  }
+
+  /* Dynamic theme utilities - automatically adapt to current theme */
+  .text-gradient-theme {
+    background: linear-gradient(135deg, hsl(var(--theme-accent-light)) 0%, hsl(var(--theme-accent)) 50%, hsl(var(--theme-accent-dark)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-theme {
+    background: var(--theme-gradient);
+  }
+
+  .shadow-theme {
+    box-shadow: var(--theme-shadow);
+  }
+
+  .shadow-glow-theme {
+    box-shadow: var(--theme-glow);
+  }
+
+  .border-theme {
+    border-color: hsl(var(--theme-accent));
+  }
+
+  .border-theme\/30 {
+    border-color: hsl(var(--theme-accent) / 0.3);
+  }
+
+  .focus\:border-theme:focus {
+    border-color: hsl(var(--theme-accent));
+  }
+
+  .ring-theme\/30 {
+    --tw-ring-color: hsl(var(--theme-accent) / 0.3);
+  }
+
+  .text-theme {
+    color: hsl(var(--theme-accent));
+  }
+
+  .text-theme-light {
+    color: hsl(var(--theme-accent-light));
+  }
+
+  .bg-theme {
+    background-color: hsl(var(--theme-accent));
+  }
+
+  .bg-theme\/10 {
+    background-color: hsl(var(--theme-accent) / 0.1);
+  }
+
+  .hover\:border-theme\/50:hover {
+    border-color: hsl(var(--theme-accent) / 0.5);
+  }
+
+  .hover\:border-theme\/30:hover {
+    border-color: hsl(var(--theme-accent) / 0.3);
+  }
+
+  .hover\:text-theme:hover {
+    color: hsl(var(--theme-accent));
+  }
+
+  .bg-theme\/20 {
+    background-color: hsl(var(--theme-accent) / 0.2);
   }
 
   .border-gold {

@@ -44,13 +44,13 @@ export function StepCheckout({
   };
 
   const handleMaterialChange = (material: Material) => {
-    // Reset size to 's' when changing material since sizes differ
+    // Reset size to 'm' when changing material since sizes differ
     const newSizes = settings.sizes[material] || settings.sizes.silver;
-    const newSizeConfig = newSizes.s;
+    const newSizeConfig = newSizes.m;
     onConfigChange({
       material,
-      sizeOption: 's',
-      size: (newSizeConfig?.apiSize || 'bracelet') as Size,
+      sizeOption: 'm',
+      size: (newSizeConfig?.apiSize || 'pendant') as Size,
     });
   };
 
@@ -68,7 +68,7 @@ export function StepCheckout({
       {/* Left: Order form */}
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h2 className="text-3xl md:text-4xl font-display text-gradient-gold mb-3">
+          <h2 className="text-3xl md:text-4xl font-display text-gradient-theme mb-3">
             Оформление заказа
           </h2>
           <p className="text-muted-foreground">
@@ -89,13 +89,11 @@ export function StepCheckout({
         <div className="space-y-3">
           <h3 className="font-medium">Материал</h3>
           <div className="grid grid-cols-2 gap-3">
-            {Object.entries(materialsConfig).map(([materialKey, materialInfo]) => {
-              const materialSizes = settings.sizes[materialKey];
-              const sizesText = materialSizes
-                ? Object.entries(materialSizes)
-                    .map(([k, v]) => `${v.label}: ${v.dimensionsMm}мм`)
-                    .join(' · ')
-                : '';
+            {/* Sort: silver first, gold second */}
+            {['silver', 'gold'].map((materialKey) => {
+              const materialInfo = materialsConfig[materialKey];
+              if (!materialInfo) return null;
+
               const isGold = materialKey === 'gold';
               const isDisabled = !materialInfo.enabled;
 
@@ -110,7 +108,7 @@ export function StepCheckout({
                       ? isGold
                         ? "border-gold bg-gold/10"
                         : "border-silver bg-silver/10"
-                      : "border-border hover:border-gold/50",
+                      : "border-border hover:border-theme/50",
                     isDisabled && "opacity-50 cursor-not-allowed"
                   )}
                 >
@@ -128,9 +126,6 @@ export function StepCheckout({
                     )}
                   />
                   <p className="font-medium text-center">{materialInfo.label}</p>
-                  <p className="text-xs text-muted-foreground text-center mt-1">
-                    {sizesText}
-                  </p>
                 </button>
               );
             })}
@@ -141,7 +136,11 @@ export function StepCheckout({
         <div className="space-y-3">
           <h3 className="font-medium">Размер</h3>
           <div className="grid grid-cols-3 gap-3">
-            {Object.entries(sizes).map(([sizeKey, sizeInfo]) => {
+            {/* Sort: S, M, L */}
+            {['s', 'm', 'l'].map((sizeKey) => {
+              const sizeInfo = sizes[sizeKey];
+              if (!sizeInfo) return null;
+
               return (
                 <button
                   key={sizeKey}
@@ -152,7 +151,7 @@ export function StepCheckout({
                       ? config.material === "gold"
                         ? "border-gold bg-gold/10"
                         : "border-silver bg-silver/10"
-                      : "border-border hover:border-gold/30"
+                      : "border-border hover:border-theme/30"
                   )}
                 >
                   <p className="text-xl font-display font-bold">{sizeInfo.label}</p>
@@ -167,7 +166,7 @@ export function StepCheckout({
         </div>
 
         {/* Price breakdown */}
-        <div className="bg-card rounded-xl border border-gold/30 p-4 space-y-3">
+        <div className="bg-card rounded-xl border border-theme/30 p-4 space-y-3">
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Полная стоимость</p>
             <p className="text-xl font-display">
@@ -177,12 +176,12 @@ export function StepCheckout({
           <div className="border-t border-border pt-3">
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium text-gradient-gold">Первоначальный взнос (50%)</p>
+                <p className="font-medium text-gradient-theme">Первоначальный взнос (50%)</p>
                 <p className="text-xs text-muted-foreground">
                   Остаток {depositAmount.toLocaleString("ru-RU")} ₽ перед отправкой
                 </p>
               </div>
-              <p className="text-2xl font-display text-gradient-gold">
+              <p className="text-2xl font-display text-gradient-theme">
                 {depositAmount.toLocaleString("ru-RU")} ₽
               </p>
             </div>
@@ -201,7 +200,7 @@ export function StepCheckout({
             placeholder="Дополнительные пожелания: камни, гравировка, особые требования..."
             value={config.orderComment}
             onChange={(e) => onConfigChange({ orderComment: e.target.value })}
-            className="min-h-[80px] bg-card border-border focus:border-gold resize-none"
+            className="min-h-[80px] bg-card border-border focus:border-theme resize-none"
           />
         </div>
 
@@ -210,7 +209,7 @@ export function StepCheckout({
           href="https://t.me/olai_support"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-gold transition-colors py-2"
+          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-theme transition-colors py-2"
         >
           <MessageCircle className="w-4 h-4" />
           Есть вопросы? Напишите нам в Telegram
@@ -221,13 +220,13 @@ export function StepCheckout({
           <Button
             variant="outline"
             onClick={onBack}
-            className="border-border hover:border-gold/50"
+            className="border-border hover:border-theme/50"
           >
             <ArrowLeft className="w-4 h-4" />
             Назад
           </Button>
           <Button
-            variant="gold"
+            variant="theme"
             size="xl"
             className="flex-1"
             onClick={handleCheckout}
@@ -252,7 +251,7 @@ export function StepCheckout({
               "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
               previewMode === "pendant"
                 ? "bg-card border-2"
-                : "bg-transparent border border-border hover:border-gold/50"
+                : "bg-transparent border border-border hover:border-theme/50"
             )}
             style={{
               borderColor: previewMode === "pendant" ? themeConfig.accentColor : undefined,
@@ -267,7 +266,7 @@ export function StepCheckout({
               "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
               previewMode === "on-neck"
                 ? "bg-card border-2"
-                : "bg-transparent border border-border hover:border-gold/50"
+                : "bg-transparent border border-border hover:border-theme/50"
             )}
             style={{
               borderColor: previewMode === "on-neck" ? themeConfig.accentColor : undefined,

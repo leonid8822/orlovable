@@ -2,15 +2,9 @@ import { FC, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { Material, SizeOption as PendantSizeOption, FormFactor } from "@/types/pendant";
 import { getSizeConfigByMaterial } from "@/types/pendant";
+import { useVisualization } from "@/contexts/SettingsContext";
 
-// Visual configurations for pendant display
-const visualConfigs = {
-  s: { scale: 0.5, chainLength: 52 },
-  m: { scale: 0.7, chainLength: 54 },
-  l: { scale: 0.9, chainLength: 56 },
-} as const;
-
-type SizeOption = keyof typeof visualConfigs;
+type SizeOption = "s" | "m" | "l";
 
 interface PendantOnNeckProps {
   pendantImage: string | null;
@@ -32,20 +26,24 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
   className = "",
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
-  const visualConfig = visualConfigs[selectedSize];
+  const [isZoomed, setIsZoomed] = useState(false);
+  const visualization = useVisualization();
   const sizeConfig = getSizeConfigByMaterial(material);
   const currentSize = sizeConfig[selectedSize];
 
-  // Determine which neck SVG to use based on form factor
-  const neckSvg = formFactor === "oval" ? "/man-neck.svg" : "/woman-neck.svg";
+  // Determine which neck SVG and attachment point to use based on form factor
+  const isMale = formFactor === "oval";
+  const neckSvg = isMale ? "/man-neck-2.svg" : "/woman-neck.svg";
+  const attachPoint = isMale ? visualization.male : visualization.female;
 
-  // Base pendant size in percentage of container
-  const basePendantSize = 18;
-  const pendantSize = basePendantSize * visualConfig.scale;
+  // Calculate pendant size based on real mm dimensions and image width
+  // imageWidthMm is how many mm the preview image represents
+  const pendantSizeMm = currentSize.dimensionsMm;
+  const pendantSizePercent = (pendantSizeMm / visualization.imageWidthMm) * 100;
 
-  // Position pendant - attachment point at TOP of pendant (chain connects to top)
-  const pendantX = 50; // Center horizontally
-  const pendantY = visualConfig.chainLength; // This is where the TOP of pendant attaches
+  // Position pendant at attachment point (in percentage)
+  const pendantX = attachPoint.attachX * 100;
+  const pendantY = attachPoint.attachY * 100;
 
   // Trigger animation on size change
   useEffect(() => {
@@ -54,114 +52,117 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
     return () => clearTimeout(timer);
   }, [selectedSize]);
 
-  // Chain/accent color from theme
-  const displayAccent = accentColor || "hsl(0, 0%, 70%)";
+  // Chain color based on material
+  const chainColor = material === "gold"
+    ? "hsl(43, 74%, 65%)" // Gold color
+    : "hsl(0, 0%, 75%)";   // Silver color
 
   // Pendant tint based on material (applied as CSS filter)
   const pendantFilter = material === "gold"
     ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
     : "none";
 
+  // Calculate zoom transform origin to center on pendant
+  const zoomScale = 2.2;
+  const zoomOriginX = pendantX;
+  const zoomOriginY = pendantY;
+
   return (
     <div className={cn("flex flex-col items-center", className)}>
       {/* Preview container */}
       <div
-        className="relative w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden"
+        className="relative w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden cursor-pointer"
         style={{
-          background: "linear-gradient(180deg, hsl(40, 30%, 96%) 0%, hsl(40, 25%, 90%) 100%)",
+          background: "linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(40, 20%, 97%) 100%)",
         }}
+        onClick={() => setIsZoomed(!isZoomed)}
       >
-        {/* Neck silhouette from SVG file */}
-        <img
-          src={neckSvg}
-          alt="Neck silhouette"
-          className="absolute inset-0 w-full h-full object-contain"
+        {/* Zoomable content wrapper */}
+        <div
+          className="absolute inset-0 transition-transform duration-500 ease-out"
           style={{
-            opacity: 0.3,
-            filter: "sepia(0.3) brightness(0.8)",
+            transform: isZoomed ? `scale(${zoomScale})` : "scale(1)",
+            transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
           }}
-        />
-
-        {/* Chain SVG - drawn on top of neck */}
-        <svg
-          viewBox="0 0 100 100"
-          className="absolute inset-0 w-full h-full"
-          style={{ pointerEvents: "none" }}
-          preserveAspectRatio="xMidYMid meet"
         >
-          {/* Chain - curves from sides of neck down to pendant attachment point (TOP of pendant) */}
-          <path
-            d={`M 38 28
-                Q 44 38, 50 ${pendantY - 1}
-                M 62 28
-                Q 56 38, 50 ${pendantY - 1}`}
-            stroke={displayAccent}
-            strokeWidth="0.5"
-            fill="none"
-            opacity="0.9"
-            className="transition-all duration-300 ease-out"
+          {/* Neck silhouette from SVG file */}
+          <img
+            src={neckSvg}
+            alt="Neck silhouette"
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{
+              opacity: 0.3,
+              filter: "sepia(0.3) brightness(0.8)",
+            }}
           />
 
-          {/* Small bail/loop where pendant attaches at the bottom of chain */}
-          <circle
-            cx="50"
-            cy={pendantY - 1}
-            r="0.8"
-            fill={displayAccent}
-            opacity="0.8"
-          />
-        </svg>
+          {/* Pendant - positioned at attachment point */}
+          {pendantImage && (
+            <div
+              className={cn(
+                "absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-out",
+                isAnimating && "scale-105"
+              )}
+              style={{
+                left: `${pendantX}%`,
+                top: `${pendantY}%`,
+                width: `${pendantSizePercent}%`,
+              }}
+            >
+              <img
+                src={pendantImage}
+                alt="Pendant preview"
+                className="w-full h-full object-contain"
+                style={{
+                  filter: pendantFilter,
+                  mixBlendMode: "multiply", // Makes black background transparent on light bg
+                }}
+              />
+            </div>
+          )}
 
-        {/* Pendant - positioned with TOP at attachment point, no shape overlay */}
-        {pendantImage && (
-          <div
-            className={cn(
-              "absolute transform -translate-x-1/2 overflow-hidden shadow-lg transition-all duration-300 ease-out",
-              isAnimating && "scale-105"
-            )}
-            style={{
-              left: `${pendantX}%`,
-              top: `${pendantY}%`,
-              width: `${pendantSize}%`,
-              boxShadow: `0 4px 20px rgba(0,0,0,0.3)`,
-            }}
-          >
-            <img
-              src={pendantImage}
-              alt="Pendant preview"
-              className="w-full h-full object-contain"
-              style={{ filter: pendantFilter }}
-            />
-          </div>
-        )}
-
-        {/* Placeholder if no image */}
-        {!pendantImage && (
-          <div
-            className="absolute transform -translate-x-1/2 transition-all duration-300 ease-out flex items-center justify-center rounded-xl"
-            style={{
-              left: `${pendantX}%`,
-              top: `${pendantY}%`,
-              width: `${pendantSize}%`,
-              aspectRatio: "1",
-              background: `linear-gradient(135deg, ${displayAccent}40 0%, ${displayAccent}20 100%)`,
-              border: `2px dashed ${displayAccent}60`,
-            }}
-          >
-            <span className="text-xs opacity-50">Превью</span>
-          </div>
-        )}
+          {/* Placeholder if no image */}
+          {!pendantImage && (
+            <div
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ease-out flex items-center justify-center rounded-xl"
+              style={{
+                left: `${pendantX}%`,
+                top: `${pendantY}%`,
+                width: `${pendantSizePercent}%`,
+                aspectRatio: "1",
+                background: `linear-gradient(135deg, ${chainColor}40 0%, ${chainColor}20 100%)`,
+                border: `2px dashed ${chainColor}60`,
+              }}
+            >
+              <span className="text-xs opacity-50">Превью</span>
+            </div>
+          )}
+        </div>
 
         {/* Size indicator badge */}
         <div
-          className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-sm font-medium"
+          className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-sm font-medium z-10"
           style={{
-            background: `${displayAccent}20`,
-            color: displayAccent,
-            border: `1px solid ${displayAccent}40`,
+            background: `${chainColor}20`,
+            color: chainColor,
+            border: `1px solid ${chainColor}40`,
           }}
         >
           {currentSize.dimensions}
+        </div>
+
+        {/* Zoom hint */}
+        <div
+          className={cn(
+            "absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs z-10 transition-opacity duration-300",
+            isZoomed ? "opacity-0" : "opacity-70"
+          )}
+          style={{
+            background: "rgba(0,0,0,0.5)",
+            color: "white",
+          }}
+        >
+          Нажмите для увеличения
         </div>
       </div>
 
@@ -175,5 +176,4 @@ export const PendantOnNeck: FC<PendantOnNeckProps> = ({
   );
 };
 
-export { visualConfigs };
 export type { SizeOption };

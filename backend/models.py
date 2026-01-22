@@ -66,4 +66,5 @@ class Example(Base):
     model_3d_url = Column(String, nullable=True)
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    theme = Column(String, default='main')  # main, kids, totems
     created_at = Column(DateTime, server_default=func.now())
