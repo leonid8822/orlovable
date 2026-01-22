@@ -11,12 +11,18 @@ class SupabaseClient:
     def __init__(self):
         self.url = SUPABASE_URL
         self.key = SUPABASE_KEY
+        if not self.key:
+            print("WARNING: SUPABASE_SERVICE_KEY is not set!")
         self.headers = {
             "apikey": self.key,
-            "Authorization": f"Bearer {self.key}",
+            "Authorization": f"Bearer {self.key}" if self.key else "",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+        # Remove empty Authorization header
+        if not self.key:
+            del self.headers["Authorization"]
+            del self.headers["apikey"]
 
     def _rest_url(self, table: str) -> str:
         return f"{self.url}/rest/v1/{table}"

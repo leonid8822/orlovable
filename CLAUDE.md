@@ -42,20 +42,24 @@
 | Компонент | Сервис | URL |
 |-----------|--------|-----|
 | Frontend Hosting | Vercel (static) | https://olai.art |
-| Backend | Google Cloud Run (Docker) | https://jewelry-backend-nqev4d2b4a-lm.a.run.app |
+| Backend | Render (auto-deploy from main) | https://olai.onrender.com |
 | Database | Supabase (PostgreSQL) | https://vofigcbihwkmocrsfowt.supabase.co |
 | AI Generation | FAL.ai (Bytedance SeedDream v4) | - |
 
-### Deployment Commands
+### Deployment
+
+**ВАЖНО: Backend деплоится АВТОМАТИЧЕСКИ из ветки `main` через Render.**
+
 ```bash
-# Frontend -> Vercel
+# Frontend -> Vercel (manual or via Vercel Dashboard)
 cd frontend && vercel --prod --token $VERCEL_TOKEN
 
-# Backend -> Cloud Run (auto-deploy via GitHub)
-# Manual: gcloud run deploy jewelry-backend --source backend/
-
-# Keep-alive pinger (prevents cold starts)
-./scripts/keep-alive.sh
+# Backend -> Render (АВТОМАТИЧЕСКИ из main!)
+# НЕ НУЖНО деплоить вручную - просто merge в main и Render сам задеплоит
+# Render Environment Variables (настроены в Dashboard):
+#   - SUPABASE_URL
+#   - SUPABASE_SERVICE_KEY
+#   - FAL_KEY
 ```
 
 ---
