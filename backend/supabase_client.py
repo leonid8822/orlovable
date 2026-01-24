@@ -46,6 +46,16 @@ class SupabaseClient:
             response.raise_for_status()
             return response.json()
 
+    async def select_by_field(self, table: str, field: str, value: str, columns: str = "*"):
+        """Select record by arbitrary field"""
+        url = f"{self._rest_url(table)}?{field}=eq.{value}&select={columns}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            return data[0] if data else None
+
     async def select_one(self, table: str, id: str, columns: str = "*"):
         """Select single record by id"""
         url = f"{self._rest_url(table)}?id=eq.{id}&select={columns}"

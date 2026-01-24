@@ -8,8 +8,13 @@ interface StepIndicatorProps {
 
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
   // Map GENERATING to appear as part of UPLOAD visually
-  const displayStep =
-    currentStep === AppStep.GENERATING ? AppStep.UPLOAD : currentStep;
+  // Map VERIFICATION to appear as part of SELECTION visually
+  let displayStep = currentStep;
+  if (currentStep === AppStep.GENERATING) {
+    displayStep = AppStep.UPLOAD;
+  } else if (currentStep === AppStep.VERIFICATION) {
+    displayStep = AppStep.SELECTION;
+  }
   const currentIndex = VISIBLE_STEPS.indexOf(displayStep);
 
   return (

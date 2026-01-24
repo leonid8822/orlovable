@@ -3,6 +3,7 @@ export enum AppStep {
   UPLOAD = 'UPLOAD',
   GENERATING = 'GENERATING',
   SELECTION = 'SELECTION',
+  VERIFICATION = 'VERIFICATION',
   CHECKOUT = 'CHECKOUT'
 }
 
@@ -11,10 +12,11 @@ export const STEP_TITLES: Record<AppStep, string> = {
   [AppStep.UPLOAD]: 'Загрузка',
   [AppStep.GENERATING]: 'Генерация',
   [AppStep.SELECTION]: 'Выбор',
+  [AppStep.VERIFICATION]: 'Подтверждение',
   [AppStep.CHECKOUT]: 'Оформление'
 };
 
-// Visible steps in indicator (GENERATING is part of UPLOAD visually)
+// Visible steps in indicator (GENERATING is part of UPLOAD visually, VERIFICATION is part of SELECTION visually)
 export const VISIBLE_STEPS: AppStep[] = [AppStep.UPLOAD, AppStep.SELECTION, AppStep.CHECKOUT];
 
 // Form factors - теперь выбираются отдельно от размера
@@ -142,6 +144,14 @@ export const SIZE_CONFIG: Record<SizeOption, SizeConfig & { formFactor: FormFact
   }
 };
 
+// User auth data collected during generation
+export interface UserAuthData {
+  email: string;
+  name: string;
+  userId?: string;
+  isVerified: boolean;
+}
+
 // Main pendant configuration
 export interface PendantConfig {
   // Image data
@@ -163,6 +173,9 @@ export interface PendantConfig {
   material: Material;
   size: Size; // for API compatibility
 
+  // User auth data (collected during GENERATING step)
+  userAuth: UserAuthData;
+
   // Legacy fields (kept for compatibility, not used in new flow)
   backImage: File | null;
   backImagePreview: string | null;
@@ -182,6 +195,12 @@ export const initialPendantConfig: PendantConfig = {
   formFactor: 'round',
   material: 'silver',
   size: 'pendant',  // M = pendant
+  // User auth
+  userAuth: {
+    email: '',
+    name: '',
+    isVerified: false,
+  },
   // Legacy
   backImage: null,
   backImagePreview: null,

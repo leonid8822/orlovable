@@ -120,25 +120,23 @@ export function StepSelection({
         Вариант {currentIndex + 1} из {generatedImages.length}
       </p>
 
-      {/* Action buttons */}
+      {/* Action buttons - stacked on mobile */}
       <div className="flex flex-col gap-3 w-full max-w-sm">
-        <div className="flex gap-3">
-          <Button
-            variant="themeOutline"
-            className="flex-1"
-            onClick={() => setShowRegenerateConfirm(true)}
-          >
-            <RefreshCw className="w-4 h-4" />
-            Перегенерировать
-          </Button>
-          <Button variant="theme" className="flex-1" onClick={onNext}>
-            Далее
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        <Button variant="theme" className="w-full" onClick={onNext}>
+          Далее
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="themeOutline"
+          className="w-full"
+          onClick={() => setShowRegenerateConfirm(true)}
+        >
+          <RefreshCw className="w-4 h-4" />
+          Перегенерировать
+        </Button>
         <Button
           variant="ghost"
-          className="text-muted-foreground hover:text-foreground"
+          className="w-full text-muted-foreground hover:text-foreground"
           onClick={onBack}
         >
           <ArrowLeft className="w-4 h-4" />

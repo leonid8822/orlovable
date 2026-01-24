@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Mail, User } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import type { PendantConfig } from "@/types/pendant";
+import type { PendantConfig, UserAuthData } from "@/types/pendant";
 import { useFormFactors } from "@/contexts/SettingsContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
@@ -21,7 +23,7 @@ const funFacts = [
 interface StepGeneratingProps {
   config: PendantConfig;
   applicationId: string;
-  onGenerationComplete: (images: string[]) => void;
+  onGenerationComplete: (images: string[], userAuth: UserAuthData) => void;
   onGenerationError: (error: string) => void;
 }
 
@@ -34,9 +36,84 @@ export function StepGenerating({
   const [progress, setProgress] = useState(0);
   const [currentFactIndex, setCurrentFactIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationDone, setGenerationDone] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // User auth form state
+  const [email, setEmail] = useState(config.userAuth?.email || "");
+  const [name, setName] = useState(config.userAuth?.name || "");
+  const [emailError, setEmailError] = useState("");
+  const [nameError, setNameError] = useState("");
+
   const estimatedTime = 60; // seconds
+
+  // Validate email format
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  // Check if form is valid
+  const isFormValid = () => {
+    return email.trim() !== "" && validateEmail(email) && name.trim() !== "";
+  };
+
+  // Handle form submission when generation is done
+  const handleContinue = async () => {
+    // Validate
+    let hasError = false;
+
+    if (!name.trim()) {
+      setNameError("Введите ваше имя");
+      hasError = true;
+    } else {
+      setNameError("");
+    }
+
+    if (!email.trim()) {
+      setEmailError("Введите email");
+      hasError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError("Некорректный email");
+      hasError = true;
+    } else {
+      setEmailError("");
+    }
+
+    if (hasError) return;
+
+    // Request verification code
+    const { data, error } = await api.requestVerificationCode({
+      email: email.trim(),
+      name: name.trim(),
+      application_id: applicationId,
+    });
+
+    if (error || !data?.success) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отправить код. Попробуйте ещё раз.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Pass user auth data to parent
+    const userAuth: UserAuthData = {
+      email: email.trim(),
+      name: name.trim(),
+      userId: data.user_id,
+      isVerified: false,
+    };
+
+    toast({
+      title: "Код отправлен",
+      description: `Проверьте почту ${email}`,
+    });
+
+    onGenerationComplete(generatedImages, userAuth);
+  };
 
   // Start generation on mount
   useEffect(() => {
@@ -80,16 +157,14 @@ export function StepGenerating({
         }
 
         setProgress(100);
+        setGeneratedImages(data.images || []);
+        setGenerationDone(true);
 
         toast({
           title: "Готово!",
           description: `Сгенерировано ${data.images?.length || 1} вариантов`,
         });
 
-        // Small delay for UX before transitioning
-        setTimeout(() => {
-          onGenerationComplete(data.images || []);
-        }, 500);
       } catch (error) {
         console.error("Generation error:", error);
 
@@ -114,6 +189,8 @@ export function StepGenerating({
 
   // Progress animation
   useEffect(() => {
+    if (generationDone) return;
+
     const interval = setInterval(() => {
       setProgress((prev) => {
         // Non-linear progress that slows down as it approaches 95%
@@ -123,7 +200,7 @@ export function StepGenerating({
     }, 600);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [generationDone]);
 
   // Fun facts rotation
   useEffect(() => {
@@ -179,7 +256,7 @@ export function StepGenerating({
           <h2
             className={`text-2xl md:text-3xl font-display ${themeConfig.textGradientClass}`}
           >
-            Создаём варианты вашего украшения...
+            {generationDone ? "Варианты готовы!" : "Создаём варианты вашего украшения..."}
           </h2>
           <p className="text-sm text-muted-foreground">
             {formFactorConfig?.label || config.formFactor}
@@ -202,21 +279,85 @@ export function StepGenerating({
         </div>
       </div>
 
-      {/* Fun facts */}
-      <div className="max-w-md p-4 bg-card/50 rounded-xl border border-border/50">
-        <p
-          className="text-sm font-medium mb-2"
-          style={{ color: themeConfig.accentColorLight }}
-        >
-          А вы знали?
-        </p>
-        <p
-          className="text-sm text-muted-foreground animate-fade-in"
-          key={currentFactIndex}
-        >
-          {funFacts[currentFactIndex]}
-        </p>
+      {/* Email/Name form - always visible while waiting */}
+      <div className="w-full max-w-sm space-y-4 bg-card/50 rounded-xl border border-border/50 p-6">
+        <div className="text-center mb-4">
+          <p className="text-sm font-medium" style={{ color: themeConfig.accentColorLight }}>
+            {generationDone ? "Куда отправить результат?" : "Пока ждём, расскажите о себе"}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="name" className="text-sm flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Ваше имя
+            </Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Как к вам обращаться?"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={nameError ? "border-destructive" : ""}
+            />
+            {nameError && (
+              <p className="text-xs text-destructive">{nameError}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-sm flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={emailError ? "border-destructive" : ""}
+            />
+            {emailError && (
+              <p className="text-xs text-destructive">{emailError}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Continue button - only when generation is done */}
+        {generationDone && (
+          <button
+            onClick={handleContinue}
+            disabled={!isFormValid()}
+            className="w-full py-3 px-4 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: isFormValid() ? themeConfig.accentColor : undefined,
+              color: isFormValid() ? "white" : undefined,
+            }}
+          >
+            Продолжить
+          </button>
+        )}
       </div>
+
+      {/* Fun facts - only while generating */}
+      {!generationDone && (
+        <div className="max-w-md p-4 bg-card/50 rounded-xl border border-border/50">
+          <p
+            className="text-sm font-medium mb-2"
+            style={{ color: themeConfig.accentColorLight }}
+          >
+            А вы знали?
+          </p>
+          <p
+            className="text-sm text-muted-foreground animate-fade-in"
+            key={currentFactIndex}
+          >
+            {funFacts[currentFactIndex]}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
