@@ -1,4 +1,4 @@
--- Migration: Create users table for email verification
+-- Migration: Create users table for email verification and admin auth
 -- Run this in Supabase SQL Editor
 
 CREATE TABLE IF NOT EXISTS users (
@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified BOOLEAN DEFAULT FALSE,
     verification_code TEXT,
     verification_code_expires_at TIMESTAMPTZ,
+    -- Admin fields
+    is_admin BOOLEAN DEFAULT FALSE,
+    admin_session_token TEXT,
+    admin_session_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
