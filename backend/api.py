@@ -692,9 +692,12 @@ async def request_verification_code(req: RequestCodeRequest):
 
         # Link application to user (preliminary, not verified yet)
         if req.application_id:
-            await supabase.update("applications", req.application_id, {
-                "user_id": user_id
-            })
+            try:
+                await supabase.update("applications", req.application_id, {
+                    "user_id": user_id
+                })
+            except Exception as link_error:
+                print(f"Warning: Could not link application {req.application_id}: {link_error}")
 
         # Send email with code
         email_sent = await send_verification_email(email, name, code)
@@ -750,9 +753,12 @@ async def verify_code(req: VerifyCodeRequest):
 
         # Link application to verified user
         if req.application_id:
-            await supabase.update("applications", req.application_id, {
-                "user_id": user_id
-            })
+            try:
+                await supabase.update("applications", req.application_id, {
+                    "user_id": user_id
+                })
+            except Exception as link_error:
+                print(f"Warning: Could not link application {req.application_id}: {link_error}")
 
         return {
             "success": True,
