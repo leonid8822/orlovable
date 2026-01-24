@@ -223,5 +223,59 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Admin Auth API
+    adminRequestCode: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/request-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    adminVerifyCode: async (email: string, code: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/verify-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code })
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    verifyAdminSession: async (token: string, email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/verify-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, email })
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    adminLogout: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

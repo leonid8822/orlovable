@@ -15,6 +15,7 @@ import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { useSettings } from '@/contexts/SettingsContext';
+import { AdminAuth } from '@/components/AdminAuth';
 
 interface Generation {
   id: string;
@@ -1582,4 +1583,11 @@ const Admin = () => {
   );
 };
 
-export default Admin;
+// Wrap with authentication
+const AdminWithAuth = () => (
+  <AdminAuth>
+    <Admin />
+  </AdminAuth>
+);
+
+export default AdminWithAuth;

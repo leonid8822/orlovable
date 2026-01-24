@@ -1086,3 +1086,198 @@ async def test_payment(amount: int = 100):
     except Exception as e:
         print(f"Error creating test payment: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Admin Authentication Endpoints
+# ============================================
+
+# Admin email whitelist - only these emails can access admin panel
+ADMIN_EMAILS = [
+    "orlovleoart@gmail.com",
+    "leo@olai.art",
+]
+
+
+class AdminLoginRequest(BaseModel):
+    email: str
+
+
+class AdminVerifyRequest(BaseModel):
+    email: str
+    code: str
+
+
+@router.post("/admin/request-code")
+async def admin_request_code(req: AdminLoginRequest):
+    """Request admin verification code - only for whitelisted emails"""
+    try:
+        email = req.email.lower().strip()
+
+        # Check if email is in admin whitelist
+        if email not in ADMIN_EMAILS:
+            # Don't reveal that email isn't in whitelist
+            return {
+                "success": True,
+                "message": "If this email is registered as admin, a code has been sent"
+            }
+
+        # Check if user exists, create if not
+        existing_user = await supabase.select_by_field("users", "email", email)
+
+        # Generate verification code
+        code = generate_verification_code()
+        expires_at = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+
+        if existing_user:
+            user_id = existing_user["id"]
+            await supabase.update("users", user_id, {
+                "verification_code": code,
+                "verification_code_expires_at": expires_at,
+                "is_admin": True
+            })
+        else:
+            user_id = str(uuid.uuid4())
+            await supabase.insert("users", {
+                "id": user_id,
+                "email": email,
+                "name": "Admin",
+                "email_verified": True,
+                "is_admin": True,
+                "verification_code": code,
+                "verification_code_expires_at": expires_at
+            })
+
+        # Send email with code
+        email_sent = await send_verification_email(email, "Admin", code)
+
+        if not email_sent:
+            print(f"Warning: Admin email not sent to {email}, code: {code}")
+
+        return {
+            "success": True,
+            "message": "If this email is registered as admin, a code has been sent"
+        }
+
+    except Exception as e:
+        print(f"Error in admin login: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/verify-code")
+async def admin_verify_code(req: AdminVerifyRequest):
+    """Verify admin code and return session token"""
+    try:
+        email = req.email.lower().strip()
+
+        # Check if email is in admin whitelist
+        if email not in ADMIN_EMAILS:
+            return {"success": False, "error": "Access denied"}
+
+        # Get user by email
+        user = await supabase.select_by_field("users", "email", email)
+
+        if not user:
+            return {"success": False, "error": "Access denied"}
+
+        # Check if code matches
+        if user.get("verification_code") != req.code:
+            return {"success": False, "error": "Invalid code"}
+
+        # Check if code is expired
+        expires_at = user.get("verification_code_expires_at")
+        if expires_at:
+            try:
+                expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                    return {"success": False, "error": "Code expired"}
+            except:
+                pass
+
+        # Generate session token
+        session_token = str(uuid.uuid4())
+        session_expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+
+        # Update user with session
+        user_id = user["id"]
+        await supabase.update("users", user_id, {
+            "verification_code": None,
+            "verification_code_expires_at": None,
+            "admin_session_token": session_token,
+            "admin_session_expires_at": session_expires
+        })
+
+        return {
+            "success": True,
+            "token": session_token,
+            "email": email,
+            "expires_at": session_expires
+        }
+
+    except Exception as e:
+        print(f"Error verifying admin code: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/verify-session")
+async def admin_verify_session(request: Request):
+    """Verify admin session token"""
+    try:
+        body = await request.json()
+        token = body.get("token")
+        email = body.get("email", "").lower().strip()
+
+        if not token or not email:
+            return {"valid": False}
+
+        # Check if email is in whitelist
+        if email not in ADMIN_EMAILS:
+            return {"valid": False}
+
+        # Get user
+        user = await supabase.select_by_field("users", "email", email)
+
+        if not user:
+            return {"valid": False}
+
+        # Check session token
+        if user.get("admin_session_token") != token:
+            return {"valid": False}
+
+        # Check if session is expired
+        expires_at = user.get("admin_session_expires_at")
+        if expires_at:
+            try:
+                expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                    return {"valid": False}
+            except:
+                return {"valid": False}
+
+        return {"valid": True, "email": email}
+
+    except Exception as e:
+        print(f"Error verifying admin session: {e}")
+        return {"valid": False}
+
+
+@router.post("/admin/logout")
+async def admin_logout(request: Request):
+    """Logout admin - invalidate session"""
+    try:
+        body = await request.json()
+        email = body.get("email", "").lower().strip()
+
+        if email:
+            user = await supabase.select_by_field("users", "email", email)
+            if user:
+                await supabase.update("users", user["id"], {
+                    "admin_session_token": None,
+                    "admin_session_expires_at": None
+                })
+
+        return {"success": True}
+
+    except Exception as e:
+        print(f"Error logging out admin: {e}")
+        return {"success": True}  # Always return success for logout
