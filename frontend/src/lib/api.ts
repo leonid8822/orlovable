@@ -165,6 +165,19 @@ export const api = {
     },
 
     // Auth API
+    requestCode: async (payload: { email: string; name: string }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/request-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
     requestVerificationCode: async (payload: { email: string; name: string; application_id: string }) => {
         try {
             const response = await fetch(`${API_URL}/auth/request-code`, {
@@ -178,7 +191,7 @@ export const api = {
             return { data: null, error };
         }
     },
-    verifyCode: async (payload: { email: string; code: string; application_id: string }) => {
+    verifyCode: async (payload: { email: string; code: string; application_id?: string }) => {
         try {
             const response = await fetch(`${API_URL}/auth/verify-code`, {
                 method: 'POST',
