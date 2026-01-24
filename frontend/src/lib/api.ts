@@ -162,5 +162,66 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Auth API
+    requestVerificationCode: async (payload: { email: string; name: string; application_id: string }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/request-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    verifyCode: async (payload: { email: string; code: string; application_id: string }) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/verify-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    // Payment API
+    createPayment: async (payload: {
+        application_id: string;
+        amount: number;
+        email?: string;
+        name?: string;
+        order_comment?: string;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/payments/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Payment creation failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    getPaymentStatus: async (orderId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/payments/status/${orderId}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

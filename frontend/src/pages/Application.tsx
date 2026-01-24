@@ -5,12 +5,14 @@ import { StepIndicator } from "@/components/StepIndicator";
 import { StepUpload } from "@/components/steps/StepUpload";
 import { StepGenerating } from "@/components/steps/StepGenerating";
 import { StepSelection } from "@/components/steps/StepSelection";
+import { StepVerification } from "@/components/steps/StepVerification";
 import { StepCheckout } from "@/components/steps/StepCheckout";
 import {
   AppStep,
   PendantConfig,
   initialPendantConfig,
   getSizeConfigWithDefaults,
+  UserAuthData,
 } from "@/types/pendant";
 import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
@@ -21,8 +23,9 @@ import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
-  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.SELECTION],
+  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.VERIFICATION],
+  [AppStep.VERIFICATION]: [AppStep.SELECTION, AppStep.CHECKOUT],
+  [AppStep.CHECKOUT]: [AppStep.VERIFICATION],
 };
 
 const Application = () => {
@@ -136,15 +139,28 @@ const Application = () => {
 
   // Generation complete handler
   const handleGenerationComplete = useCallback(
-    (images: string[]) => {
+    (images: string[], userAuth: UserAuthData) => {
       setGeneratedImages(images);
       setConfig((prev) => ({
         ...prev,
         generatedImages: images,
         selectedVariantIndex: 0,
         generatedPreview: images[0] || null,
+        userAuth,
       }));
       transitionTo(AppStep.SELECTION);
+    },
+    [transitionTo]
+  );
+
+  // Verification complete handler
+  const handleVerificationComplete = useCallback(
+    (userAuth: UserAuthData) => {
+      setConfig((prev) => ({
+        ...prev,
+        userAuth,
+      }));
+      transitionTo(AppStep.CHECKOUT);
     },
     [transitionTo]
   );
@@ -351,8 +367,17 @@ const Application = () => {
                 generatedImages={generatedImages}
                 onSelectVariant={handleSelectVariant}
                 onRegenerate={handleRegenerate}
-                onNext={() => transitionTo(AppStep.CHECKOUT)}
+                onNext={() => transitionTo(AppStep.VERIFICATION)}
                 onBack={() => transitionTo(AppStep.UPLOAD)}
+              />
+            )}
+
+            {currentStep === AppStep.VERIFICATION && applicationId && (
+              <StepVerification
+                config={config}
+                applicationId={applicationId}
+                onVerified={handleVerificationComplete}
+                onBack={() => transitionTo(AppStep.SELECTION)}
               />
             )}
 
@@ -360,7 +385,8 @@ const Application = () => {
               <StepCheckout
                 config={config}
                 onConfigChange={handleConfigChange}
-                onBack={() => transitionTo(AppStep.SELECTION)}
+                onBack={() => transitionTo(AppStep.VERIFICATION)}
+                applicationId={applicationId || undefined}
               />
             )}
           </div>

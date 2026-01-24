@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { ArrowLeft, CreditCard, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import type { PendantConfig, Material, Size } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useSettings, useVisualization } from "@/contexts/SettingsContext";
@@ -12,6 +16,7 @@ interface StepCheckoutProps {
   config: PendantConfig;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onBack: () => void;
+  applicationId?: string;
 }
 
 type SizeOption = "s" | "m" | "l";
@@ -20,10 +25,13 @@ export function StepCheckout({
   config,
   onConfigChange,
   onBack,
+  applicationId,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const { config: themeConfig } = useAppTheme();
+  const { toast } = useToast();
 
   // Auto-switch images every 15 seconds
   useEffect(() => {
@@ -77,10 +85,43 @@ export function StepCheckout({
   };
 
   const handleCheckout = async () => {
+    if (!applicationId) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось определить заказ. Попробуйте обновить страницу.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsProcessing(false);
-    alert(`Оплата первоначального взноса ${depositAmount.toLocaleString("ru-RU")} ₽ будет доступна позже. Спасибо за интерес!`);
+
+    try {
+      const { data, error } = await api.createPayment({
+        application_id: applicationId,
+        amount: depositAmount,
+        order_comment: config.orderComment,
+      });
+
+      if (error || !data?.success) {
+        throw new Error(error?.message || "Ошибка создания платежа");
+      }
+
+      // Redirect to Tinkoff payment page
+      if (data.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        throw new Error("Не получена ссылка на оплату");
+      }
+    } catch (err: any) {
+      console.error("Payment error:", err);
+      toast({
+        title: "Ошибка оплаты",
+        description: err.message || "Не удалось создать платёж. Попробуйте позже.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -295,13 +336,44 @@ export function StepCheckout({
             Вопросы? Напишите в Telegram
           </a>
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
+          {/* Agreement checkbox */}
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-card/50 border border-border">
+            <Checkbox
+              id="terms"
+              checked={agreedToTerms}
+              onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+              className="mt-0.5"
+            />
+            <label
+              htmlFor="terms"
+              className="text-sm text-muted-foreground leading-relaxed cursor-pointer"
+            >
+              Я согласен с{" "}
+              <Link
+                to="/oferta"
+                target="_blank"
+                className="text-theme hover:underline"
+              >
+                Публичной офертой
+              </Link>{" "}
+              и{" "}
+              <Link
+                to="/privacy"
+                target="_blank"
+                className="text-theme hover:underline"
+              >
+                Политикой конфиденциальности
+              </Link>
+            </label>
+          </div>
+
+          {/* Action buttons - stacked on mobile */}
+          <div className="flex flex-col-reverse md:flex-row gap-3 pt-2">
             <Button
               variant="outline"
               size="lg"
               onClick={onBack}
-              className="border-border hover:border-theme/50"
+              className="w-full md:w-auto border-border hover:border-theme/50"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Назад
@@ -309,9 +381,9 @@ export function StepCheckout({
             <Button
               variant="theme"
               size="lg"
-              className="flex-1"
+              className="w-full md:flex-1"
               onClick={handleCheckout}
-              disabled={isProcessing}
+              disabled={isProcessing || !agreedToTerms}
             >
               <CreditCard className="w-4 h-4 mr-2" />
               {isProcessing ? "Обработка..." : `Оплатить ${depositAmount.toLocaleString("ru-RU")} ₽`}

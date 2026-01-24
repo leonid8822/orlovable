@@ -1,12 +1,22 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import Optional
 from pydantic import BaseModel
 from supabase_client import supabase
+from email_service import send_verification_email
+from tinkoff_payment import (
+    init_payment,
+    get_payment_state,
+    verify_notification_token,
+    SUCCESS_STATUSES,
+    FINAL_STATUSES,
+)
 import os
 import httpx
 import asyncio
 import time
 import uuid
+import random
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -627,6 +637,136 @@ async def delete_example(example_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== AUTH API ==============
+
+class RequestCodeRequest(BaseModel):
+    email: str
+    name: str
+    application_id: str
+
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+    application_id: str
+
+
+def generate_verification_code() -> str:
+    """Generate a 6-digit verification code"""
+    return str(random.randint(100000, 999999))
+
+
+@router.post("/auth/request-code")
+async def request_verification_code(req: RequestCodeRequest):
+    """Create or update user and send verification code"""
+    try:
+        email = req.email.lower().strip()
+        name = req.name.strip()
+
+        # Check if user exists
+        existing_user = await supabase.select_by_field("users", "email", email)
+
+        # Generate verification code
+        code = generate_verification_code()
+        expires_at = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+
+        if existing_user:
+            # Update existing user with new code
+            user_id = existing_user["id"]
+            await supabase.update("users", user_id, {
+                "name": name,  # Update name in case it changed
+                "verification_code": code,
+                "verification_code_expires_at": expires_at
+            })
+        else:
+            # Create new user
+            user_id = str(uuid.uuid4())
+            await supabase.insert("users", {
+                "id": user_id,
+                "email": email,
+                "name": name,
+                "email_verified": False,
+                "verification_code": code,
+                "verification_code_expires_at": expires_at
+            })
+
+        # Link application to user (preliminary, not verified yet)
+        if req.application_id:
+            await supabase.update("applications", req.application_id, {
+                "user_id": user_id
+            })
+
+        # Send email with code
+        email_sent = await send_verification_email(email, name, code)
+
+        if not email_sent:
+            print(f"Warning: Email not sent to {email}, but code generated: {code}")
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "message": "Verification code sent"
+        }
+
+    except Exception as e:
+        print(f"Error requesting verification code: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/auth/verify-code")
+async def verify_code(req: VerifyCodeRequest):
+    """Verify the code and mark user as verified"""
+    try:
+        email = req.email.lower().strip()
+
+        # Get user by email
+        user = await supabase.select_by_field("users", "email", email)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check if code matches
+        if user.get("verification_code") != req.code:
+            return {"success": False, "error": "Invalid code"}
+
+        # Check if code is expired
+        expires_at = user.get("verification_code_expires_at")
+        if expires_at:
+            try:
+                # Parse ISO format datetime
+                expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                    return {"success": False, "error": "Code expired"}
+            except:
+                pass  # If parsing fails, continue with verification
+
+        # Mark user as verified and clear code
+        user_id = user["id"]
+        await supabase.update("users", user_id, {
+            "email_verified": True,
+            "verification_code": None,
+            "verification_code_expires_at": None
+        })
+
+        # Link application to verified user
+        if req.application_id:
+            await supabase.update("applications", req.application_id, {
+                "user_id": user_id
+            })
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "verified": True
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error verifying code: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/examples/import-from-application")
 async def import_example_from_application(req: ImportFromApplicationRequest):
     """Import an application as an example (copies input and generated images)"""
@@ -681,4 +821,268 @@ async def import_example_from_application(req: ImportFromApplicationRequest):
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== PAYMENT API ==============
+
+class CreatePaymentRequest(BaseModel):
+    application_id: str
+    amount: int  # Amount in rubles
+    email: Optional[str] = None
+    name: Optional[str] = None
+    order_comment: Optional[str] = None
+
+
+class PaymentNotification(BaseModel):
+    TerminalKey: str
+    OrderId: str
+    Success: bool
+    Status: str
+    PaymentId: int
+    ErrorCode: str
+    Amount: int
+    CardId: Optional[int] = None
+    Pan: Optional[str] = None
+    ExpDate: Optional[str] = None
+    Token: str
+
+
+@router.post("/payments/create")
+async def create_payment(req: CreatePaymentRequest):
+    """Create payment and get payment URL"""
+    try:
+        # Get application to validate
+        app = await supabase.select_one("applications", req.application_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        # Generate unique order ID
+        order_id = f"OLAI-{req.application_id[:8]}-{int(time.time())}"
+
+        # Convert rubles to kopeks
+        amount_kopeks = req.amount * 100
+
+        # Build description
+        material_labels = {'gold': 'Золото 585', 'silver': 'Серебро 925'}
+        size_labels = {'bracelet': 'S', 'pendant': 'M', 'interior': 'L'}
+        material = app.get('material', 'silver')
+        size = app.get('size', 'pendant')
+        description = f"Кулон OLAI.art - {material_labels.get(material, 'Серебро 925')}, размер {size_labels.get(size, 'M')}"
+
+        # URLs for redirect after payment
+        base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
+        success_url = f"{base_url}/#/payment/success?order={order_id}"
+        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+
+        # Initialize payment in Tinkoff
+        payment_result = await init_payment(
+            order_id=order_id,
+            amount_kopeks=amount_kopeks,
+            description=description,
+            customer_email=req.email,
+            customer_name=req.name,
+            success_url=success_url,
+            fail_url=fail_url,
+        )
+
+        # Save payment to database
+        payment_data = {
+            "id": str(uuid.uuid4()),
+            "application_id": req.application_id,
+            "order_id": order_id,
+            "tinkoff_payment_id": str(payment_result["payment_id"]),
+            "amount": req.amount,
+            "status": payment_result["status"],
+            "customer_email": req.email,
+            "customer_name": req.name,
+            "order_comment": req.order_comment,
+        }
+        await supabase.insert("payments", payment_data)
+
+        # Update application status
+        await supabase.update("applications", req.application_id, {
+            "status": "pending_payment",
+            "order_comment": req.order_comment,
+        })
+
+        return {
+            "success": True,
+            "payment_url": payment_result["payment_url"],
+            "order_id": order_id,
+            "payment_id": payment_result["payment_id"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating payment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/payments/notification")
+async def payment_notification(request: Request):
+    """
+    Webhook endpoint for Tinkoff payment notifications.
+    Tinkoff sends POST with payment status updates.
+    """
+    try:
+        # Parse JSON body
+        data = await request.json()
+        print(f"Payment notification received: {data}")
+
+        # Verify token
+        if not verify_notification_token(data):
+            print("Invalid notification token")
+            return {"error": "Invalid token"}
+
+        order_id = data.get("OrderId")
+        status = data.get("Status")
+        payment_id = str(data.get("PaymentId"))
+        success = data.get("Success", False)
+
+        # Find payment by order_id
+        payments = await supabase.select(
+            "payments",
+            filters={"order_id": order_id}
+        )
+
+        if not payments:
+            print(f"Payment not found for order: {order_id}")
+            return "OK"  # Return OK to stop retries
+
+        payment = payments[0]
+
+        # Update payment status
+        update_data = {
+            "status": status,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+        if data.get("Pan"):
+            update_data["card_pan"] = data["Pan"]
+
+        await supabase.update("payments", payment["id"], update_data)
+
+        # If payment successful, update application
+        if status in SUCCESS_STATUSES:
+            application_id = payment.get("application_id")
+            if application_id:
+                await supabase.update("applications", application_id, {
+                    "status": "paid",
+                    "paid_at": datetime.utcnow().isoformat(),
+                })
+                print(f"Application {application_id} marked as paid")
+
+        # Tinkoff expects "OK" response
+        return "OK"
+
+    except Exception as e:
+        print(f"Error processing payment notification: {e}")
+        return "OK"  # Return OK to prevent retries
+
+
+@router.get("/payments/status/{order_id}")
+async def get_payment_status(order_id: str):
+    """Get payment status by order ID"""
+    try:
+        # Find payment in database
+        payments = await supabase.select(
+            "payments",
+            filters={"order_id": order_id}
+        )
+
+        if not payments:
+            raise HTTPException(status_code=404, detail="Payment not found")
+
+        payment = payments[0]
+
+        # Get fresh status from Tinkoff
+        tinkoff_payment_id = payment.get("tinkoff_payment_id")
+        if tinkoff_payment_id:
+            try:
+                tinkoff_state = await get_payment_state(tinkoff_payment_id)
+
+                # Update local status if changed
+                if tinkoff_state.get("status") != payment.get("status"):
+                    await supabase.update("payments", payment["id"], {
+                        "status": tinkoff_state.get("status"),
+                        "updated_at": datetime.utcnow().isoformat(),
+                    })
+                    payment["status"] = tinkoff_state.get("status")
+
+            except Exception as e:
+                print(f"Error getting Tinkoff state: {e}")
+
+        is_paid = payment.get("status") in SUCCESS_STATUSES
+        is_final = payment.get("status") in FINAL_STATUSES
+
+        return {
+            "order_id": order_id,
+            "status": payment.get("status"),
+            "amount": payment.get("amount"),
+            "is_paid": is_paid,
+            "is_final": is_final,
+            "application_id": payment.get("application_id"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/payments/test")
+async def test_payment(amount: int = 100):
+    """
+    Test endpoint to create a payment with arbitrary amount.
+    Use for testing: /api/payments/test?amount=100 (amount in rubles)
+    Returns payment URL for redirect.
+    """
+    try:
+        # Generate test order ID
+        order_id = f"TEST-{int(time.time())}-{random.randint(1000, 9999)}"
+
+        # Convert rubles to kopeks
+        amount_kopeks = amount * 100
+
+        # URLs for redirect
+        base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
+        success_url = f"{base_url}/#/payment/success?order={order_id}"
+        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+
+        # Initialize payment
+        payment_result = await init_payment(
+            order_id=order_id,
+            amount_kopeks=amount_kopeks,
+            description=f"Тестовый платёж OLAI.art - {amount} руб.",
+            success_url=success_url,
+            fail_url=fail_url,
+        )
+
+        # Save test payment to database (no application_id)
+        payment_data = {
+            "id": str(uuid.uuid4()),
+            "application_id": None,
+            "order_id": order_id,
+            "tinkoff_payment_id": str(payment_result["payment_id"]),
+            "amount": amount,
+            "status": payment_result["status"],
+            "customer_email": None,
+            "customer_name": "Test User",
+            "order_comment": "Test payment",
+        }
+        await supabase.insert("payments", payment_data)
+
+        # Return redirect URL
+        return {
+            "success": True,
+            "order_id": order_id,
+            "amount": amount,
+            "payment_url": payment_result["payment_url"],
+            "message": f"Redirect to: {payment_result['payment_url']}"
+        }
+
+    except Exception as e:
+        print(f"Error creating test payment: {e}")
         raise HTTPException(status_code=500, detail=str(e))
