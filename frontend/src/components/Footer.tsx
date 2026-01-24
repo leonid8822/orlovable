@@ -52,7 +52,7 @@ export function Footer() {
             {/* Links */}
             <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
               <a
-                href="https://t.me/olaiartsupport"
+                href="https://t.me/olai_support"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"

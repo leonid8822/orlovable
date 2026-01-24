@@ -97,13 +97,7 @@ export function Header({
             </span>
           )}
 
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
-              Создать
-            </Link>
-          </nav>
-
-          <AuthButton />
+<AuthButton />
         </div>
       </div>
     </header>
