@@ -51,9 +51,6 @@ export function Footer() {
 
             {/* Links */}
             <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-              <Link to="/examples" className="hover:text-foreground transition-colors">
-                Примеры работ
-              </Link>
               <a
                 href="https://t.me/olaiartsupport"
                 target="_blank"

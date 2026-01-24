@@ -101,9 +101,6 @@ export function Header({
             <Link to="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
               Создать
             </Link>
-            <Link to="/examples" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300">
-              Примеры работ
-            </Link>
           </nav>
 
           <AuthButton />

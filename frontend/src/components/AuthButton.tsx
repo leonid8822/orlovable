@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { supabase, isSupabaseConfigured } from '@/integrations/supabase/client';
 import { User, LogOut, LogIn, FolderOpen } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,53 +11,53 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
+interface UserData {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export function AuthButton() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    // Check for user in localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('user');
+      }
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
+    // Listen for storage changes (in case of login/logout in other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        if (e.newValue) {
+          try {
+            setUser(JSON.parse(e.newValue));
+          } catch {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
+      }
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const handleLogout = async () => {
-    if (!supabase) return;
-    setLoading(true);
-    try {
-      await supabase.auth.signOut();
-      toast.success('Вы вышли из аккаунта');
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('userEmail');
+    setUser(null);
+    toast.success('Вы вышли из аккаунта');
+    navigate('/');
   };
-
-  // If Supabase is not configured, show login button that redirects to auth page
-  if (!isSupabaseConfigured) {
-    return (
-      <Button
-        variant="goldOutline"
-        size="sm"
-        onClick={() => navigate('/auth')}
-        className="gap-2"
-      >
-        <LogIn className="w-4 h-4" />
-        <span className="hidden md:inline">Войти</span>
-      </Button>
-    );
-  }
 
   if (user) {
     return (
@@ -68,17 +66,17 @@ export function AuthButton() {
           <Button variant="ghost" size="sm" className="gap-2">
             <User className="w-4 h-4" />
             <span className="hidden md:inline">
-              {user.email?.split('@')[0]}
+              {user.name || user.email?.split('@')[0]}
             </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => navigate('/profile')}>
             <FolderOpen className="w-4 h-4 mr-2" />
-            Мои заявки
+            Мои заказы
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} disabled={loading}>
+          <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Выйти
           </DropdownMenuItem>
@@ -88,11 +86,10 @@ export function AuthButton() {
   }
 
   return (
-    <Button 
-      variant="goldOutline" 
-      size="sm" 
+    <Button
+      variant="goldOutline"
+      size="sm"
       onClick={() => navigate('/auth')}
-      disabled={loading}
       className="gap-2"
     >
       <LogIn className="w-4 h-4" />

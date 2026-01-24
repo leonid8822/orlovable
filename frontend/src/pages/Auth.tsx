@@ -1,99 +1,115 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Header } from '@/components/Header';
+import { api } from '@/lib/api';
+import { ArrowLeft, Mail, KeyRound, Loader2 } from 'lucide-react';
+
+type AuthStep = 'email' | 'code';
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
+
+  const [step, setStep] = useState<AuthStep>('email');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        navigate('/');
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate('/');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email || !name) {
       toast.error('Заполните все поля');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      toast.error('Введите корректный email');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await api.requestCode({ email, name });
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast.error('Неверный email или пароль');
-        } else {
-          toast.error(error.message);
-        }
-      } else {
-        toast.success('Вы успешно вошли');
+      if (error || !data?.success) {
+        toast.error(error || 'Ошибка отправки кода');
+        return;
       }
+
+      toast.success('Код отправлен на ваш email');
+      setStep('code');
     } catch (error) {
-      toast.error('Ошибка входа');
+      toast.error('Ошибка отправки кода');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Заполните все поля');
+    if (!code) {
+      toast.error('Введите код');
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Пароль должен быть не менее 6 символов');
+    if (code.length !== 6) {
+      toast.error('Код должен состоять из 6 цифр');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      // For user auth without application_id, we pass empty string
+      const { data, error } = await api.verifyCode({
         email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
+        code,
+        application_id: ''
       });
 
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast.error('Этот email уже зарегистрирован');
-        } else {
-          toast.error(error.message);
-        }
+      if (error || !data?.success) {
+        toast.error(data?.error || error || 'Неверный код');
+        return;
+      }
+
+      // Save user info to localStorage
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('userEmail', email);
+      }
+
+      toast.success('Вы успешно вошли!');
+
+      // Redirect to returnTo or profile
+      if (returnTo) {
+        navigate(returnTo);
       } else {
-        toast.success('Регистрация успешна! Вы можете войти.');
+        navigate('/profile');
       }
     } catch (error) {
-      toast.error('Ошибка регистрации');
+      toast.error('Ошибка проверки кода');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await api.requestCode({ email, name });
+      if (error || !data?.success) {
+        toast.error('Ошибка повторной отправки');
+        return;
+      }
+      toast.success('Код отправлен повторно');
+    } catch {
+      toast.error('Ошибка повторной отправки');
     } finally {
       setLoading(false);
     }
@@ -105,76 +121,97 @@ export default function Auth() {
       <div className="flex items-center justify-center px-4 py-20">
         <Card className="w-full max-w-md border-primary/20">
           <CardHeader className="text-center">
-            <CardTitle className="font-display text-2xl text-primary">Авторизация</CardTitle>
-            <CardDescription>Войдите или создайте аккаунт</CardDescription>
+            <CardTitle className="font-display text-2xl text-primary">
+              {step === 'email' ? 'Вход в личный кабинет' : 'Подтверждение'}
+            </CardTitle>
+            <CardDescription>
+              {step === 'email'
+                ? 'Введите ваши данные для входа'
+                : `Код отправлен на ${email}`
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Вход</TabsTrigger>
-                <TabsTrigger value="signup">Регистрация</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Пароль</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Вход...' : 'Войти'}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Пароль</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Минимум 6 символов"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            {step === 'email' ? (
+              <form onSubmit={handleRequestCode} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Ваше имя</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Иван"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="ivan@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+                <Button type="submit" className="w-full gap-2" disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  {loading ? 'Отправка...' : 'Получить код'}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Код из письма</Label>
+                  <Input
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    disabled={loading}
+                    autoFocus
+                    className="text-center text-2xl tracking-[0.5em] font-mono"
+                  />
+                </div>
+                <Button type="submit" className="w-full gap-2" disabled={loading}>
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="w-4 h-4" />
+                  )}
+                  {loading ? 'Проверка...' : 'Войти'}
+                </Button>
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setStep('email')}
+                    className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Назад
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={loading}
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    Отправить код повторно
+                  </button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

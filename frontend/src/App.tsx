@@ -10,7 +10,6 @@ import TotemsLanding from "./pages/TotemsLanding";
 import Index from "./pages/Index";
 import Application from "./pages/Application";
 import Admin from "./pages/Admin";
-import Examples from "./pages/Examples";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Oferta from "./pages/Oferta";
@@ -35,7 +34,6 @@ const App = () => (
           <Route path="/create" element={<Index />} />
           <Route path="/application/:id" element={<Application />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/examples" element={<Examples />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/oferta" element={<Oferta />} />
