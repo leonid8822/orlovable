@@ -642,13 +642,13 @@ async def delete_example(example_id: str):
 class RequestCodeRequest(BaseModel):
     email: str
     name: str
-    application_id: str
+    application_id: Optional[str] = None
 
 
 class VerifyCodeRequest(BaseModel):
     email: str
     code: str
-    application_id: str
+    application_id: Optional[str] = None
 
 
 def generate_verification_code() -> str:
