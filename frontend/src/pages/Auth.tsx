@@ -79,10 +79,14 @@ export default function Auth() {
       }
 
       // Save user info to localStorage
-      if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('userEmail', email);
-      }
+      localStorage.setItem('user', JSON.stringify({
+        id: data.user_id,
+        email: email,
+        name: name,
+        verified: true
+      }));
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userName', name);
 
       toast.success('Вы успешно вошли!');
 
