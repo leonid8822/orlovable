@@ -1440,7 +1440,7 @@ async def admin_logout(request: Request):
 async def check_admin_status(user_id: str):
     """Check if user is an admin by user_id"""
     try:
-        user = await supabase.select_by_id("users", user_id)
+        user = await supabase.select_one("users", user_id)
 
         if not user:
             return {"is_admin": False}
