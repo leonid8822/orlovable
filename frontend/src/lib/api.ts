@@ -331,5 +331,16 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Check if user is admin by user_id
+    checkAdminStatus: async (userId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/check/${userId}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

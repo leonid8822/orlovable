@@ -69,7 +69,7 @@ export function Footer() {
 
             {/* Copyright */}
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} OLAI.art
+              © 2025-2026 OLAI.art
             </p>
           </div>
 

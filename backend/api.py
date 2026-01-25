@@ -1248,6 +1248,7 @@ async def list_payments(
 ADMIN_EMAILS = [
     "orlovleoart@gmail.com",
     "leo@olai.art",
+    "me@leonid.one",
 ]
 
 
@@ -1433,3 +1434,24 @@ async def admin_logout(request: Request):
     except Exception as e:
         print(f"Error logging out admin: {e}")
         return {"success": True}  # Always return success for logout
+
+
+@router.get("/admin/check/{user_id}")
+async def check_admin_status(user_id: str):
+    """Check if user is an admin by user_id"""
+    try:
+        user = await supabase.select_by_id("users", user_id)
+
+        if not user:
+            return {"is_admin": False}
+
+        email = user.get("email", "").lower().strip()
+
+        # Check if email is in admin whitelist or has is_admin flag
+        is_admin = email in ADMIN_EMAILS or user.get("is_admin", False)
+
+        return {"is_admin": is_admin, "email": email if is_admin else None}
+
+    except Exception as e:
+        print(f"Error checking admin status: {e}")
+        return {"is_admin": False}
