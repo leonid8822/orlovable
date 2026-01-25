@@ -44,17 +44,30 @@ export function StepGenerating({
 
   // Check if user is already logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        if (user.isVerified || user.userId) {
-          setIsUserAuthenticated(true);
+    const checkAuth = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          // Check various fields that indicate logged in state
+          // Auth.tsx uses 'verified', EmailAuthForm uses 'isVerified'
+          if (user.isVerified || user.verified || user.userId || user.id) {
+            setIsUserAuthenticated(true);
+            return;
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
       }
-    }
+      setIsUserAuthenticated(false);
+    };
+
+    // Check on mount
+    checkAuth();
+
+    // Listen for storage changes (login from header)
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
   // Handle auth success
