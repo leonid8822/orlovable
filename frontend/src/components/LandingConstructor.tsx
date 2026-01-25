@@ -198,6 +198,7 @@ export function LandingConstructor({ theme, className }: LandingConstructorProps
                   Перетащите или выберите файл
                 </p>
                 <input
+                  id={`landing-file-input-${theme}`}
                   type="file"
                   accept="image/*"
                   onChange={handleFileUpload}
@@ -206,6 +207,10 @@ export function LandingConstructor({ theme, className }: LandingConstructorProps
                 <Button
                   variant="outline"
                   style={{ borderColor: config.borderColor, color: config.primaryColor }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById(`landing-file-input-${theme}`)?.click();
+                  }}
                 >
                   <ImageIcon className="w-4 h-4 mr-2" />
                   Выбрать файл

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Sparkles, Circle, RectangleVertical, Hexagon, ChevronDown, Square, Pentagon, Octagon, Star, Heart, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useToast } from "@/hooks/use-toast";
 
 // Icon mapping from string to component
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -73,6 +74,67 @@ function FormCard({
   );
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE = 1200; // Max dimension for resize
+
+/**
+ * Process and optionally resize an image file.
+ * Properly handles memory by revoking Object URLs.
+ */
+function processImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+
+        // Only resize if image is larger than MAX_IMAGE_SIZE
+        if (width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE) {
+          const ratio = Math.min(MAX_IMAGE_SIZE / width, MAX_IMAGE_SIZE / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          cleanup();
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Use JPEG for photos (smaller size), PNG for drawings/transparency
+        const isPhoto = file.type === 'image/jpeg' || file.type === 'image/jpg';
+        const dataUrl = canvas.toDataURL(isPhoto ? 'image/jpeg' : 'image/png', 0.85);
+
+        cleanup();
+        resolve(dataUrl);
+      } catch (err) {
+        cleanup();
+        reject(err);
+      }
+    };
+
+    img.onerror = () => {
+      cleanup();
+      reject(new Error('Failed to load image'));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export function StepUpload({
   config,
   onConfigChange,
@@ -80,63 +142,51 @@ export function StepUpload({
   isDisabled = false,
 }: StepUploadProps) {
   const [showComment, setShowComment] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const formFactors = useFormFactors();
   const formOptions = Object.keys(formFactors) as FormFactor[];
+  const { toast } = useToast();
 
-  const handleImageSelect = async (file: File) => {
-    // Resize large images to improve performance
-    const MAX_SIZE = 1200;
-
-    const resizeImage = (file: File): Promise<string> => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          let { width, height } = img;
-
-          // Only resize if image is larger than MAX_SIZE
-          if (width > MAX_SIZE || height > MAX_SIZE) {
-            if (width > height) {
-              height = (height / width) * MAX_SIZE;
-              width = MAX_SIZE;
-            } else {
-              width = (width / height) * MAX_SIZE;
-              height = MAX_SIZE;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // Use JPEG for photos (smaller size), PNG for drawings
-          const isPhoto = file.type === 'image/jpeg' || file.type === 'image/jpg';
-          resolve(canvas.toDataURL(isPhoto ? 'image/jpeg' : 'image/png', 0.85));
-        };
-        img.src = URL.createObjectURL(file);
+  const handleImageSelect = useCallback(async (file: File) => {
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "Файл слишком большой",
+        description: "Максимальный размер файла — 10MB",
+        variant: "destructive",
       });
-    };
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Неверный формат",
+        description: "Загрузите изображение (PNG, JPG, WEBP)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
 
     try {
-      const resizedDataUrl = await resizeImage(file);
+      const dataUrl = await processImage(file);
       onConfigChange({
         image: file,
-        imagePreview: resizedDataUrl,
+        imagePreview: dataUrl,
       });
     } catch (error) {
-      console.error('Error resizing image:', error);
-      // Fallback to original method
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onConfigChange({
-          image: file,
-          imagePreview: e.target?.result as string,
-        });
-      };
-      reader.readAsDataURL(file);
+      console.error('Error processing image:', error);
+      toast({
+        title: "Ошибка загрузки",
+        description: "Не удалось обработать изображение. Попробуйте другой файл.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [onConfigChange, toast]);
 
   const handleImageClear = () => {
     onConfigChange({
@@ -178,6 +228,7 @@ export function StepUpload({
           label="Загрузите фото или рисунок"
           hint="Подойдут детские рисунки, эскизы, фото"
           disabled={isDisabled}
+          isProcessing={isProcessing}
         />
 
         {/* Form factor selection */}
