@@ -3,8 +3,8 @@ export enum AppStep {
   UPLOAD = 'UPLOAD',
   GENERATING = 'GENERATING',
   SELECTION = 'SELECTION',
-  VERIFICATION = 'VERIFICATION',
-  CHECKOUT = 'CHECKOUT'
+  CHECKOUT = 'CHECKOUT',
+  CONFIRMATION = 'CONFIRMATION'  // After payment success
 }
 
 // Step titles for UI
@@ -12,11 +12,11 @@ export const STEP_TITLES: Record<AppStep, string> = {
   [AppStep.UPLOAD]: 'Загрузка',
   [AppStep.GENERATING]: 'Генерация',
   [AppStep.SELECTION]: 'Выбор',
-  [AppStep.VERIFICATION]: 'Подтверждение',
-  [AppStep.CHECKOUT]: 'Оформление'
+  [AppStep.CHECKOUT]: 'Оформление',
+  [AppStep.CONFIRMATION]: 'Готово'
 };
 
-// Visible steps in indicator (GENERATING is part of UPLOAD visually, VERIFICATION is part of SELECTION visually)
+// Visible steps in indicator (GENERATING is part of UPLOAD visually)
 export const VISIBLE_STEPS: AppStep[] = [AppStep.UPLOAD, AppStep.SELECTION, AppStep.CHECKOUT];
 
 // Form factors - теперь выбираются отдельно от размера
@@ -150,6 +150,10 @@ export interface UserAuthData {
   name: string;
   userId?: string;
   isVerified: boolean;
+  firstName?: string;
+  lastName?: string;
+  telegramUsername?: string;
+  subscribeNewsletter?: boolean;
 }
 
 // Main pendant configuration

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { StepIndicator } from "@/components/StepIndicator";
 import { StepUpload } from "@/components/steps/StepUpload";
 import { StepGenerating } from "@/components/steps/StepGenerating";
 import { StepSelection } from "@/components/steps/StepSelection";
-import { StepVerification } from "@/components/steps/StepVerification";
 import { StepCheckout } from "@/components/steps/StepCheckout";
+import { StepConfirmation } from "@/components/steps/StepConfirmation";
 import {
   AppStep,
   PendantConfig,
@@ -23,14 +23,15 @@ import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
-  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.VERIFICATION],
-  [AppStep.VERIFICATION]: [AppStep.SELECTION, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.VERIFICATION],
+  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
+  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.CONFIRMATION],
+  [AppStep.CONFIRMATION]: [], // Terminal state
 };
 
 const Application = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // State
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
@@ -39,6 +40,7 @@ const Application = () => {
   const [applicationId, setApplicationId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(true);
   const [appTheme, setAppTheme] = useState<AppTheme>("main");
+  const [paymentInfo, setPaymentInfo] = useState<{ amount: number; orderId: string } | null>(null);
 
   // Theme config derived from appTheme state
   const themeConfig = themeConfigs[appTheme];
@@ -59,6 +61,8 @@ const Application = () => {
             updates.status = "checkout";
           } else if (nextStep === AppStep.SELECTION) {
             updates.status = "generated";
+          } else if (nextStep === AppStep.CONFIRMATION) {
+            updates.status = "paid";
           }
 
           api.updateApplication(applicationId, updates);
@@ -86,6 +90,8 @@ const Application = () => {
           dbUpdates.generated_preview = updates.generatedPreview;
         if ("imagePreview" in updates)
           dbUpdates.input_image_url = updates.imagePreview;
+        if ("orderComment" in updates)
+          dbUpdates.order_comment = updates.orderComment;
 
         if (Object.keys(dbUpdates).length > 0) {
           await api.updateApplication(applicationId, dbUpdates);
@@ -139,28 +145,16 @@ const Application = () => {
 
   // Generation complete handler
   const handleGenerationComplete = useCallback(
-    (images: string[], userAuth: UserAuthData) => {
+    (images: string[], userAuth?: UserAuthData) => {
       setGeneratedImages(images);
       setConfig((prev) => ({
         ...prev,
         generatedImages: images,
         selectedVariantIndex: 0,
         generatedPreview: images[0] || null,
-        userAuth,
+        userAuth: userAuth || prev.userAuth,
       }));
       transitionTo(AppStep.SELECTION);
-    },
-    [transitionTo]
-  );
-
-  // Verification complete handler
-  const handleVerificationComplete = useCallback(
-    (userAuth: UserAuthData) => {
-      setConfig((prev) => ({
-        ...prev,
-        userAuth,
-      }));
-      transitionTo(AppStep.CHECKOUT);
     },
     [transitionTo]
   );
@@ -205,6 +199,12 @@ const Application = () => {
     transitionTo(AppStep.GENERATING);
   }, [transitionTo]);
 
+  // Payment success handler
+  const handlePaymentSuccess = useCallback((amount: number, orderId: string) => {
+    setPaymentInfo({ amount, orderId });
+    transitionTo(AppStep.CONFIRMATION);
+  }, [transitionTo]);
+
   // Load application data on mount
   useEffect(() => {
     const loadApplication = async () => {
@@ -221,31 +221,44 @@ const Application = () => {
         return;
       }
 
+      // Check if we're returning from payment
+      const confirmStep = searchParams.get("step");
+      const orderId = searchParams.get("order");
+
       // Determine step based on status
       let determinedStep: AppStep;
 
-      switch (data.status) {
-        case "generating":
-          determinedStep = AppStep.GENERATING;
-          break;
-        case "checkout":
-          // User is on checkout step - return them there
-          determinedStep = AppStep.CHECKOUT;
-          break;
-        case "generated":
-          // Generation complete - go to selection
-          determinedStep = AppStep.SELECTION;
-          break;
-        case "pending_generation":
-          if (data.input_image_url) {
-            determinedStep = AppStep.GENERATING;
-          } else {
-            determinedStep = AppStep.UPLOAD;
+      if (confirmStep === "confirmation" || data.status === "paid") {
+        determinedStep = AppStep.CONFIRMATION;
+        // Try to get payment info
+        if (orderId) {
+          const { data: paymentData } = await api.getPaymentStatus(orderId);
+          if (paymentData) {
+            setPaymentInfo({ amount: paymentData.amount, orderId });
           }
-          break;
-        default:
-          // Draft or unknown - upload step
-          determinedStep = AppStep.UPLOAD;
+        }
+      } else {
+        switch (data.status) {
+          case "generating":
+            determinedStep = AppStep.GENERATING;
+            break;
+          case "checkout":
+          case "pending_payment":
+            determinedStep = AppStep.CHECKOUT;
+            break;
+          case "generated":
+            determinedStep = AppStep.SELECTION;
+            break;
+          case "pending_generation":
+            if (data.input_image_url) {
+              determinedStep = AppStep.GENERATING;
+            } else {
+              determinedStep = AppStep.UPLOAD;
+            }
+            break;
+          default:
+            determinedStep = AppStep.UPLOAD;
+        }
       }
 
       setCurrentStep(determinedStep);
@@ -293,6 +306,7 @@ const Application = () => {
         imagePreview: data.input_image_url,
         generatedPreview: data.generated_preview || allGeneratedImages[0] || null,
         comment: data.user_comment || "",
+        orderComment: data.order_comment || "",
         generatedImages: allGeneratedImages,
         selectedVariantIndex: selectedIndex,
       });
@@ -304,7 +318,7 @@ const Application = () => {
     };
 
     loadApplication();
-  }, [id, navigate]);
+  }, [id, navigate, searchParams]);
 
   // Get theme-specific classes
   const themeClass = appTheme === "kids" ? "theme-kids" : appTheme === "totems" ? "theme-totems" : "";
@@ -337,10 +351,12 @@ const Application = () => {
               </div>
             )}
 
-          {/* Step indicator */}
-          <div className="mb-12">
-            <StepIndicator currentStep={currentStep} />
-          </div>
+          {/* Step indicator - hide on CONFIRMATION */}
+          {currentStep !== AppStep.CONFIRMATION && (
+            <div className="mb-12">
+              <StepIndicator currentStep={currentStep} />
+            </div>
+          )}
 
           {/* Step content */}
           <div className="min-h-[500px]">
@@ -367,17 +383,8 @@ const Application = () => {
                 generatedImages={generatedImages}
                 onSelectVariant={handleSelectVariant}
                 onRegenerate={handleRegenerate}
-                onNext={() => transitionTo(AppStep.VERIFICATION)}
+                onNext={() => transitionTo(AppStep.CHECKOUT)}
                 onBack={() => transitionTo(AppStep.UPLOAD)}
-              />
-            )}
-
-            {currentStep === AppStep.VERIFICATION && applicationId && (
-              <StepVerification
-                config={config}
-                applicationId={applicationId}
-                onVerified={handleVerificationComplete}
-                onBack={() => transitionTo(AppStep.SELECTION)}
               />
             )}
 
@@ -385,8 +392,19 @@ const Application = () => {
               <StepCheckout
                 config={config}
                 onConfigChange={handleConfigChange}
-                onBack={() => transitionTo(AppStep.VERIFICATION)}
+                onBack={() => transitionTo(AppStep.SELECTION)}
+                onPaymentSuccess={handlePaymentSuccess}
                 applicationId={applicationId || undefined}
+              />
+            )}
+
+            {currentStep === AppStep.CONFIRMATION && applicationId && (
+              <StepConfirmation
+                config={config}
+                applicationId={applicationId}
+                paymentAmount={paymentInfo?.amount}
+                orderId={paymentInfo?.orderId}
+                onConfigChange={handleConfigChange}
               />
             )}
           </div>

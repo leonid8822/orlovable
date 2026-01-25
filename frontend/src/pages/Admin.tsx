@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
+import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
 
@@ -336,7 +337,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Заявки
@@ -344,6 +345,10 @@ const Admin = () => {
             <TabsTrigger value="generations" className="gap-2">
               <History className="h-4 w-4" />
               Генерации
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Платежи
             </TabsTrigger>
             <TabsTrigger value="examples" className="gap-2">
               <Image className="h-4 w-4" />
@@ -771,6 +776,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments" className="space-y-6">
+            <PaymentsTab />
           </TabsContent>
 
           {/* Examples Tab */}

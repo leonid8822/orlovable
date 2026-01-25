@@ -52,6 +52,8 @@ class ApplicationUpdate(BaseModel):
     size: Optional[str] = None
     theme: Optional[str] = None
     last_error: Optional[str] = None
+    telegram_username: Optional[str] = None
+    order_comment: Optional[str] = None
 
 
 class SettingsUpdate(BaseModel):
@@ -639,16 +641,29 @@ async def delete_example(example_id: str):
 
 # ============== AUTH API ==============
 
+# Test email for development - auto-verifies with code 123456
+TEST_EMAIL = "test@olai.art"
+TEST_CODE = "123456"
+
+
 class RequestCodeRequest(BaseModel):
     email: str
-    name: str
+    name: Optional[str] = None  # Now optional
     application_id: Optional[str] = None
+    subscribe_newsletter: bool = False  # Newsletter subscription
 
 
 class VerifyCodeRequest(BaseModel):
     email: str
     code: str
     application_id: Optional[str] = None
+
+
+class UserProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    telegram_username: Optional[str] = None
+    subscribe_newsletter: Optional[bool] = None
 
 
 def generate_verification_code() -> str:
@@ -661,33 +676,42 @@ async def request_verification_code(req: RequestCodeRequest):
     """Create or update user and send verification code"""
     try:
         email = req.email.lower().strip()
-        name = req.name.strip()
+        name = req.name.strip() if req.name else None
 
         # Check if user exists
         existing_user = await supabase.select_by_field("users", "email", email)
 
-        # Generate verification code
-        code = generate_verification_code()
+        # For test email, use fixed code; otherwise generate random
+        is_test_email = email == TEST_EMAIL
+        code = TEST_CODE if is_test_email else generate_verification_code()
         expires_at = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+
+        user_data = {
+            "verification_code": code,
+            "verification_code_expires_at": expires_at,
+        }
+
+        # Only update name if provided
+        if name:
+            user_data["name"] = name
+
+        # Note: subscribe_newsletter, first_name, last_name, telegram_username
+        # require database migration. For now, we store them only if columns exist.
+        # TODO: Add these columns to the users table in Supabase
 
         if existing_user:
             # Update existing user with new code
             user_id = existing_user["id"]
-            await supabase.update("users", user_id, {
-                "name": name,  # Update name in case it changed
-                "verification_code": code,
-                "verification_code_expires_at": expires_at
-            })
+            await supabase.update("users", user_id, user_data)
         else:
             # Create new user
             user_id = str(uuid.uuid4())
             await supabase.insert("users", {
                 "id": user_id,
                 "email": email,
-                "name": name,
+                "name": name or "",
                 "email_verified": False,
-                "verification_code": code,
-                "verification_code_expires_at": expires_at
+                **user_data
             })
 
         # Link application to user (preliminary, not verified yet)
@@ -699,16 +723,22 @@ async def request_verification_code(req: RequestCodeRequest):
             except Exception as link_error:
                 print(f"Warning: Could not link application {req.application_id}: {link_error}")
 
-        # Send email with code
-        email_sent = await send_verification_email(email, name, code)
+        # Skip email sending for test account
+        if is_test_email:
+            print(f"Test email detected, using fixed code: {TEST_CODE}")
+            email_sent = True
+        else:
+            # Send email with code
+            email_sent = await send_verification_email(email, name or "Пользователь", code)
 
-        if not email_sent:
-            print(f"Warning: Email not sent to {email}, but code generated: {code}")
+            if not email_sent:
+                print(f"Warning: Email not sent to {email}, but code generated: {code}")
 
         return {
             "success": True,
             "user_id": user_id,
-            "message": "Verification code sent"
+            "message": "Verification code sent",
+            "is_test": is_test_email  # Let frontend know this is test account
         }
 
     except Exception as e:
@@ -721,6 +751,7 @@ async def verify_code(req: VerifyCodeRequest):
     """Verify the code and mark user as verified"""
     try:
         email = req.email.lower().strip()
+        is_test_email = email == TEST_EMAIL
 
         # Get user by email
         user = await supabase.select_by_field("users", "email", email)
@@ -728,20 +759,23 @@ async def verify_code(req: VerifyCodeRequest):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Check if code matches
-        if user.get("verification_code") != req.code:
+        # For test email, accept fixed code; otherwise check stored code
+        expected_code = TEST_CODE if is_test_email else user.get("verification_code")
+
+        if req.code != expected_code:
             return {"success": False, "error": "Invalid code"}
 
-        # Check if code is expired
-        expires_at = user.get("verification_code_expires_at")
-        if expires_at:
-            try:
-                # Parse ISO format datetime
-                expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
-                    return {"success": False, "error": "Code expired"}
-            except:
-                pass  # If parsing fails, continue with verification
+        # Check if code is expired (skip for test email)
+        if not is_test_email:
+            expires_at = user.get("verification_code_expires_at")
+            if expires_at:
+                try:
+                    # Parse ISO format datetime
+                    expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                    if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                        return {"success": False, "error": "Code expired"}
+                except:
+                    pass  # If parsing fails, continue with verification
 
         # Mark user as verified and clear code
         user_id = user["id"]
@@ -763,7 +797,16 @@ async def verify_code(req: VerifyCodeRequest):
         return {
             "success": True,
             "user_id": user_id,
-            "verified": True
+            "verified": True,
+            "user": {
+                "id": user_id,
+                "email": email,
+                "name": user.get("name", ""),
+                "first_name": user.get("first_name"),
+                "last_name": user.get("last_name"),
+                "telegram_username": user.get("telegram_username"),
+                "subscribe_newsletter": user.get("subscribe_newsletter", False)
+            }
         }
 
     except HTTPException:
@@ -824,6 +867,71 @@ async def import_example_from_application(req: ImportFromApplicationRequest):
 
         result = await supabase.insert("examples", data)
         return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== USER PROFILE API ==============
+
+@router.get("/users/{user_id}")
+async def get_user_profile(user_id: str):
+    """Get user profile by ID"""
+    try:
+        user = await supabase.select_one("users", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return {
+            "id": user["id"],
+            "email": user.get("email"),
+            "name": user.get("name"),
+            "first_name": user.get("first_name"),
+            "last_name": user.get("last_name"),
+            "telegram_username": user.get("telegram_username"),
+            "subscribe_newsletter": user.get("subscribe_newsletter", False),
+            "email_verified": user.get("email_verified", False),
+            "created_at": user.get("created_at")
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/users/{user_id}/profile")
+async def update_user_profile(user_id: str, updates: UserProfileUpdate):
+    """Update user profile"""
+    try:
+        user = await supabase.select_one("users", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        update_data = updates.model_dump(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No updates provided")
+
+        # Try to update - this may fail if columns don't exist yet
+        try:
+            result = await supabase.update("users", user_id, update_data)
+        except Exception as update_err:
+            # If columns don't exist, just return the current user data
+            print(f"Warning: Could not update profile (columns may not exist): {update_err}")
+            result = user
+
+        return {
+            "success": True,
+            "user": {
+                "id": user_id,
+                "email": user.get("email"),
+                "name": user.get("name"),
+                "first_name": result.get("first_name") if result else None,
+                "last_name": result.get("last_name") if result else None,
+                "telegram_username": result.get("telegram_username") if result else None,
+                "subscribe_newsletter": result.get("subscribe_newsletter", False) if result else False
+            }
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -1091,6 +1199,44 @@ async def test_payment(amount: int = 100):
 
     except Exception as e:
         print(f"Error creating test payment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/payments")
+async def list_payments(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """List all payments with optional status filter (for admin panel)"""
+    try:
+        # Get all payments
+        payments = await supabase.select(
+            "payments",
+            order="created_at.desc",
+            limit=limit
+        )
+
+        # Filter by status if provided
+        if status:
+            payments = [p for p in payments if p.get("status") == status]
+
+        # Get total stats
+        all_payments = await supabase.select("payments")
+        total_count = len(all_payments)
+        total_amount = sum(p.get("amount", 0) for p in all_payments if p.get("status") in SUCCESS_STATUSES)
+        paid_count = len([p for p in all_payments if p.get("status") in SUCCESS_STATUSES])
+
+        return {
+            "payments": payments,
+            "stats": {
+                "total_count": total_count,
+                "paid_count": paid_count,
+                "total_amount": total_amount
+            }
+        }
+    except Exception as e:
+        print(f"Error listing payments: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -165,7 +165,7 @@ export const api = {
     },
 
     // Auth API
-    requestCode: async (payload: { email: string; name: string }) => {
+    requestCode: async (payload: { email: string; name?: string; application_id?: string; subscribe_newsletter?: boolean }) => {
         try {
             const response = await fetch(`${API_URL}/auth/request-code`, {
                 method: 'POST',
@@ -178,7 +178,7 @@ export const api = {
             return { data: null, error };
         }
     },
-    requestVerificationCode: async (payload: { email: string; name: string; application_id: string }) => {
+    requestVerificationCode: async (payload: { email: string; name?: string; application_id?: string; subscribe_newsletter?: boolean }) => {
         try {
             const response = await fetch(`${API_URL}/auth/request-code`, {
                 method: 'POST',
@@ -197,6 +197,35 @@ export const api = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    // User Profile API
+    getUserProfile: async (userId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/users/${userId}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    updateUserProfile: async (userId: string, updates: {
+        first_name?: string;
+        last_name?: string;
+        telegram_username?: string;
+        subscribe_newsletter?: boolean;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/users/${userId}/profile`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
             });
             const data = await response.json();
             return { data, error: null };
@@ -231,6 +260,18 @@ export const api = {
     getPaymentStatus: async (orderId: string) => {
         try {
             const response = await fetch(`${API_URL}/payments/status/${orderId}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    listPayments: async (status?: string, limit: number = 50) => {
+        try {
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            params.append('limit', limit.toString());
+            const response = await fetch(`${API_URL}/admin/payments?${params.toString()}`);
             const data = await response.json();
             return { data, error: null };
         } catch (error) {

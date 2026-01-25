@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Mail, User } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { PendantConfig, UserAuthData } from "@/types/pendant";
 import { useFormFactors } from "@/contexts/SettingsContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { EmailAuthForm } from "@/components/EmailAuthForm";
 
 const funFacts = [
   "Первые ювелирные украшения появились более 100 000 лет назад...",
@@ -23,7 +22,7 @@ const funFacts = [
 interface StepGeneratingProps {
   config: PendantConfig;
   applicationId: string;
-  onGenerationComplete: (images: string[], userAuth: UserAuthData) => void;
+  onGenerationComplete: (images: string[], userAuth?: UserAuthData) => void;
   onGenerationError: (error: string) => void;
 }
 
@@ -38,82 +37,68 @@ export function StepGenerating({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationDone, setGenerationDone] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const { toast } = useToast();
-
-  // User auth form state
-  const [email, setEmail] = useState(config.userAuth?.email || "");
-  const [name, setName] = useState(config.userAuth?.name || "");
-  const [emailError, setEmailError] = useState("");
-  const [nameError, setNameError] = useState("");
 
   const estimatedTime = 60; // seconds
 
-  // Validate email format
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
-
-  // Check if form is valid
-  const isFormValid = () => {
-    return email.trim() !== "" && validateEmail(email) && name.trim() !== "";
-  };
-
-  // Handle form submission when generation is done
-  const handleContinue = async () => {
-    // Validate
-    let hasError = false;
-
-    if (!name.trim()) {
-      setNameError("Введите ваше имя");
-      hasError = true;
-    } else {
-      setNameError("");
+  // Check if user is already logged in
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (user.isVerified || user.userId) {
+          setIsUserAuthenticated(true);
+        }
+      } catch {
+        // ignore
+      }
     }
+  }, []);
 
-    if (!email.trim()) {
-      setEmailError("Введите email");
-      hasError = true;
-    } else if (!validateEmail(email)) {
-      setEmailError("Некорректный email");
-      hasError = true;
-    } else {
-      setEmailError("");
-    }
+  // Handle auth success
+  const handleAuthSuccess = (userData: UserAuthData) => {
+    setIsUserAuthenticated(true);
 
-    if (hasError) return;
-
-    // Request verification code
-    const { data, error } = await api.requestVerificationCode({
-      email: email.trim(),
-      name: name.trim(),
-      application_id: applicationId,
-    });
-
-    if (error || !data?.success) {
+    // If generation is already done, proceed immediately
+    if (generationDone && generatedImages.length > 0) {
       toast({
-        title: "Ошибка",
-        description: "Не удалось отправить код. Попробуйте ещё раз.",
-        variant: "destructive",
+        title: "Отлично!",
+        description: "Теперь выберите понравившийся вариант",
       });
-      return;
+      onGenerationComplete(generatedImages, userData);
     }
-
-    // Pass user auth data to parent
-    const userAuth: UserAuthData = {
-      email: email.trim(),
-      name: name.trim(),
-      userId: data.user_id,
-      isVerified: false,
-    };
-
-    toast({
-      title: "Код отправлен",
-      description: `Проверьте почту ${email}`,
-    });
-
-    onGenerationComplete(generatedImages, userAuth);
   };
+
+  // When generation is done and user is authenticated, proceed
+  useEffect(() => {
+    if (generationDone && generatedImages.length > 0 && isUserAuthenticated) {
+      // Get user data from localStorage
+      const storedUser = localStorage.getItem('user');
+      let userData: UserAuthData | undefined;
+
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          userData = {
+            email: user.email,
+            name: user.name || '',
+            userId: user.userId || user.id,
+            isVerified: true,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            telegramUsername: user.telegramUsername,
+            subscribeNewsletter: user.subscribeNewsletter
+          };
+        } catch {
+          // ignore
+        }
+      }
+
+      onGenerationComplete(generatedImages, userData);
+    }
+  }, [generationDone, generatedImages, isUserAuthenticated]);
 
   // Start generation on mount
   useEffect(() => {
@@ -256,7 +241,9 @@ export function StepGenerating({
           <h2
             className={`text-2xl md:text-3xl font-display ${themeConfig.textGradientClass}`}
           >
-            {generationDone ? "Варианты готовы!" : "Создаём варианты вашего украшения..."}
+            {generationDone
+              ? (isUserAuthenticated ? "Варианты готовы!" : "Осталось только авторизоваться")
+              : "Создаём варианты вашего украшения..."}
           </h2>
           <p className="text-sm text-muted-foreground">
             {formFactorConfig?.label || config.formFactor}
@@ -279,67 +266,35 @@ export function StepGenerating({
         </div>
       </div>
 
-      {/* Email/Name form - always visible while waiting */}
-      <div className="w-full max-w-sm space-y-4 bg-card/50 rounded-xl border border-border/50 p-6">
-        <div className="text-center mb-4">
-          <p className="text-sm font-medium" style={{ color: themeConfig.accentColorLight }}>
-            {generationDone ? "Куда отправить результат?" : "Пока ждём, расскажите о себе"}
+      {/* Email Auth form - show if not authenticated */}
+      {!isUserAuthenticated && (
+        <div className="w-full max-w-sm bg-card/50 rounded-xl border border-border/50">
+          <div className="text-center pt-4 px-4">
+            <p className="text-sm font-medium" style={{ color: themeConfig.accentColorLight }}>
+              {generationDone ? "Войдите чтобы увидеть результат" : "Сохраните ваши эскизы"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Так мы не потеряем ваши рисунки и сможем связаться с вами
+            </p>
+          </div>
+
+          <EmailAuthForm
+            mode="inline"
+            applicationId={applicationId}
+            onSuccess={handleAuthSuccess}
+            showMotivation={false}
+          />
+        </div>
+      )}
+
+      {/* Already authenticated message */}
+      {isUserAuthenticated && !generationDone && (
+        <div className="w-full max-w-sm p-4 bg-card/50 rounded-xl border border-border/50 text-center">
+          <p className="text-sm text-muted-foreground">
+            Вы авторизованы. Дождитесь завершения генерации...
           </p>
         </div>
-
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="name" className="text-sm flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Ваше имя
-            </Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Как к вам обращаться?"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={nameError ? "border-destructive" : ""}
-            />
-            {nameError && (
-              <p className="text-xs text-destructive">{nameError}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-sm flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={emailError ? "border-destructive" : ""}
-            />
-            {emailError && (
-              <p className="text-xs text-destructive">{emailError}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Continue button - only when generation is done */}
-        {generationDone && (
-          <button
-            onClick={handleContinue}
-            disabled={!isFormValid()}
-            className="w-full py-3 px-4 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: isFormValid() ? themeConfig.accentColor : undefined,
-              color: isFormValid() ? "white" : undefined,
-            }}
-          >
-            Продолжить
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Fun facts - only while generating */}
       {!generationDone && (

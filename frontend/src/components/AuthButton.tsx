@@ -9,42 +9,50 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
+import { EmailAuthForm } from '@/components/EmailAuthForm';
+import { UserAuthData } from '@/types/pendant';
 
 interface UserData {
-  id: string;
+  id?: string;
+  userId?: string;
   email: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export function AuthButton() {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserData | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   useEffect(() => {
     // Check for user in localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem('user');
-      }
-    }
-
-    // Listen for storage changes (in case of login/logout in other tabs)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user') {
-        if (e.newValue) {
-          try {
-            setUser(JSON.parse(e.newValue));
-          } catch {
-            setUser(null);
-          }
-        } else {
+    const checkUser = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          localStorage.removeItem('user');
           setUser(null);
         }
+      } else {
+        setUser(null);
       }
+    };
+
+    checkUser();
+
+    // Listen for storage changes (login/logout in other tabs or components)
+    const handleStorageChange = () => {
+      checkUser();
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -54,9 +62,34 @@ export function AuthButton() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
     setUser(null);
+    window.dispatchEvent(new Event('storage'));
     toast.success('Вы вышли из аккаунта');
     navigate('/');
+  };
+
+  const handleAuthSuccess = (userData: UserAuthData) => {
+    setUser({
+      id: userData.userId,
+      userId: userData.userId,
+      email: userData.email,
+      name: userData.name,
+      firstName: userData.firstName,
+      lastName: userData.lastName
+    });
+    setIsAuthOpen(false);
+    toast.success('Вы успешно вошли!');
+  };
+
+  const getDisplayName = () => {
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.name) {
+      return user.name;
+    }
+    return user?.email?.split('@')[0] || 'Профиль';
   };
 
   if (user) {
@@ -66,7 +99,7 @@ export function AuthButton() {
           <Button variant="ghost" size="sm" className="gap-2">
             <User className="w-4 h-4" />
             <span className="hidden md:inline">
-              {user.name || user.email?.split('@')[0]}
+              {getDisplayName()}
             </span>
           </Button>
         </DropdownMenuTrigger>
@@ -86,14 +119,24 @@ export function AuthButton() {
   }
 
   return (
-    <Button
-      variant="goldOutline"
-      size="sm"
-      onClick={() => navigate('/auth')}
-      className="gap-2"
-    >
-      <LogIn className="w-4 h-4" />
-      <span className="hidden md:inline">Войти</span>
-    </Button>
+    <Popover open={isAuthOpen} onOpenChange={setIsAuthOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="goldOutline"
+          size="sm"
+          className="gap-2"
+        >
+          <LogIn className="w-4 h-4" />
+          <span className="hidden md:inline">Войти</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end">
+        <EmailAuthForm
+          mode="header"
+          onSuccess={handleAuthSuccess}
+          showMotivation={false}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }

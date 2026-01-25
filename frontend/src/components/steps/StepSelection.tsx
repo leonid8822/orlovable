@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, ChevronRight, ArrowLeft, ChevronLeft } from "lucide-react";
+import { RefreshCw, ChevronRight, ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import type { PendantConfig } from "@/types/pendant";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 interface StepSelectionProps {
   config: PendantConfig;
@@ -33,105 +34,123 @@ export function StepSelection({
 }: StepSelectionProps) {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const currentIndex = config.selectedVariantIndex ?? 0;
+  const { config: themeConfig } = useAppTheme();
 
   const handleRegenerate = () => {
     setShowRegenerateConfirm(false);
     onRegenerate();
   };
 
-  const goToPrevious = () => {
-    const newIndex = currentIndex === 0 ? generatedImages.length - 1 : currentIndex - 1;
-    onSelectVariant(newIndex);
-  };
-
-  const goToNext = () => {
-    const newIndex = currentIndex === generatedImages.length - 1 ? 0 : currentIndex + 1;
-    onSelectVariant(newIndex);
-  };
-
   return (
-    <div className="flex flex-col items-center max-w-2xl mx-auto animate-fade-in">
+    <div className="flex flex-col items-center max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="text-center mb-6">
-        <h2 className="text-3xl md:text-4xl font-display text-gradient-theme mb-3">
+        <h2 className={`text-3xl md:text-4xl font-display ${themeConfig.textGradientClass} mb-3`}>
           Выберите вариант
         </h2>
         <p className="text-muted-foreground">
-          Листайте варианты или сгенерируйте новые
+          Нажмите на понравившийся вариант
         </p>
       </div>
 
-      {/* Main image with navigation */}
-      <div className="relative w-full max-w-lg mb-6">
-        <div className="absolute inset-0 blur-3xl bg-theme/10 rounded-full" />
+      {/* Desktop: 2x2 grid with selected preview | Mobile: vertical list */}
+      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Grid of variants */}
+        <div className="grid grid-cols-2 gap-3">
+          {generatedImages.map((image, index) => (
+            <button
+              key={index}
+              onClick={() => onSelectVariant(index)}
+              className={cn(
+                "relative aspect-square rounded-xl overflow-hidden transition-all duration-200",
+                "border-2 hover:scale-[1.02]",
+                index === currentIndex
+                  ? "ring-2 ring-offset-2 ring-offset-background"
+                  : "border-border/50 hover:border-border"
+              )}
+              style={{
+                borderColor: index === currentIndex ? themeConfig.accentColor : undefined,
+                ringColor: index === currentIndex ? themeConfig.accentColor : undefined,
+              }}
+            >
+              <img
+                src={image}
+                alt={`Вариант ${index + 1}`}
+                className="w-full h-full object-cover bg-black"
+              />
+              {/* Selection indicator */}
+              {index === currentIndex && (
+                <div
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: themeConfig.accentColor }}
+                >
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+              )}
+              {/* Variant number */}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-background/80 backdrop-blur-sm text-xs font-medium">
+                {index + 1}
+              </div>
+            </button>
+          ))}
+        </div>
 
-        {/* Navigation arrows */}
-        <button
-          onClick={goToPrevious}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border hover:border-theme/50 flex items-center justify-center transition-all hover:scale-110"
-          aria-label="Предыдущий вариант"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+        {/* Large preview of selected variant - hidden on mobile, visible on desktop */}
+        <div className="hidden lg:block">
+          <div
+            className="relative aspect-square rounded-2xl overflow-hidden border-2"
+            style={{ borderColor: `${themeConfig.accentColor}50` }}
+          >
+            <div className="absolute inset-0 blur-3xl bg-black/20" />
+            {generatedImages[currentIndex] ? (
+              <img
+                src={generatedImages[currentIndex]}
+                alt={`Выбранный вариант ${currentIndex + 1}`}
+                className="relative w-full h-full object-contain bg-black"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-card">
+                <p className="text-muted-foreground">Нет изображения</p>
+              </div>
+            )}
 
-        <button
-          onClick={goToNext}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm border border-border hover:border-theme/50 flex items-center justify-center transition-all hover:scale-110"
-          aria-label="Следующий вариант"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-
-        {/* Main image */}
-        <div className="relative aspect-square rounded-2xl overflow-hidden border-2 border-theme/30 bg-card">
-          {generatedImages[currentIndex] ? (
-            <img
-              src={generatedImages[currentIndex]}
-              alt={`Вариант ${currentIndex + 1}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <p className="text-muted-foreground">Нет изображения</p>
+            {/* Selection badge */}
+            <div
+              className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-sm font-medium text-white"
+              style={{ backgroundColor: themeConfig.accentColor }}
+            >
+              Выбран вариант {currentIndex + 1}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Dots indicator */}
-      <div className="flex gap-2 mb-6">
-        {generatedImages.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => onSelectVariant(index)}
-            className={cn(
-              "w-3 h-3 rounded-full transition-all",
-              index === currentIndex
-                ? "bg-theme scale-125"
-                : "bg-border hover:bg-theme/50"
-            )}
-            aria-label={`Вариант ${index + 1}`}
-          />
-        ))}
+      {/* Mobile: Show selected variant info */}
+      <div className="lg:hidden text-center mb-6">
+        <p
+          className="text-sm font-medium"
+          style={{ color: themeConfig.accentColor }}
+        >
+          Выбран вариант {currentIndex + 1} из {generatedImages.length}
+        </p>
       </div>
-
-      {/* Variant counter */}
-      <p className="text-sm text-muted-foreground mb-6">
-        Вариант {currentIndex + 1} из {generatedImages.length}
-      </p>
 
       {/* Action buttons - stacked on mobile */}
       <div className="flex flex-col gap-3 w-full max-w-sm">
-        <Button variant="theme" className="w-full" onClick={onNext}>
+        <Button
+          className="w-full"
+          onClick={onNext}
+          style={{ backgroundColor: themeConfig.accentColor }}
+        >
           Далее
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
         <Button
-          variant="themeOutline"
+          variant="outline"
           className="w-full"
           onClick={() => setShowRegenerateConfirm(true)}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4 mr-2" />
           Перегенерировать
         </Button>
         <Button
@@ -139,7 +158,7 @@ export function StepSelection({
           className="w-full text-muted-foreground hover:text-foreground"
           onClick={onBack}
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к загрузке
         </Button>
       </div>

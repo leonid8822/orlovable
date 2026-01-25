@@ -16,6 +16,7 @@ interface StepCheckoutProps {
   config: PendantConfig;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onBack: () => void;
+  onPaymentSuccess?: (amount: number, orderId: string) => void;
   applicationId?: string;
 }
 
@@ -25,6 +26,7 @@ export function StepCheckout({
   config,
   onConfigChange,
   onBack,
+  onPaymentSuccess,
   applicationId,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
