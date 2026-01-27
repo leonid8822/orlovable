@@ -8,13 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { PaymentsTab } from '@/components/admin/PaymentsTab';
+import { ClientsTab } from '@/components/admin/ClientsTab';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
 
@@ -66,6 +67,7 @@ interface SizeSettings {
   dimensionsMm: number;
   apiSize: string;
   price: number;
+  depositPercent?: number;
 }
 
 interface MaterialSettings {
@@ -337,10 +339,14 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Заявки
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="gap-2">
+              <Users className="h-4 w-4" />
+              Клиенты
             </TabsTrigger>
             <TabsTrigger value="generations" className="gap-2">
               <History className="h-4 w-4" />
@@ -543,6 +549,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Clients Tab */}
+          <TabsContent value="clients" className="space-y-6">
+            <ClientsTab />
           </TabsContent>
 
           {/* Generations Tab */}
@@ -1036,6 +1047,19 @@ const Admin = () => {
                               value={sizeValue.price}
                               onChange={(e) => updateSize(materialKey, sizeKey, 'price', parseInt(e.target.value) || 0)}
                             />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-muted-foreground">Предоплата (%)</label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={sizeValue.depositPercent ?? (materialKey === 'gold' ? 30 : 50)}
+                              onChange={(e) => updateSize(materialKey, sizeKey, 'depositPercent', parseInt(e.target.value) || 0)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              = {Math.round(sizeValue.price * (sizeValue.depositPercent ?? (materialKey === 'gold' ? 30 : 50)) / 100).toLocaleString()} ₽ без НДС
+                            </p>
                           </div>
                         </div>
                       ))}

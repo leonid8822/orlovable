@@ -67,7 +67,8 @@ export function StepCheckout({
 
   const currentSizeConfig = sizes[config.sizeOption];
   const price = currentSizeConfig?.price || 0;
-  const depositAmount = Math.round(price / 2);
+  const depositPercent = currentSizeConfig?.depositPercent ?? (config.material === "gold" ? 30 : 50);
+  const depositAmount = Math.round(price * depositPercent / 100);
 
   const handleSizeChange = (size: SizeOption) => {
     const newSizeConfig = sizes[size];
@@ -298,9 +299,9 @@ export function StepCheckout({
             <div className="border-t border-border pt-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-gradient-theme">Предоплата 50%</p>
+                  <p className="font-medium text-gradient-theme">Предоплата {depositPercent}%</p>
                   <p className="text-sm text-muted-foreground">
-                    Остаток при получении: {depositAmount.toLocaleString("ru-RU")} ₽
+                    Остаток при получении: {(price - depositAmount).toLocaleString("ru-RU")} ₽
                   </p>
                 </div>
                 <p className="text-2xl font-display text-gradient-theme">

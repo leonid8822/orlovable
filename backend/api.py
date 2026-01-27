@@ -1455,3 +1455,207 @@ async def check_admin_status(user_id: str):
     except Exception as e:
         print(f"Error checking admin status: {e}")
         return {"is_admin": False}
+
+
+# ============================================
+# Admin Clients & Invoices
+# ============================================
+
+@router.get("/admin/clients")
+async def admin_list_clients():
+    """List all clients with aggregated order/payment data"""
+    try:
+        # Get all users
+        users = await supabase.select("users", order="created_at.desc")
+
+        clients = []
+        for user in users:
+            user_id = user.get("id")
+            email = user.get("email", "")
+
+            # Get applications for this user
+            apps = await supabase.select("applications", filters={"user_id": user_id}, order="created_at.desc")
+
+            # Get payments for this user's applications
+            total_spent = 0
+            paid_count = 0
+            payments = []
+            for app in apps:
+                app_payments = await supabase.select("payments", filters={"application_id": app["id"]})
+                for p in app_payments:
+                    payments.append(p)
+                    if p.get("status") in ("CONFIRMED", "AUTHORIZED"):
+                        total_spent += p.get("amount", 0)
+                        paid_count += 1
+
+            clients.append({
+                "id": user_id,
+                "email": email,
+                "name": user.get("name", ""),
+                "first_name": user.get("first_name", ""),
+                "last_name": user.get("last_name", ""),
+                "telegram_username": user.get("telegram_username", ""),
+                "created_at": user.get("created_at"),
+                "orders_count": len(apps),
+                "paid_count": paid_count,
+                "total_spent": total_spent,
+                "applications": [{
+                    "id": a["id"],
+                    "status": a.get("status"),
+                    "form_factor": a.get("form_factor"),
+                    "material": a.get("material"),
+                    "size": a.get("size"),
+                    "generated_preview": a.get("generated_preview"),
+                    "input_image_url": a.get("input_image_url"),
+                    "created_at": a.get("created_at"),
+                    "paid_at": a.get("paid_at"),
+                    "order_comment": a.get("order_comment"),
+                    "user_comment": a.get("user_comment"),
+                } for a in apps],
+                "payments": [{
+                    "id": p["id"],
+                    "order_id": p.get("order_id"),
+                    "amount": p.get("amount", 0),
+                    "status": p.get("status"),
+                    "created_at": p.get("created_at"),
+                    "customer_email": p.get("customer_email"),
+                } for p in payments],
+            })
+
+        # Filter out users with no applications (unless they have a name)
+        clients = [c for c in clients if c["orders_count"] > 0 or c.get("name")]
+
+        return {"clients": clients, "total": len(clients)}
+
+    except Exception as e:
+        print(f"Error listing clients: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/clients/{user_id}")
+async def admin_get_client(user_id: str):
+    """Get detailed client card"""
+    try:
+        user = await supabase.select_one("users", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get applications
+        apps = await supabase.select("applications", filters={"user_id": user_id}, order="created_at.desc")
+
+        # Get all payments
+        all_payments = []
+        for app in apps:
+            app_payments = await supabase.select("payments", filters={"application_id": app["id"]})
+            for p in app_payments:
+                p["application_id"] = app["id"]
+                all_payments.append(p)
+
+        total_spent = sum(p.get("amount", 0) for p in all_payments if p.get("status") in ("CONFIRMED", "AUTHORIZED"))
+
+        return {
+            "id": user_id,
+            "email": user.get("email", ""),
+            "name": user.get("name", ""),
+            "first_name": user.get("first_name", ""),
+            "last_name": user.get("last_name", ""),
+            "telegram_username": user.get("telegram_username", ""),
+            "created_at": user.get("created_at"),
+            "orders_count": len(apps),
+            "total_spent": total_spent,
+            "applications": [{
+                "id": a["id"],
+                "status": a.get("status"),
+                "form_factor": a.get("form_factor"),
+                "material": a.get("material"),
+                "size": a.get("size"),
+                "generated_preview": a.get("generated_preview"),
+                "input_image_url": a.get("input_image_url"),
+                "created_at": a.get("created_at"),
+                "paid_at": a.get("paid_at"),
+                "order_comment": a.get("order_comment"),
+                "user_comment": a.get("user_comment"),
+            } for a in apps],
+            "payments": [{
+                "id": p["id"],
+                "order_id": p.get("order_id"),
+                "application_id": p.get("application_id"),
+                "amount": p.get("amount", 0),
+                "status": p.get("status"),
+                "created_at": p.get("created_at"),
+                "card_pan": p.get("card_pan"),
+            } for p in all_payments],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting client: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class CreateInvoiceRequest(BaseModel):
+    application_id: Optional[str] = None
+    amount: int  # in rubles
+    description: str
+    customer_email: str
+    customer_name: Optional[str] = None
+
+
+@router.post("/admin/create-invoice")
+async def admin_create_invoice(req: CreateInvoiceRequest):
+    """Create invoice (payment link) for a client from admin panel"""
+    try:
+        # Generate unique order ID
+        app_prefix = req.application_id[:8] if req.application_id else "MANUAL"
+        order_id = f"OLAI-{app_prefix}-{int(time.time())}"
+
+        # Convert rubles to kopeks
+        amount_kopeks = req.amount * 100
+
+        # URLs for redirect after payment
+        base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
+        success_url = f"{base_url}/#/payment/success?order={order_id}"
+        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+
+        # Initialize payment in Tinkoff (without НДС - УСН)
+        payment_result = await init_payment(
+            order_id=order_id,
+            amount_kopeks=amount_kopeks,
+            description=req.description,
+            customer_email=req.customer_email,
+            customer_name=req.customer_name,
+            success_url=success_url,
+            fail_url=fail_url,
+        )
+
+        # Save payment to database
+        payment_data = {
+            "id": str(uuid.uuid4()),
+            "application_id": req.application_id,
+            "order_id": order_id,
+            "tinkoff_payment_id": str(payment_result["payment_id"]),
+            "amount": req.amount,
+            "status": payment_result["status"],
+            "customer_email": req.customer_email,
+            "customer_name": req.customer_name,
+            "order_comment": req.description,
+        }
+        await supabase.insert("payments", payment_data)
+
+        # Update application status if linked
+        if req.application_id:
+            await supabase.update("applications", req.application_id, {
+                "status": "pending_payment",
+            })
+
+        return {
+            "success": True,
+            "payment_url": payment_result["payment_url"],
+            "order_id": order_id,
+            "amount": req.amount,
+        }
+
+    except Exception as e:
+        print(f"Error creating invoice: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

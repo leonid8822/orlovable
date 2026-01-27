@@ -342,5 +342,47 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Admin Clients API
+    listClients: async () => {
+        try {
+            const response = await fetch(`${API_URL}/admin/clients`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    getClient: async (userId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/clients/${userId}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    createInvoice: async (payload: {
+        application_id?: string;
+        amount: number;
+        description: string;
+        customer_email: string;
+        customer_name?: string;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/create-invoice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Invoice creation failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };
