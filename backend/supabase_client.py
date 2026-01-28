@@ -95,5 +95,46 @@ class SupabaseClient:
             response.raise_for_status()
             return True
 
+    # ============== STORAGE METHODS ==============
+
+    def _storage_url(self, bucket: str) -> str:
+        return f"{self.url}/storage/v1/object/{bucket}"
+
+    async def upload_file(self, bucket: str, path: str, file_data: bytes, content_type: str = "image/png"):
+        """Upload file to storage bucket"""
+        url = f"{self._storage_url(bucket)}/{path}"
+
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": content_type,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, content=file_data)
+            response.raise_for_status()
+            return response.json()
+
+    async def get_public_url(self, bucket: str, path: str) -> str:
+        """Get public URL for a file in storage"""
+        return f"{self.url}/storage/v1/object/public/{bucket}/{path}"
+
+    async def upload_from_url(self, bucket: str, path: str, source_url: str) -> str:
+        """Download image from URL and upload to storage, return public URL"""
+        async with httpx.AsyncClient(timeout=60) as client:
+            # Download image
+            response = await client.get(source_url)
+            response.raise_for_status()
+
+            # Determine content type
+            content_type = response.headers.get("content-type", "image/png")
+
+            # Upload to storage
+            await self.upload_file(bucket, path, response.content, content_type)
+
+            # Return public URL
+            return await self.get_public_url(bucket, path)
+
+
 # Singleton instance
 supabase = SupabaseClient()

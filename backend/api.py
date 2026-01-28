@@ -29,7 +29,9 @@ class GenerateRequest(BaseModel):
     material: str = 'silver'
     sessionId: Optional[str] = None
     applicationId: Optional[str] = None
-    theme: str = 'main'  # main, kids, totems
+    theme: str = 'main'  # main, kids, totems, custom
+    # Custom 3D form specific fields
+    objectDescription: Optional[str] = None  # Description of which object to extract from photo
 
 
 class ApplicationCreate(BaseModel):
@@ -64,6 +66,10 @@ class SettingsUpdate(BaseModel):
     sizes: Optional[dict] = None
     materials: Optional[dict] = None
     visualization: Optional[dict] = None
+    # Custom 3D form generation settings
+    custom_form_prompt: Optional[str] = None
+    custom_form_sizes: Optional[dict] = None
+    custom_form_enabled: Optional[bool] = None
 
 
 @router.get("/settings")
@@ -116,6 +122,26 @@ async def get_settings():
             "imageWidthMm": 250,
             "female": {"attachX": 0.5, "attachY": 0.5},
             "male": {"attachX": 0.5, "attachY": 0.75}
+        },
+        # Custom 3D form generation (arbitrary objects from photos)
+        "custom_form_enabled": False,
+        "custom_form_prompt": """Создай ювелирный кулон-подвеску из 3D объекта на фотографии.
+{Опиши какой именно объект взять: {object_description}}
+{Дополнительные пожелания: {user_comment}}
+
+ВАЖНО: Превратит выбранный 3D объект в ювелирное украшение.
+- Сохрани форму и пропорции оригинального объекта
+- Добавь ушко для цепочки — простое, классическое ювелирное
+- Изделие должно быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати
+- Черный фон, изделие из серебра (silver metal)
+- Строго один вид спереди
+- Максимальная детализация поверхности, ювелирное качество""",
+        "custom_form_sizes": {
+            "silver": {
+                "s": {"label": "S", "dimensionsMm": 15, "price": 7000},
+                "m": {"label": "M", "dimensionsMm": 25, "price": 12000},
+                "l": {"label": "L", "dimensionsMm": 40, "price": 18000}
+            }
         }
     }
 
@@ -143,8 +169,12 @@ async def get_settings():
                 result['materials'] = value
             elif key == 'visualization' and isinstance(value, dict):
                 result['visualization'] = value
-            elif key in ['main_prompt', 'main_prompt_no_image']:
+            elif key in ['main_prompt', 'main_prompt_no_image', 'custom_form_prompt']:
                 result[key] = str(value) if value else ""
+            elif key == 'custom_form_sizes' and isinstance(value, dict):
+                result['custom_form_sizes'] = value
+            elif key == 'custom_form_enabled':
+                result['custom_form_enabled'] = bool(value) if value is not None else False
 
         return result
     except Exception as e:
@@ -181,6 +211,12 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('materials', updates.materials)
         if updates.visualization:
             await set_val('visualization', updates.visualization)
+        if updates.custom_form_prompt is not None:
+            await set_val('custom_form_prompt', updates.custom_form_prompt)
+        if updates.custom_form_sizes:
+            await set_val('custom_form_sizes', updates.custom_form_sizes)
+        if updates.custom_form_enabled is not None:
+            await set_val('custom_form_enabled', updates.custom_form_enabled)
 
         return {"success": True}
     except Exception as e:
@@ -367,24 +403,48 @@ async def generate_pendant(req: GenerateRequest):
     num_images = settings.get("num_images", 4)
 
     has_image = req.imageBase64 and len(req.imageBase64) > 0
-    print(f"Starting pendant generation. Has image: {has_image}, Form: {req.formFactor}")
+    is_custom_form = req.theme == 'custom'
+    print(f"Starting pendant generation. Has image: {has_image}, Form: {req.formFactor}, Theme: {req.theme}")
 
-    # Build prompt
-    # sizes structure: sizes[material][size_key] -> {label, price, apiSize, dimensionsMm}
-    material_sizes = settings["sizes"].get(req.material, settings["sizes"].get("silver", {}))
-    size_config = material_sizes.get(req.size, material_sizes.get("m", {}))
-    size_dimensions = f"{size_config.get('dimensionsMm', 18)}мм"
+    # Build prompt based on theme
+    if is_custom_form:
+        # Custom 3D form generation - extract 3D object from photo
+        custom_sizes = settings.get("custom_form_sizes", {}).get(req.material, {})
+        size_config = custom_sizes.get(req.size, custom_sizes.get("m", {}))
+        size_dimensions = f"{size_config.get('dimensionsMm', 25)}мм"
 
-    form_config = settings["form_factors"].get(req.formFactor, settings["form_factors"]["round"])
-    form_addition = form_config.get("addition", "")
-    form_shape_base = form_config.get("shape", "круглая форма, объект вписан в круг")
-    form_shape = f"{form_shape_base}, размер {size_dimensions}"
+        custom_prompt_template = settings.get("custom_form_prompt", "")
+        object_desc = req.objectDescription or "главный объект на фото"
 
-    # Get form factor label for prompt
-    form_label = form_config.get("label", "круглый кулон")
+        pendant_prompt = f"""Создай ювелирный кулон-подвеску из 3D объекта на фотографии.
+Какой объект взять: {object_desc}
+{f'Дополнительные пожелания: {req.prompt}' if req.prompt else ''}
 
-    if has_image:
-        pendant_prompt = f"""Создай ювелирный кулон из референса на картинке.
+ВАЖНО: Преврати выбранный 3D объект в ювелирное украшение.
+- Сохрани форму и пропорции оригинального объекта
+- Добавь ушко для цепочки — простое, классическое ювелирное
+- Изделие должно быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати
+- Черный фон, изделие из серебра (silver metal)
+- Строго один вид спереди
+- Размер изделия: {size_dimensions}
+- Максимальная детализация поверхности, ювелирное качество"""
+    else:
+        # Standard pendant generation
+        # sizes structure: sizes[material][size_key] -> {label, price, apiSize, dimensionsMm}
+        material_sizes = settings["sizes"].get(req.material, settings["sizes"].get("silver", {}))
+        size_config = material_sizes.get(req.size, material_sizes.get("m", {}))
+        size_dimensions = f"{size_config.get('dimensionsMm', 18)}мм"
+
+        form_config = settings["form_factors"].get(req.formFactor, settings["form_factors"]["round"])
+        form_addition = form_config.get("addition", "")
+        form_shape_base = form_config.get("shape", "круглая форма, объект вписан в круг")
+        form_shape = f"{form_shape_base}, размер {size_dimensions}"
+
+        # Get form factor label for prompt
+        form_label = form_config.get("label", "круглый кулон")
+
+        if has_image:
+            pendant_prompt = f"""Создай ювелирный кулон из референса на картинке.
 Тип украшения: {form_label}.
 {f'Дополнительные пожелания заказчика: {req.prompt}' if req.prompt else ''}
 ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
@@ -397,8 +457,8 @@ async def generate_pendant(req: GenerateRequest):
 {form_addition}
 Форма — {form_shape}.
 Максимальная детализация поверхности, ювелирное качество."""
-    else:
-        pendant_prompt = f"""Создай ювелирный кулон.
+        else:
+            pendant_prompt = f"""Создай ювелирный кулон.
 Тип украшения: {form_label}.
 {f'Описание: {req.prompt}' if req.prompt else 'Красивый элегантный ювелирный кулон.'}
 Кулон должен быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, состоящим из ОДНОЙ ЧАСТИ — единый серебряный объект без отдельных элементов.
@@ -477,12 +537,31 @@ async def generate_pendant(req: GenerateRequest):
             image_urls = images_with_transparent_bg
             print(f"Background removal complete")
 
+            # Upload images to Supabase Storage for reliable access
+            print(f"Uploading {len(image_urls)} images to Supabase Storage...")
+            generation_id = str(uuid.uuid4())
+            supabase_urls = []
+            for i, img_url in enumerate(image_urls):
+                try:
+                    file_path = f"{generation_id}/{i}.png"
+                    public_url = await supabase.upload_from_url("generations", file_path, img_url)
+                    supabase_urls.append(public_url)
+                    print(f"Uploaded image {i+1}/{len(image_urls)}")
+                except Exception as upload_err:
+                    print(f"Failed to upload image {i}: {upload_err}, using original URL")
+                    supabase_urls.append(img_url)
+
+            # Use Supabase URLs if upload succeeded
+            if supabase_urls:
+                image_urls = supabase_urls
+            print(f"Upload complete")
+
             execution_time_ms = int((time.time() - start_time) * 1000)
             cost_cents = len(image_urls) * COST_PER_IMAGE_CENTS + len(image_urls) * COST_REMOVE_BG_CENTS
 
             # Save to Supabase
             gen_data = {
-                "id": str(uuid.uuid4()),
+                "id": generation_id,
                 "input_image_url": req.imageBase64[:500] + "..." if has_image and req.imageBase64 else None,
                 "user_comment": req.prompt,
                 "form_factor": req.formFactor,

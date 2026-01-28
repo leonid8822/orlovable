@@ -42,28 +42,34 @@ const scrollToConstructor = () => {
 
 const Landing = () => {
   const [examples, setExamples] = useState(fallbackExamples);
+  const [isLoadingExamples, setIsLoadingExamples] = useState(true);
 
   useEffect(() => {
     const fetchExamples = async () => {
-      const { data, error } = await supabase
-        .from('examples')
-        .select('*')
-        .eq('is_active', true)
-        .or('theme.eq.main,theme.is.null')
-        .order('display_order', { ascending: true })
-        .limit(5);
+      setIsLoadingExamples(true);
+      try {
+        const { data, error } = await supabase
+          .from('examples')
+          .select('*')
+          .eq('is_active', true)
+          .or('theme.eq.main,theme.is.null')
+          .order('display_order', { ascending: true })
+          .limit(5);
 
-      if (!error && data && data.length > 0) {
-        const formatted = data
-          .filter(e => e.after_image_url) // Only require after_image
-          .map(e => ({
-            before: e.before_image_url || '', // Can be empty
-            after: e.after_image_url!,
-            title: e.description || e.title || ''
-          }));
-        if (formatted.length > 0) {
-          setExamples(formatted);
+        if (!error && data && data.length > 0) {
+          const formatted = data
+            .filter(e => e.after_image_url) // Only require after_image
+            .map(e => ({
+              before: e.before_image_url || '', // Can be empty
+              after: e.after_image_url!,
+              title: e.description || e.title || ''
+            }));
+          if (formatted.length > 0) {
+            setExamples(formatted);
+          }
         }
+      } finally {
+        setIsLoadingExamples(false);
       }
     };
     fetchExamples();
@@ -105,7 +111,7 @@ const Landing = () => {
 
             {/* Before/After Showcase */}
             <div className="mt-16 max-w-2xl mx-auto">
-              <BeforeAfterShowcase examples={examples} accentColor="gold" />
+              <BeforeAfterShowcase examples={examples} accentColor="gold" isLoading={isLoadingExamples} />
             </div>
           </div>
         </section>

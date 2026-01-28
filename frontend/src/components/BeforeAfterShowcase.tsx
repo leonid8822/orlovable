@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { ImageWithLoading } from "@/components/ui/image-with-loading";
 
 interface Example {
   before: string;
@@ -12,12 +13,14 @@ interface BeforeAfterShowcaseProps {
   examples: Example[];
   accentColor?: "gold" | "tiffany" | "brown";
   autoPlayInterval?: number;
+  isLoading?: boolean;
 }
 
 export function BeforeAfterShowcase({
   examples,
   accentColor = "gold",
   autoPlayInterval = 4000,
+  isLoading = false,
 }: BeforeAfterShowcaseProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -78,6 +81,56 @@ export function BeforeAfterShowcase({
 
   const colors = colorConfig[accentColor];
 
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="relative">
+          <div className="grid grid-cols-2 gap-4 md:gap-8">
+            {/* Before skeleton */}
+            <div className="relative">
+              <div className={cn("absolute -inset-1 rounded-2xl blur-xl", colors.bgLight)} />
+              <div className={cn("relative aspect-square rounded-2xl overflow-hidden border-2", colors.borderLight)}>
+                <div className="w-full h-full bg-muted/50 animate-pulse flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                </div>
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+              <div className={cn("w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center opacity-50", colors.gradient)}>
+                <ArrowRight className="w-6 h-6 md:w-8 md:h-8 text-white" />
+              </div>
+            </div>
+
+            {/* After skeleton */}
+            <div className="relative">
+              <div className={cn("absolute -inset-1 rounded-2xl blur-xl", colors.bgMedium)} />
+              <div className={cn("relative aspect-square rounded-2xl overflow-hidden border-2", colors.borderMedium)}>
+                <div className="w-full h-full bg-muted/50 animate-pulse flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Title skeleton */}
+          <div className="text-center mt-4">
+            <div className="h-5 w-48 mx-auto bg-muted/50 rounded animate-pulse" />
+          </div>
+        </div>
+
+        {/* Dots skeleton */}
+        <div className="flex justify-center gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Main showcase */}
@@ -100,10 +153,11 @@ export function BeforeAfterShowcase({
               )}
             >
               {currentExample.before ? (
-                <img
+                <ImageWithLoading
                   src={currentExample.before}
                   alt="До"
                   className="w-full h-full object-cover"
+                  containerClassName="w-full h-full"
                 />
               ) : (
                 <div className="w-full h-full bg-muted/50 flex items-center justify-center">
@@ -145,10 +199,11 @@ export function BeforeAfterShowcase({
                 isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}
             >
-              <img
+              <ImageWithLoading
                 src={currentExample.after}
                 alt="После"
                 className="w-full h-full object-cover"
+                containerClassName="w-full h-full"
               />
               <div
                 className={cn(

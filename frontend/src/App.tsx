@@ -7,6 +7,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import Landing from "./pages/Landing";
 import KidsLanding from "./pages/KidsLanding";
 import TotemsLanding from "./pages/TotemsLanding";
+import CustomLanding from "./pages/CustomLanding";
 import Index from "./pages/Index";
 import Application from "./pages/Application";
 import Admin from "./pages/Admin";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/kids" element={<KidsLanding />} />
           <Route path="/totems" element={<TotemsLanding />} />
+          <Route path="/custom" element={<CustomLanding />} />
           <Route path="/create" element={<Index />} />
           <Route path="/application/:id" element={<Application />} />
           <Route path="/admin" element={<Admin />} />

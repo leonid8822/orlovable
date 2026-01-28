@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from "react";
 
-export type AppTheme = "main" | "kids" | "totems";
+export type AppTheme = "main" | "kids" | "totems" | "custom";
 
 interface ThemeConfig {
   name: AppTheme;
@@ -63,6 +63,21 @@ export const themeConfigs: Record<AppTheme, ThemeConfig> = {
     uploadDescription: "Выберите свой тотем — животное-хранитель, руну или сакральный символ",
     heroTitle: <>Создайте свой <span className="text-gradient-brown">тотем</span><br />в скандинавском стиле</>,
     heroSubtitle: "Превратите значимый символ или животное-хранитель в ювелирный артефакт",
+  },
+  custom: {
+    name: "custom",
+    label: "OLAI.CUSTOM",
+    accentColor: "hsl(270, 50%, 45%)",
+    accentColorLight: "hsl(270, 55%, 55%)",
+    accentColorDark: "hsl(270, 45%, 35%)",
+    gradientClass: "bg-gradient-purple",
+    textGradientClass: "text-gradient-purple",
+    shadowClass: "shadow-purple",
+    glowClass: "shadow-glow-purple",
+    uploadHint: "Сфотографируйте 3D объект, который хотите превратить в украшение",
+    uploadDescription: "Загрузите фото с объектом — игрушкой, статуэткой или любым 3D предметом",
+    heroTitle: <>Превратите <span style={{ background: 'linear-gradient(135deg, hsl(270, 55%, 55%), hsl(270, 50%, 45%))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>любой объект</span><br />в украшение</>,
+    heroSubtitle: "Загрузите фото 3D объекта — мы превратим его в ювелирный кулон",
   },
 };
 

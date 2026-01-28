@@ -24,6 +24,8 @@ interface StepGeneratingProps {
   applicationId: string;
   onGenerationComplete: (images: string[], userAuth?: UserAuthData) => void;
   onGenerationError: (error: string) => void;
+  objectDescription?: string;  // For custom 3D form generation
+  theme?: string;  // Theme for generation
 }
 
 export function StepGenerating({
@@ -31,6 +33,8 @@ export function StepGenerating({
   applicationId,
   onGenerationComplete,
   onGenerationError,
+  objectDescription,
+  theme,
 }: StepGeneratingProps) {
   const [progress, setProgress] = useState(0);
   const [currentFactIndex, setCurrentFactIndex] = useState(0);
@@ -133,6 +137,8 @@ export function StepGenerating({
           size: config.size,
           material: config.material,
           applicationId: applicationId,
+          theme: theme || 'main',
+          objectDescription: objectDescription,  // For custom 3D form
         });
 
         if (error) {

@@ -41,28 +41,34 @@ const TotemsLanding = () => {
   const brownColor = "hsl(25, 45%, 35%)";
   const brownLightColor = "hsl(25, 50%, 45%)";
   const [examples, setExamples] = useState(fallbackTotemExamples);
+  const [isLoadingExamples, setIsLoadingExamples] = useState(true);
 
   useEffect(() => {
     const fetchExamples = async () => {
-      const { data, error } = await supabase
-        .from('examples')
-        .select('*')
-        .eq('is_active', true)
-        .eq('theme', 'totems')
-        .order('display_order', { ascending: true })
-        .limit(5);
+      setIsLoadingExamples(true);
+      try {
+        const { data, error } = await supabase
+          .from('examples')
+          .select('*')
+          .eq('is_active', true)
+          .eq('theme', 'totems')
+          .order('display_order', { ascending: true })
+          .limit(5);
 
-      if (!error && data && data.length > 0) {
-        const formatted = data
-          .filter(e => e.after_image_url) // Only require after_image
-          .map(e => ({
-            before: e.before_image_url || '', // Can be empty
-            after: e.after_image_url!,
-            title: e.description || e.title || ''
-          }));
-        if (formatted.length > 0) {
-          setExamples(formatted);
+        if (!error && data && data.length > 0) {
+          const formatted = data
+            .filter(e => e.after_image_url) // Only require after_image
+            .map(e => ({
+              before: e.before_image_url || '', // Can be empty
+              after: e.after_image_url!,
+              title: e.description || e.title || ''
+            }));
+          if (formatted.length > 0) {
+            setExamples(formatted);
+          }
         }
+      } finally {
+        setIsLoadingExamples(false);
       }
     };
     fetchExamples();
@@ -108,7 +114,7 @@ const TotemsLanding = () => {
               <h3 className="text-xl font-display text-center mb-8">
                 Примеры <span className="text-gradient-brown">тотемов</span>
               </h3>
-              <BeforeAfterShowcase examples={examples} accentColor="brown" />
+              <BeforeAfterShowcase examples={examples} accentColor="brown" isLoading={isLoadingExamples} />
             </div>
           </div>
         </section>

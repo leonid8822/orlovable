@@ -129,7 +129,8 @@ const Application = () => {
 
       setApplicationId(newApp.id);
       // Set theme for new application
-      if (currentTheme === "kids" || currentTheme === "totems" || currentTheme === "main") {
+      const validThemes: AppTheme[] = ["main", "kids", "totems", "custom"];
+      if (validThemes.includes(currentTheme as AppTheme)) {
         setAppTheme(currentTheme as AppTheme);
       }
       navigate(`/application/${newApp.id}`, { replace: true });
@@ -263,14 +264,19 @@ const Application = () => {
 
       setCurrentStep(determinedStep);
 
-      // Set theme from application (or fallback to localStorage)
+      // Set theme from URL param, application, or localStorage
+      const urlTheme = searchParams.get("theme") as AppTheme;
       const savedTheme = data.theme as AppTheme;
-      if (savedTheme === "kids" || savedTheme === "totems" || savedTheme === "main") {
+      const validThemes: AppTheme[] = ["main", "kids", "totems", "custom"];
+
+      if (urlTheme && validThemes.includes(urlTheme)) {
+        setAppTheme(urlTheme);
+      } else if (savedTheme && validThemes.includes(savedTheme)) {
         setAppTheme(savedTheme);
       } else {
         // Fallback to localStorage for old applications without theme
         const localTheme = localStorage.getItem("appTheme") as AppTheme;
-        if (localTheme === "kids" || localTheme === "totems" || localTheme === "main") {
+        if (localTheme && validThemes.includes(localTheme)) {
           setAppTheme(localTheme);
         }
       }
@@ -321,7 +327,7 @@ const Application = () => {
   }, [id, navigate, searchParams]);
 
   // Get theme-specific classes
-  const themeClass = appTheme === "kids" ? "theme-kids" : appTheme === "totems" ? "theme-totems" : "";
+  const themeClass = appTheme === "kids" ? "theme-kids" : appTheme === "totems" ? "theme-totems" : appTheme === "custom" ? "theme-custom" : "";
 
   // Render loading state
   if (loading) {
@@ -374,6 +380,8 @@ const Application = () => {
                 applicationId={applicationId}
                 onGenerationComplete={handleGenerationComplete}
                 onGenerationError={handleGenerationError}
+                theme={appTheme}
+                objectDescription={searchParams.get("objectDescription") || undefined}
               />
             )}
 

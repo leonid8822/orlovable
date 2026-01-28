@@ -42,28 +42,34 @@ const KidsLanding = () => {
   const tiffanyColor = "hsl(174, 58%, 38%)";
   const tiffanyLightColor = "hsl(174, 58%, 50%)";
   const [examples, setExamples] = useState(fallbackKidsExamples);
+  const [isLoadingExamples, setIsLoadingExamples] = useState(true);
 
   useEffect(() => {
     const fetchExamples = async () => {
-      const { data, error } = await supabase
-        .from('examples')
-        .select('*')
-        .eq('is_active', true)
-        .eq('theme', 'kids')
-        .order('display_order', { ascending: true })
-        .limit(5);
+      setIsLoadingExamples(true);
+      try {
+        const { data, error } = await supabase
+          .from('examples')
+          .select('*')
+          .eq('is_active', true)
+          .eq('theme', 'kids')
+          .order('display_order', { ascending: true })
+          .limit(5);
 
-      if (!error && data && data.length > 0) {
-        const formatted = data
-          .filter(e => e.after_image_url) // Only require after_image
-          .map(e => ({
-            before: e.before_image_url || '', // Can be empty
-            after: e.after_image_url!,
-            title: e.description || e.title || ''
-          }));
-        if (formatted.length > 0) {
-          setExamples(formatted);
+        if (!error && data && data.length > 0) {
+          const formatted = data
+            .filter(e => e.after_image_url) // Only require after_image
+            .map(e => ({
+              before: e.before_image_url || '', // Can be empty
+              after: e.after_image_url!,
+              title: e.description || e.title || ''
+            }));
+          if (formatted.length > 0) {
+            setExamples(formatted);
+          }
         }
+      } finally {
+        setIsLoadingExamples(false);
       }
     };
     fetchExamples();
@@ -131,7 +137,7 @@ const KidsLanding = () => {
               <h3 className="text-xl font-display text-center mb-8">
                 Примеры <span className="text-gradient-tiffany">превращений</span>
               </h3>
-              <BeforeAfterShowcase examples={examples} accentColor="tiffany" />
+              <BeforeAfterShowcase examples={examples} accentColor="tiffany" isLoading={isLoadingExamples} />
             </div>
           </div>
         </section>
