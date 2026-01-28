@@ -28,13 +28,26 @@ const CustomLanding = () => {
   const [userComment, setUserComment] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
+  // Handle file selection - convert File to base64 string
+  const handleImageSelect = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedImage(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageClear = () => {
+    setUploadedImage(null);
+  };
+
   const handleCreateJewelry = async () => {
     if (!uploadedImage) return;
 
     setIsCreating(true);
     try {
       // Create application with custom theme
-      const app = await api.createApplication({
+      const { data: app, error } = await api.createApplication({
         form_factor: 'contour', // Custom forms use contour by default
         material: 'silver',
         size: 'm',
@@ -42,6 +55,11 @@ const CustomLanding = () => {
         user_comment: `Объект: ${objectDescription}\n${userComment}`.trim(),
         theme: 'custom',
       });
+
+      if (error) {
+        console.error("Error creating application:", error);
+        return;
+      }
 
       if (app?.id) {
         navigate(`/application/${app.id}?theme=custom&objectDescription=${encodeURIComponent(objectDescription)}`);
@@ -161,8 +179,11 @@ const CustomLanding = () => {
                   Фото с 3D объектом
                 </label>
                 <ImageUploader
-                  onImageSelect={setUploadedImage}
-                  currentImage={uploadedImage}
+                  imagePreview={uploadedImage}
+                  onImageSelect={handleImageSelect}
+                  onImageClear={handleImageClear}
+                  label="Загрузите фото с объектом"
+                  hint="PNG, JPG до 10MB"
                 />
               </div>
 
