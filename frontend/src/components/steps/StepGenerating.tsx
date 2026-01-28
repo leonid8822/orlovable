@@ -22,7 +22,7 @@ const funFacts = [
 interface StepGeneratingProps {
   config: PendantConfig;
   applicationId: string;
-  onGenerationComplete: (images: string[], userAuth?: UserAuthData) => void;
+  onGenerationComplete: (images: string[], thumbnails: string[], userAuth?: UserAuthData) => void;
   onGenerationError: (error: string) => void;
   objectDescription?: string;  // For custom 3D form generation
   theme?: string;  // Theme for generation
@@ -41,6 +41,7 @@ export function StepGenerating({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationDone, setGenerationDone] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generatedThumbnails, setGeneratedThumbnails] = useState<string[]>([]);
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const { toast } = useToast();
 
@@ -84,7 +85,7 @@ export function StepGenerating({
         title: "Отлично!",
         description: "Теперь выберите понравившийся вариант",
       });
-      onGenerationComplete(generatedImages, userData);
+      onGenerationComplete(generatedImages, generatedThumbnails, userData);
     }
   };
 
@@ -113,9 +114,9 @@ export function StepGenerating({
         }
       }
 
-      onGenerationComplete(generatedImages, userData);
+      onGenerationComplete(generatedImages, generatedThumbnails, userData);
     }
-  }, [generationDone, generatedImages, isUserAuthenticated]);
+  }, [generationDone, generatedImages, generatedThumbnails, isUserAuthenticated]);
 
   // Start generation on mount
   useEffect(() => {
@@ -162,6 +163,8 @@ export function StepGenerating({
 
         setProgress(100);
         setGeneratedImages(data.images || []);
+        // Use thumbnails from API, fallback to full images if not available
+        setGeneratedThumbnails(data.thumbnails || data.images || []);
         setGenerationDone(true);
 
         toast({

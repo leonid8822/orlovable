@@ -18,6 +18,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 interface StepSelectionProps {
   config: PendantConfig;
   generatedImages: string[];
+  generatedThumbnails?: string[];  // Smaller images for grid display
   onSelectVariant: (index: number) => void;
   onRegenerate: () => void;
   onNext: () => void;
@@ -27,6 +28,7 @@ interface StepSelectionProps {
 export function StepSelection({
   config,
   generatedImages,
+  generatedThumbnails,
   onSelectVariant,
   onRegenerate,
   onNext,
@@ -35,6 +37,9 @@ export function StepSelection({
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const currentIndex = config.selectedVariantIndex ?? 0;
   const { config: themeConfig } = useAppTheme();
+
+  // Use thumbnails if available, fallback to full images
+  const thumbnails = generatedThumbnails?.length ? generatedThumbnails : generatedImages;
 
   const handleRegenerate = () => {
     setShowRegenerateConfirm(false);
@@ -55,9 +60,9 @@ export function StepSelection({
 
       {/* Desktop: 2x2 grid with selected preview | Mobile: vertical list */}
       <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Grid of variants */}
+        {/* Grid of variants - use thumbnails for faster loading */}
         <div className="grid grid-cols-2 gap-3">
-          {generatedImages.map((image, index) => (
+          {thumbnails.map((thumbImage, index) => (
             <button
               key={index}
               onClick={() => onSelectVariant(index)}
@@ -74,9 +79,10 @@ export function StepSelection({
               }}
             >
               <img
-                src={image}
+                src={thumbImage}
                 alt={`Вариант ${index + 1}`}
                 className="w-full h-full object-cover bg-black"
+                loading="lazy"
               />
               {/* Selection indicator */}
               {index === currentIndex && (

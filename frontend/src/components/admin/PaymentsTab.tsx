@@ -199,7 +199,7 @@ export function PaymentsTab() {
                   <TableCell>
                     {payment.application_id ? (
                       <a
-                        href={`/#/application/${payment.application_id}`}
+                        href={`/application/${payment.application_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline"

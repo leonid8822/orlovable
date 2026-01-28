@@ -235,7 +235,7 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
                       Счёт
                     </Button>
                     <a
-                      href={`/#/application/${app.id}`}
+                      href={`/application/${app.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

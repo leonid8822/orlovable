@@ -538,18 +538,30 @@ async def generate_pendant(req: GenerateRequest):
             print(f"Background removal complete")
 
             # Upload images to Supabase Storage for reliable access
+            # Create both full size (1024px) and thumbnail (400px) versions in WebP format
             print(f"Uploading {len(image_urls)} images to Supabase Storage...")
             generation_id = str(uuid.uuid4())
             supabase_urls = []
+            thumbnail_urls = []
             for i, img_url in enumerate(image_urls):
                 try:
                     file_path = f"{generation_id}/{i}.png"
-                    public_url = await supabase.upload_from_url("generations", file_path, img_url)
-                    supabase_urls.append(public_url)
-                    print(f"Uploaded image {i+1}/{len(image_urls)}")
+                    full_url, thumb_url = await supabase.upload_with_thumbnail(
+                        "generations",
+                        file_path,
+                        img_url,
+                        full_size=1024,
+                        thumb_size=400,
+                        format="WEBP",
+                        quality=85
+                    )
+                    supabase_urls.append(full_url)
+                    thumbnail_urls.append(thumb_url)
+                    print(f"Uploaded image {i+1}/{len(image_urls)} with thumbnail")
                 except Exception as upload_err:
                     print(f"Failed to upload image {i}: {upload_err}, using original URL")
                     supabase_urls.append(img_url)
+                    thumbnail_urls.append(img_url)  # Fallback to full image for thumb
 
             # Use Supabase URLs if upload succeeded
             if supabase_urls:
@@ -588,6 +600,7 @@ async def generate_pendant(req: GenerateRequest):
             return {
                 "success": True,
                 "images": image_urls,
+                "thumbnails": thumbnail_urls,
                 "prompt": pendant_prompt,
                 "generationId": db_gen["id"] if db_gen else None,
                 "costCents": cost_cents,
@@ -1065,8 +1078,8 @@ async def create_payment(req: CreatePaymentRequest):
 
         # URLs for redirect after payment
         base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
-        success_url = f"{base_url}/#/payment/success?order={order_id}"
-        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+        success_url = f"{base_url}/payment/success?order={order_id}"
+        fail_url = f"{base_url}/payment/fail?order={order_id}"
 
         # Initialize payment in Tinkoff
         payment_result = await init_payment(
@@ -1241,8 +1254,8 @@ async def test_payment(amount: int = 100):
 
         # URLs for redirect
         base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
-        success_url = f"{base_url}/#/payment/success?order={order_id}"
-        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+        success_url = f"{base_url}/payment/success?order={order_id}"
+        fail_url = f"{base_url}/payment/fail?order={order_id}"
 
         # Initialize payment
         payment_result = await init_payment(
@@ -1694,8 +1707,8 @@ async def admin_create_invoice(req: CreateInvoiceRequest):
 
         # URLs for redirect after payment
         base_url = os.environ.get("FRONTEND_URL", "https://olai.art")
-        success_url = f"{base_url}/#/payment/success?order={order_id}"
-        fail_url = f"{base_url}/#/payment/fail?order={order_id}"
+        success_url = f"{base_url}/payment/success?order={order_id}"
+        fail_url = f"{base_url}/payment/fail?order={order_id}"
 
         # Initialize payment in Tinkoff (without НДС - УСН)
         payment_result = await init_payment(

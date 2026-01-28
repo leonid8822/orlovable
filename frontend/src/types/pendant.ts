@@ -164,6 +164,7 @@ export interface PendantConfig {
 
   // Generation results
   generatedImages: string[];
+  generatedThumbnails: string[];  // Smaller versions for selection grid
   selectedVariantIndex: number;
   generatedPreview: string | null;
 
@@ -191,6 +192,7 @@ export const initialPendantConfig: PendantConfig = {
   image: null,
   imagePreview: null,
   generatedImages: [],
+  generatedThumbnails: [],
   selectedVariantIndex: 0,
   generatedPreview: null,
   comment: '',

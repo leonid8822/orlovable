@@ -1,5 +1,7 @@
 import os
+import io
 import httpx
+from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -134,6 +136,130 @@ class SupabaseClient:
 
             # Return public URL
             return await self.get_public_url(bucket, path)
+
+    def resize_image(self, image_data: bytes, max_size: int = 800, format: str = "WEBP", quality: int = 85) -> tuple[bytes, str]:
+        """
+        Resize image to max_size and convert to specified format.
+        Returns tuple of (resized_bytes, content_type)
+        """
+        img = Image.open(io.BytesIO(image_data))
+
+        # Convert to RGB if necessary (for PNG with transparency)
+        if img.mode in ('RGBA', 'P'):
+            # Create white background for transparency
+            background = Image.new('RGB', img.size, (0, 0, 0))  # Black background for jewelry
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
+            img = background
+
+        # Calculate new size maintaining aspect ratio
+        width, height = img.size
+        if max(width, height) > max_size:
+            if width > height:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Save to buffer in specified format
+        buffer = io.BytesIO()
+        if format.upper() == "WEBP":
+            img.save(buffer, format="WEBP", quality=quality)
+            content_type = "image/webp"
+        elif format.upper() == "JPEG":
+            img.save(buffer, format="JPEG", quality=quality)
+            content_type = "image/jpeg"
+        else:
+            img.save(buffer, format="PNG")
+            content_type = "image/png"
+
+        return buffer.getvalue(), content_type
+
+    async def upload_from_url_resized(
+        self,
+        bucket: str,
+        path: str,
+        source_url: str,
+        max_size: int = 800,
+        format: str = "WEBP",
+        quality: int = 85
+    ) -> str:
+        """Download image from URL, resize it, and upload to storage. Return public URL."""
+        async with httpx.AsyncClient(timeout=60) as client:
+            # Download image
+            response = await client.get(source_url)
+            response.raise_for_status()
+
+            # Resize and convert
+            resized_data, content_type = self.resize_image(
+                response.content,
+                max_size=max_size,
+                format=format,
+                quality=quality
+            )
+
+            # Update path extension
+            if format.upper() == "WEBP":
+                path = path.rsplit('.', 1)[0] + '.webp'
+            elif format.upper() == "JPEG":
+                path = path.rsplit('.', 1)[0] + '.jpg'
+
+            # Upload to storage
+            await self.upload_file(bucket, path, resized_data, content_type)
+
+            # Return public URL
+            return await self.get_public_url(bucket, path)
+
+    async def upload_with_thumbnail(
+        self,
+        bucket: str,
+        base_path: str,
+        source_url: str,
+        full_size: int = 1024,
+        thumb_size: int = 400,
+        format: str = "WEBP",
+        quality: int = 85
+    ) -> tuple[str, str]:
+        """
+        Upload image with both full size and thumbnail versions.
+        Returns tuple of (full_url, thumbnail_url)
+        """
+        async with httpx.AsyncClient(timeout=60) as client:
+            # Download original image
+            response = await client.get(source_url)
+            response.raise_for_status()
+            original_data = response.content
+
+        # Determine file extension
+        ext = '.webp' if format.upper() == "WEBP" else '.jpg' if format.upper() == "JPEG" else '.png'
+        base_name = base_path.rsplit('.', 1)[0]
+
+        # Create full size version
+        full_data, content_type = self.resize_image(
+            original_data,
+            max_size=full_size,
+            format=format,
+            quality=quality
+        )
+        full_path = f"{base_name}{ext}"
+        await self.upload_file(bucket, full_path, full_data, content_type)
+        full_url = await self.get_public_url(bucket, full_path)
+
+        # Create thumbnail version
+        thumb_data, content_type = self.resize_image(
+            original_data,
+            max_size=thumb_size,
+            format=format,
+            quality=quality
+        )
+        thumb_path = f"{base_name}_thumb{ext}"
+        await self.upload_file(bucket, thumb_path, thumb_data, content_type)
+        thumb_url = await self.get_public_url(bucket, thumb_path)
+
+        return full_url, thumb_url
 
 
 # Singleton instance

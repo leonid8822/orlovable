@@ -146,11 +146,12 @@ const Application = () => {
 
   // Generation complete handler
   const handleGenerationComplete = useCallback(
-    (images: string[], userAuth?: UserAuthData) => {
+    (images: string[], thumbnails: string[], userAuth?: UserAuthData) => {
       setGeneratedImages(images);
       setConfig((prev) => ({
         ...prev,
         generatedImages: images,
+        generatedThumbnails: thumbnails,
         selectedVariantIndex: 0,
         generatedPreview: images[0] || null,
         userAuth: userAuth || prev.userAuth,
@@ -389,6 +390,7 @@ const Application = () => {
               <StepSelection
                 config={config}
                 generatedImages={generatedImages}
+                generatedThumbnails={config.generatedThumbnails}
                 onSelectVariant={handleSelectVariant}
                 onRegenerate={handleRegenerate}
                 onNext={() => transitionTo(AppStep.CHECKOUT)}
