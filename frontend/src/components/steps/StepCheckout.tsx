@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, CreditCard, MessageCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, MessageCircle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,10 @@ export function StepCheckout({
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [email, setEmail] = useState(() => {
+    // Try to get email from localStorage (set during auth)
+    return localStorage.getItem('userEmail') || '';
+  });
   const { config: themeConfig } = useAppTheme();
   const { toast } = useToast();
 
@@ -97,12 +102,24 @@ export function StepCheckout({
       return;
     }
 
+    // Validate email (required for payment receipt)
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast({
+        title: "Введите email",
+        description: "Email необходим для отправки чека об оплате",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
       const { data, error } = await api.createPayment({
         application_id: applicationId,
         amount: depositAmount,
+        email: trimmedEmail,
         order_comment: config.orderComment,
       });
 
@@ -315,6 +332,22 @@ export function StepCheckout({
             </p>
           </div>
 
+          {/* Email for receipt */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Email для чека *
+            </label>
+            <Input
+              type="email"
+              placeholder="email@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="bg-card border-border focus:border-theme"
+              required
+            />
+          </div>
+
           {/* Order comment */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
@@ -386,7 +419,7 @@ export function StepCheckout({
               size="lg"
               className="w-full md:flex-1"
               onClick={handleCheckout}
-              disabled={isProcessing || !agreedToTerms}
+              disabled={isProcessing || !agreedToTerms || !email.trim()}
             >
               <CreditCard className="w-4 h-4 mr-2" />
               {isProcessing ? "Обработка..." : `Оплатить ${depositAmount.toLocaleString("ru-RU")} ₽`}
