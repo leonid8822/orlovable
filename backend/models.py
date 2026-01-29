@@ -46,6 +46,8 @@ class Application(Base):
     has_back_engraving = Column(Integer, default=0) # SQLite uses Integer for Boolean usually
     back_image_url = Column(String, nullable=True)
     back_comment = Column(String, nullable=True)
+    back_engraving = Column(String, nullable=True)  # Text for back engraving
+    gems = Column(JSON, default=[], nullable=True)  # Array of gem placements
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

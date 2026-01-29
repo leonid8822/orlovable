@@ -3,6 +3,8 @@ export enum AppStep {
   UPLOAD = 'UPLOAD',
   GENERATING = 'GENERATING',
   SELECTION = 'SELECTION',
+  GEMS = 'GEMS',              // Add gemstones (admin only)
+  ENGRAVING = 'ENGRAVING',    // Back side text (flat pendants only)
   CHECKOUT = 'CHECKOUT',
   CONFIRMATION = 'CONFIRMATION'  // After payment success
 }
@@ -12,12 +14,43 @@ export const STEP_TITLES: Record<AppStep, string> = {
   [AppStep.UPLOAD]: 'Загрузка',
   [AppStep.GENERATING]: 'Генерация',
   [AppStep.SELECTION]: 'Выбор',
+  [AppStep.GEMS]: 'Камни',
+  [AppStep.ENGRAVING]: 'Гравировка',
   [AppStep.CHECKOUT]: 'Оформление',
   [AppStep.CONFIRMATION]: 'Готово'
 };
 
 // Visible steps in indicator (GENERATING is part of UPLOAD visually)
+// GEMS and ENGRAVING are optional admin steps, shown dynamically
 export const VISIBLE_STEPS: AppStep[] = [AppStep.UPLOAD, AppStep.SELECTION, AppStep.CHECKOUT];
+
+// Gem types
+export type GemType = 'ruby' | 'emerald' | 'sapphire';
+
+export interface GemPlacement {
+  id: string;
+  type: GemType;
+  x: number;  // percentage 0-100
+  y: number;  // percentage 0-100
+}
+
+export const GEM_CONFIG: Record<GemType, { label: string; color: string; gradient: string }> = {
+  ruby: {
+    label: 'Рубин',
+    color: '#E31C25',
+    gradient: 'radial-gradient(circle at 30% 30%, #ff6b6b, #E31C25 40%, #8B0000 100%)'
+  },
+  emerald: {
+    label: 'Изумруд',
+    color: '#50C878',
+    gradient: 'radial-gradient(circle at 30% 30%, #98FB98, #50C878 40%, #006400 100%)'
+  },
+  sapphire: {
+    label: 'Сапфир',
+    color: '#0F52BA',
+    gradient: 'radial-gradient(circle at 30% 30%, #6495ED, #0F52BA 40%, #000080 100%)'
+  }
+};
 
 // Form factors - теперь выбираются отдельно от размера
 export type FormFactor = 'round' | 'oval' | 'contour';
@@ -181,11 +214,17 @@ export interface PendantConfig {
   // User auth data (collected during GENERATING step)
   userAuth: UserAuthData;
 
-  // Legacy fields (kept for compatibility, not used in new flow)
+  // Gems placement (admin feature)
+  gems: GemPlacement[];
+
+  // Back engraving (flat pendants only)
+  backEngraving: string;
+  hasBackEngraving: boolean;
+
+  // Legacy fields (kept for compatibility)
   backImage: File | null;
   backImagePreview: string | null;
   backComment: string;
-  hasBackEngraving: boolean;
 }
 
 export const initialPendantConfig: PendantConfig = {
@@ -207,11 +246,15 @@ export const initialPendantConfig: PendantConfig = {
     name: '',
     isVerified: false,
   },
+  // Gems
+  gems: [],
+  // Engraving
+  backEngraving: '',
+  hasBackEngraving: false,
   // Legacy
   backImage: null,
   backImagePreview: null,
   backComment: '',
-  hasBackEngraving: false,
 };
 
 // Helper to get API size from size option and material

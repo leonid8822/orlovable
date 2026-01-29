@@ -56,6 +56,10 @@ class ApplicationUpdate(BaseModel):
     last_error: Optional[str] = None
     telegram_username: Optional[str] = None
     order_comment: Optional[str] = None
+    # Gems and engraving
+    gems: Optional[list] = None
+    back_engraving: Optional[str] = None
+    has_back_engraving: Optional[bool] = None
 
 
 class SettingsUpdate(BaseModel):

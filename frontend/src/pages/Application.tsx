@@ -5,6 +5,8 @@ import { StepIndicator } from "@/components/StepIndicator";
 import { StepUpload } from "@/components/steps/StepUpload";
 import { StepGenerating } from "@/components/steps/StepGenerating";
 import { StepSelection } from "@/components/steps/StepSelection";
+import { StepGems } from "@/components/steps/StepGems";
+import { StepEngraving } from "@/components/steps/StepEngraving";
 import { StepCheckout } from "@/components/steps/StepCheckout";
 import { StepConfirmation } from "@/components/steps/StepConfirmation";
 import {
@@ -20,11 +22,14 @@ import { toast } from "sonner";
 import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 
 // State machine: valid transitions
+// GEMS and ENGRAVING are optional steps between SELECTION and CHECKOUT
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
-  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.CONFIRMATION],
+  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.GEMS, AppStep.ENGRAVING, AppStep.CHECKOUT],
+  [AppStep.GEMS]: [AppStep.SELECTION, AppStep.ENGRAVING, AppStep.CHECKOUT],
+  [AppStep.ENGRAVING]: [AppStep.SELECTION, AppStep.GEMS, AppStep.CHECKOUT],
+  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.GEMS, AppStep.ENGRAVING, AppStep.CONFIRMATION],
   [AppStep.CONFIRMATION]: [], // Terminal state
 };
 
@@ -41,6 +46,26 @@ const Application = () => {
   const [loading, setLoading] = useState(true);
   const [appTheme, setAppTheme] = useState<AppTheme>("main");
   const [paymentInfo, setPaymentInfo] = useState<{ amount: number; orderId: string } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          if (user.userId || user.id) {
+            const { data } = await api.checkAdminStatus(user.userId || user.id);
+            setIsAdmin(data?.is_admin || false);
+          }
+        } catch {
+          setIsAdmin(false);
+        }
+      }
+    };
+    checkAdmin();
+  }, []);
 
   // Theme config derived from appTheme state
   const themeConfig = themeConfigs[appTheme];
@@ -92,6 +117,13 @@ const Application = () => {
           dbUpdates.input_image_url = updates.imagePreview;
         if ("orderComment" in updates)
           dbUpdates.order_comment = updates.orderComment;
+        // New fields for gems and engraving
+        if ("gems" in updates)
+          dbUpdates.gems = updates.gems;
+        if ("backEngraving" in updates)
+          dbUpdates.back_engraving = updates.backEngraving;
+        if ("hasBackEngraving" in updates)
+          dbUpdates.has_back_engraving = updates.hasBackEngraving;
 
         if (Object.keys(dbUpdates).length > 0) {
           await api.updateApplication(applicationId, dbUpdates);
@@ -316,6 +348,10 @@ const Application = () => {
         orderComment: data.order_comment || "",
         generatedImages: allGeneratedImages,
         selectedVariantIndex: selectedIndex,
+        // Gems and engraving
+        gems: data.gems || [],
+        backEngraving: data.back_engraving || "",
+        hasBackEngraving: data.has_back_engraving || false,
       });
 
       // Set generated images for selection step
@@ -393,8 +429,56 @@ const Application = () => {
                 generatedThumbnails={config.generatedThumbnails}
                 onSelectVariant={handleSelectVariant}
                 onRegenerate={handleRegenerate}
-                onNext={() => transitionTo(AppStep.CHECKOUT)}
+                onNext={() => {
+                  // Admin can go to GEMS step
+                  if (isAdmin) {
+                    transitionTo(AppStep.GEMS);
+                  } else {
+                    // Non-admin: check if flat pendant for engraving, otherwise checkout
+                    const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
+                    if (isFlat) {
+                      transitionTo(AppStep.ENGRAVING);
+                    } else {
+                      transitionTo(AppStep.CHECKOUT);
+                    }
+                  }
+                }}
                 onBack={() => transitionTo(AppStep.UPLOAD)}
+              />
+            )}
+
+            {currentStep === AppStep.GEMS && (
+              <StepGems
+                config={config}
+                onConfigChange={handleConfigChange}
+                onNext={() => {
+                  // After gems, check if flat pendant for engraving
+                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
+                  if (isFlat) {
+                    transitionTo(AppStep.ENGRAVING);
+                  } else {
+                    transitionTo(AppStep.CHECKOUT);
+                  }
+                }}
+                onBack={() => transitionTo(AppStep.SELECTION)}
+                onSkip={() => {
+                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
+                  if (isFlat) {
+                    transitionTo(AppStep.ENGRAVING);
+                  } else {
+                    transitionTo(AppStep.CHECKOUT);
+                  }
+                }}
+              />
+            )}
+
+            {currentStep === AppStep.ENGRAVING && (
+              <StepEngraving
+                config={config}
+                onConfigChange={handleConfigChange}
+                onNext={() => transitionTo(AppStep.CHECKOUT)}
+                onBack={() => isAdmin ? transitionTo(AppStep.GEMS) : transitionTo(AppStep.SELECTION)}
+                onSkip={() => transitionTo(AppStep.CHECKOUT)}
               />
             )}
 
@@ -402,7 +486,17 @@ const Application = () => {
               <StepCheckout
                 config={config}
                 onConfigChange={handleConfigChange}
-                onBack={() => transitionTo(AppStep.SELECTION)}
+                onBack={() => {
+                  // Go back to engraving for flat pendants, or gems for admin, or selection
+                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
+                  if (isFlat) {
+                    transitionTo(AppStep.ENGRAVING);
+                  } else if (isAdmin) {
+                    transitionTo(AppStep.GEMS);
+                  } else {
+                    transitionTo(AppStep.SELECTION);
+                  }
+                }}
                 onPaymentSuccess={handlePaymentSuccess}
                 applicationId={applicationId || undefined}
               />

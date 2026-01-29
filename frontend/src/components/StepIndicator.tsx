@@ -7,12 +7,14 @@ interface StepIndicatorProps {
 }
 
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
-  // Map GENERATING to appear as part of UPLOAD visually
-  // Map VERIFICATION to appear as part of SELECTION visually
+  // Map intermediate steps to their parent visual step
+  // GENERATING appears as part of UPLOAD
+  // GEMS, ENGRAVING appear between SELECTION and CHECKOUT (closer to CHECKOUT visually)
   let displayStep = currentStep;
   if (currentStep === AppStep.GENERATING) {
     displayStep = AppStep.UPLOAD;
-  } else if (currentStep === AppStep.VERIFICATION) {
+  } else if (currentStep === AppStep.GEMS || currentStep === AppStep.ENGRAVING) {
+    // Show these as intermediate between SELECTION and CHECKOUT
     displayStep = AppStep.SELECTION;
   }
   const currentIndex = VISIBLE_STEPS.indexOf(displayStep);
