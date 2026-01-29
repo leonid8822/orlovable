@@ -141,17 +141,15 @@ class SupabaseClient:
         """
         Resize image to max_size and convert to specified format.
         Returns tuple of (resized_bytes, content_type)
+        Preserves transparency for WEBP and PNG formats.
         """
         img = Image.open(io.BytesIO(image_data))
 
-        # Convert to RGB if necessary (for PNG with transparency)
-        if img.mode in ('RGBA', 'P'):
-            # Create white background for transparency
-            background = Image.new('RGB', img.size, (0, 0, 0))  # Black background for jewelry
-            if img.mode == 'P':
-                img = img.convert('RGBA')
-            background.paste(img, mask=img.split()[3] if img.mode == 'RGBA' else None)
-            img = background
+        # Preserve RGBA mode for transparency support
+        if img.mode == 'P':
+            img = img.convert('RGBA')
+        elif img.mode not in ('RGBA', 'RGB'):
+            img = img.convert('RGBA')
 
         # Calculate new size maintaining aspect ratio
         width, height = img.size
@@ -167,12 +165,19 @@ class SupabaseClient:
         # Save to buffer in specified format
         buffer = io.BytesIO()
         if format.upper() == "WEBP":
-            img.save(buffer, format="WEBP", quality=quality)
+            # WebP supports transparency natively
+            img.save(buffer, format="WEBP", quality=quality, lossless=False)
             content_type = "image/webp"
         elif format.upper() == "JPEG":
+            # JPEG doesn't support transparency, convert to RGB with white background
+            if img.mode == 'RGBA':
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])
+                img = background
             img.save(buffer, format="JPEG", quality=quality)
             content_type = "image/jpeg"
         else:
+            # PNG preserves transparency
             img.save(buffer, format="PNG")
             content_type = "image/png"
 
