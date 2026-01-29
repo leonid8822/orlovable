@@ -148,7 +148,8 @@ export function StepGenerating({
   theme,
 }: StepGeneratingProps) {
   const [progress, setProgress] = useState(0);
-  const [currentFactIndex, setCurrentFactIndex] = useState(0);
+  // Start with random fact index
+  const [currentFactIndex, setCurrentFactIndex] = useState(() => Math.floor(Math.random() * funFacts.length));
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationDone, setGenerationDone] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
@@ -320,10 +321,17 @@ export function StepGenerating({
     return () => clearInterval(interval);
   }, [generationDone]);
 
-  // Fun facts rotation
+  // Fun facts rotation - random but no immediate repeats
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentFactIndex((prev) => (prev + 1) % funFacts.length);
+      setCurrentFactIndex((prev) => {
+        let next = Math.floor(Math.random() * funFacts.length);
+        // Avoid showing the same fact twice in a row
+        while (next === prev && funFacts.length > 1) {
+          next = Math.floor(Math.random() * funFacts.length);
+        }
+        return next;
+      });
     }, 5000);
 
     return () => clearInterval(interval);
