@@ -1,10 +1,22 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Trash2, Gem } from "lucide-react";
+import { ArrowLeft, ArrowRight, Trash2, Gem, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PendantConfig, GemType, GemPlacement } from "@/types/pendant";
-import { GEM_CONFIG } from "@/types/pendant";
+import type { PendantConfig, GemPlacement } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { api } from "@/lib/api";
+
+interface GemData {
+  id: string;
+  name: string;
+  name_en: string;
+  shape: string;
+  size_mm: number;
+  color: string;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
 
 interface StepGemsProps {
   config: PendantConfig;
@@ -22,12 +34,30 @@ export function StepGems({
   onSkip,
 }: StepGemsProps) {
   const { config: themeConfig } = useAppTheme();
-  const [selectedGemType, setSelectedGemType] = useState<GemType>("ruby");
+  const [gems, setGems] = useState<GemData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
   const imageRef = useRef<HTMLDivElement>(null);
+
+  // Load gems from database
+  useEffect(() => {
+    const loadGems = async () => {
+      setLoading(true);
+      const { data } = await api.getGems();
+      if (data?.gems && data.gems.length > 0) {
+        setGems(data.gems);
+        setSelectedGemId(data.gems[0].id);
+      }
+      setLoading(false);
+    };
+    loadGems();
+  }, []);
+
+  const selectedGem = gems.find((g) => g.id === selectedGemId);
 
   const handleImageClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!imageRef.current) return;
+      if (!imageRef.current || !selectedGem) return;
 
       const rect = imageRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -38,7 +68,8 @@ export function StepGems({
 
       const newGem: GemPlacement = {
         id: crypto.randomUUID(),
-        type: selectedGemType,
+        type: selectedGem.name_en as any, // For backwards compatibility
+        gemId: selectedGem.id,
         x,
         y,
       };
@@ -47,7 +78,7 @@ export function StepGems({
         gems: [...config.gems, newGem],
       });
     },
-    [config.gems, selectedGemType, onConfigChange]
+    [config.gems, selectedGem, onConfigChange]
   );
 
   const handleRemoveGem = useCallback(
@@ -63,21 +94,58 @@ export function StepGems({
     onConfigChange({ gems: [] });
   }, [onConfigChange]);
 
-  // Calculate gem size based on pendant size (2mm relative to pendant dimensions)
-  const getGemSizePercent = () => {
-    // Assuming pendant takes 80% of image, and we want 2mm gems
-    // For a 19mm pendant (M size), 2mm is about 10.5% of pendant
-    // For a 25mm pendant (L size), 2mm is about 8% of pendant
-    // For a 13mm pendant (S size), 2mm is about 15.4% of pendant
-    const sizeMap: Record<string, number> = {
-      s: 12,
-      m: 8,
-      l: 6,
+  // Calculate gem size based on pendant size and gem's actual size
+  const getGemSizePercent = (gemSizeMm: number = 1.5) => {
+    // Pendant takes ~80% of image
+    // Calculate relative size based on pendant dimensions
+    const pendantSizeMap: Record<string, number> = {
+      s: 13, // 13mm pendant
+      m: 19, // 19mm pendant
+      l: 25, // 25mm pendant
     };
-    return sizeMap[config.sizeOption] || 8;
+    const pendantMm = pendantSizeMap[config.sizeOption] || 19;
+    // Gem percentage relative to pendant (which is 80% of image)
+    return (gemSizeMm / pendantMm) * 80;
   };
 
-  const gemSizePercent = getGemSizePercent();
+  // Get gem config by placement (either from DB or fallback)
+  const getGemConfig = (placement: GemPlacement): GemData | undefined => {
+    // First try to find by gemId (new format)
+    if (placement.gemId) {
+      return gems.find((g) => g.id === placement.gemId);
+    }
+    // Fallback: find by type/name_en (old format)
+    return gems.find((g) => g.name_en === placement.type);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (gems.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in text-center py-12">
+        <Gem className="w-16 h-16 mx-auto text-muted-foreground" />
+        <h2 className="text-2xl font-display">Камни не настроены</h2>
+        <p className="text-muted-foreground">
+          Администратор еще не добавил камни в библиотеку
+        </p>
+        <div className="flex justify-center gap-4">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
+          </Button>
+          <Button onClick={onSkip}>
+            Пропустить
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -99,7 +167,8 @@ export function StepGems({
           Украсьте <span style={{ color: themeConfig.accentColor }}>камнями</span>
         </h2>
         <p className="text-muted-foreground">
-          Нажмите на изображение, чтобы добавить камень 2мм
+          Нажмите на изображение, чтобы добавить камень{" "}
+          {selectedGem?.size_mm || 1.5}мм
         </p>
       </div>
 
@@ -108,7 +177,7 @@ export function StepGems({
         <div className="space-y-4">
           <div
             ref={imageRef}
-            className="relative aspect-square rounded-2xl overflow-hidden bg-card border-2 cursor-crosshair"
+            className="relative aspect-square rounded-2xl overflow-hidden bg-black border-2 cursor-crosshair"
             style={{ borderColor: `${themeConfig.accentColor}30` }}
             onClick={handleImageClick}
           >
@@ -126,26 +195,45 @@ export function StepGems({
             )}
 
             {/* Render gems */}
-            {config.gems.map((gem) => {
-              const gemConfig = GEM_CONFIG[gem.type];
+            {config.gems.map((placement) => {
+              const gemConfig = getGemConfig(placement);
+              if (!gemConfig) return null;
+
+              const sizePercent = getGemSizePercent(gemConfig.size_mm);
+
               return (
                 <div
-                  key={gem.id}
-                  className="absolute rounded-full cursor-pointer transform -translate-x-1/2 -translate-y-1/2 shadow-lg hover:scale-110 transition-transform"
+                  key={placement.id}
+                  className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform"
                   style={{
-                    left: `${gem.x}%`,
-                    top: `${gem.y}%`,
-                    width: `${gemSizePercent}%`,
-                    paddingBottom: `${gemSizePercent}%`,
-                    background: gemConfig.gradient,
-                    boxShadow: `0 2px 8px ${gemConfig.color}80, inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4)`,
+                    left: `${placement.x}%`,
+                    top: `${placement.y}%`,
+                    width: `${sizePercent}%`,
+                    height: `${sizePercent}%`,
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleRemoveGem(gem.id);
+                    handleRemoveGem(placement.id);
                   }}
                   title="Нажмите чтобы удалить"
-                />
+                >
+                  {gemConfig.image_url ? (
+                    <img
+                      src={gemConfig.image_url}
+                      alt={gemConfig.name}
+                      className="w-full h-full object-contain drop-shadow-lg"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full rounded-full shadow-lg"
+                      style={{
+                        backgroundColor: gemConfig.color,
+                        boxShadow: `0 2px 8px ${gemConfig.color}80`,
+                      }}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -153,7 +241,10 @@ export function StepGems({
           {/* Gem count and clear */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              Камней: <span className="font-medium text-foreground">{config.gems.length}</span>
+              Камней:{" "}
+              <span className="font-medium text-foreground">
+                {config.gems.length}
+              </span>
             </span>
             {config.gems.length > 0 && (
               <Button variant="ghost" size="sm" onClick={handleClearAll}>
@@ -169,29 +260,41 @@ export function StepGems({
           <div>
             <h3 className="font-medium mb-4">Выберите камень</h3>
             <div className="grid grid-cols-3 gap-4">
-              {(Object.keys(GEM_CONFIG) as GemType[]).map((type) => {
-                const gemConfig = GEM_CONFIG[type];
-                const isSelected = selectedGemType === type;
+              {gems.map((gem) => {
+                const isSelected = selectedGemId === gem.id;
                 return (
                   <button
-                    key={type}
+                    key={gem.id}
                     className={cn(
                       "p-4 rounded-xl border-2 transition-all text-center",
                       isSelected
                         ? "border-current shadow-lg scale-105"
                         : "border-border hover:border-muted-foreground"
                     )}
-                    style={isSelected ? { borderColor: gemConfig.color } : undefined}
-                    onClick={() => setSelectedGemType(type)}
+                    style={isSelected ? { borderColor: gem.color } : undefined}
+                    onClick={() => setSelectedGemId(gem.id)}
                   >
-                    <div
-                      className="w-12 h-12 mx-auto rounded-full mb-2"
-                      style={{
-                        background: gemConfig.gradient,
-                        boxShadow: `0 4px 12px ${gemConfig.color}50`,
-                      }}
-                    />
-                    <span className="text-sm font-medium">{gemConfig.label}</span>
+                    <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+                      {gem.image_url ? (
+                        <img
+                          src={gem.image_url}
+                          alt={gem.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div
+                          className="w-10 h-10 rounded-full"
+                          style={{
+                            backgroundColor: gem.color,
+                            boxShadow: `0 4px 12px ${gem.color}50`,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span className="text-sm font-medium">{gem.name}</span>
+                    <span className="text-xs text-muted-foreground block">
+                      {gem.size_mm}мм
+                    </span>
                   </button>
                 );
               })}
@@ -205,7 +308,7 @@ export function StepGems({
             <ul className="list-disc list-inside space-y-1">
               <li>Нажмите на изображение чтобы добавить камень</li>
               <li>Нажмите на камень чтобы удалить его</li>
-              <li>Размер каждого камня — 2мм</li>
+              <li>Размер камня — {selectedGem?.size_mm || 1.5}мм</li>
             </ul>
           </div>
 
@@ -214,17 +317,18 @@ export function StepGems({
             <div className="p-4 bg-card rounded-xl border">
               <h4 className="font-medium mb-2">Добавлено камней:</h4>
               <div className="flex flex-wrap gap-2">
-                {(Object.keys(GEM_CONFIG) as GemType[]).map((type) => {
-                  const count = config.gems.filter((g) => g.type === type).length;
+                {gems.map((gem) => {
+                  const count = config.gems.filter(
+                    (g) => g.gemId === gem.id || g.type === gem.name_en
+                  ).length;
                   if (count === 0) return null;
-                  const gemConfig = GEM_CONFIG[type];
                   return (
                     <span
-                      key={type}
+                      key={gem.id}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-white"
-                      style={{ backgroundColor: gemConfig.color }}
+                      style={{ backgroundColor: gem.color }}
                     >
-                      {gemConfig.label}: {count}
+                      {gem.name}: {count}
                     </span>
                   );
                 })}

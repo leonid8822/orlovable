@@ -475,5 +475,102 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Gems management
+    getGems: async () => {
+        try {
+            const response = await fetch(`${API_URL}/gems`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    getAdminGems: async () => {
+        try {
+            const response = await fetch(`${API_URL}/admin/gems`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    getGemShapes: async () => {
+        try {
+            const response = await fetch(`${API_URL}/gems/shapes`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    createGem: async (payload: {
+        name: string;
+        name_en?: string;
+        shape?: string;
+        size_mm?: number;
+        color: string;
+        image_base64?: string;
+        remove_background?: boolean;
+        bg_tolerance?: number;
+        is_active?: boolean;
+        sort_order?: number;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/gems`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Create failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    updateGem: async (gemId: string, payload: {
+        name?: string;
+        name_en?: string;
+        shape?: string;
+        size_mm?: number;
+        color?: string;
+        image_base64?: string;
+        remove_background?: boolean;
+        bg_tolerance?: number;
+        is_active?: boolean;
+        sort_order?: number;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/gems/${gemId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Update failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    deleteGem: async (gemId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/gems/${gemId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Delete failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

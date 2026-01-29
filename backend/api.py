@@ -2094,3 +2094,212 @@ async def admin_search_clients(q: str = ""):
     except Exception as e:
         print(f"Error searching clients: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== GEM MANAGEMENT ENDPOINTS ==============
+
+class GemShape(str):
+    ROUND = "round"
+    OVAL = "oval"
+    SQUARE = "square"
+    MARQUISE = "marquise"
+    PEAR = "pear"
+    HEART = "heart"
+
+
+class CreateGemRequest(BaseModel):
+    name: str  # e.g., "Рубин", "Сапфир"
+    name_en: Optional[str] = None  # English name
+    shape: str = "round"  # round, oval, square, marquise, pear, heart
+    size_mm: float = 1.5  # Size in millimeters
+    color: str  # Hex color for fallback, e.g., "#E31C25"
+    image_base64: Optional[str] = None  # Base64 encoded image
+    remove_background: bool = True  # Auto-remove background
+    bg_tolerance: int = 30  # Background removal tolerance
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class UpdateGemRequest(BaseModel):
+    name: Optional[str] = None
+    name_en: Optional[str] = None
+    shape: Optional[str] = None
+    size_mm: Optional[float] = None
+    color: Optional[str] = None
+    image_base64: Optional[str] = None
+    remove_background: Optional[bool] = True
+    bg_tolerance: Optional[int] = 30
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+@router.get("/gems")
+async def get_gems():
+    """Get all active gems for the gem constructor"""
+    try:
+        gems = await supabase.select(
+            "gems",
+            order="sort_order.asc,name.asc"
+        )
+        # Filter active gems
+        active_gems = [g for g in gems if g.get("is_active", True)]
+        return {"gems": active_gems}
+    except Exception as e:
+        print(f"Error getting gems: {e}")
+        return {"gems": []}
+
+
+@router.get("/admin/gems")
+async def admin_get_gems():
+    """Get all gems (including inactive) for admin"""
+    try:
+        gems = await supabase.select(
+            "gems",
+            order="sort_order.asc,name.asc"
+        )
+        return {"gems": gems or []}
+    except Exception as e:
+        print(f"Error getting gems: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/gems")
+async def admin_create_gem(req: CreateGemRequest):
+    """Create a new gem type"""
+    try:
+        gem_id = str(uuid.uuid4())
+        image_url = None
+
+        # Process and upload image if provided
+        if req.image_base64:
+            import base64
+
+            # Decode base64
+            if "," in req.image_base64:
+                image_data = base64.b64decode(req.image_base64.split(",")[1])
+            else:
+                image_data = base64.b64decode(req.image_base64)
+
+            # Upload with background removal
+            path = f"gems/{gem_id}.png"
+            image_url = await supabase.upload_gem_image(
+                bucket="images",
+                path=path,
+                image_data=image_data,
+                remove_bg=req.remove_background,
+                max_size=400,
+                bg_tolerance=req.bg_tolerance
+            )
+
+        gem_data = {
+            "id": gem_id,
+            "name": req.name,
+            "name_en": req.name_en or req.name.lower(),
+            "shape": req.shape,
+            "size_mm": req.size_mm,
+            "color": req.color,
+            "image_url": image_url,
+            "is_active": req.is_active,
+            "sort_order": req.sort_order,
+        }
+
+        await supabase.insert("gems", gem_data)
+
+        return {"success": True, "gem": gem_data}
+
+    except Exception as e:
+        print(f"Error creating gem: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/admin/gems/{gem_id}")
+async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
+    """Update a gem type"""
+    try:
+        gem = await supabase.select_one("gems", gem_id)
+        if not gem:
+            raise HTTPException(status_code=404, detail="Камень не найден")
+
+        updates = {}
+
+        if req.name is not None:
+            updates["name"] = req.name
+        if req.name_en is not None:
+            updates["name_en"] = req.name_en
+        if req.shape is not None:
+            updates["shape"] = req.shape
+        if req.size_mm is not None:
+            updates["size_mm"] = req.size_mm
+        if req.color is not None:
+            updates["color"] = req.color
+        if req.is_active is not None:
+            updates["is_active"] = req.is_active
+        if req.sort_order is not None:
+            updates["sort_order"] = req.sort_order
+
+        # Process new image if provided
+        if req.image_base64:
+            import base64
+
+            if "," in req.image_base64:
+                image_data = base64.b64decode(req.image_base64.split(",")[1])
+            else:
+                image_data = base64.b64decode(req.image_base64)
+
+            path = f"gems/{gem_id}.png"
+            image_url = await supabase.upload_gem_image(
+                bucket="images",
+                path=path,
+                image_data=image_data,
+                remove_bg=req.remove_background if req.remove_background is not None else True,
+                max_size=400,
+                bg_tolerance=req.bg_tolerance if req.bg_tolerance is not None else 30
+            )
+            updates["image_url"] = image_url
+
+        if updates:
+            await supabase.update("gems", gem_id, updates)
+
+        updated_gem = await supabase.select_one("gems", gem_id)
+        return {"success": True, "gem": updated_gem}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating gem: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/admin/gems/{gem_id}")
+async def admin_delete_gem(gem_id: str):
+    """Delete a gem type"""
+    try:
+        gem = await supabase.select_one("gems", gem_id)
+        if not gem:
+            raise HTTPException(status_code=404, detail="Камень не найден")
+
+        await supabase.delete("gems", gem_id)
+        return {"success": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting gem: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Gem shapes reference
+GEM_SHAPES = [
+    {"value": "round", "label": "Круглый", "label_en": "Round"},
+    {"value": "oval", "label": "Овальный", "label_en": "Oval"},
+    {"value": "square", "label": "Квадратный", "label_en": "Square"},
+    {"value": "marquise", "label": "Маркиз", "label_en": "Marquise"},
+    {"value": "pear", "label": "Груша", "label_en": "Pear"},
+    {"value": "heart", "label": "Сердце", "label_en": "Heart"},
+]
+
+
+@router.get("/gems/shapes")
+async def get_gem_shapes():
+    """Get available gem shapes"""
+    return {"shapes": GEM_SHAPES}

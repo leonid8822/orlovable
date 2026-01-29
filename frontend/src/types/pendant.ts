@@ -29,25 +29,36 @@ export type GemType = 'ruby' | 'emerald' | 'sapphire';
 
 export interface GemPlacement {
   id: string;
-  type: GemType;
+  type: GemType;  // For backwards compatibility
+  gemId?: string; // Reference to gem in database (new)
   x: number;  // percentage 0-100
   y: number;  // percentage 0-100
 }
 
-export const GEM_CONFIG: Record<GemType, { label: string; color: string; gradient: string }> = {
+export interface GemConfig {
+  label: string;
+  color: string;
+  image: string;  // Path to gem image
+  gradient: string;  // Fallback gradient
+}
+
+export const GEM_CONFIG: Record<GemType, GemConfig> = {
   ruby: {
     label: 'Рубин',
     color: '#E31C25',
+    image: '/gems/ruby.png',
     gradient: 'radial-gradient(circle at 30% 30%, #ff6b6b, #E31C25 40%, #8B0000 100%)'
   },
   emerald: {
     label: 'Изумруд',
     color: '#50C878',
+    image: '/gems/emerald.png',
     gradient: 'radial-gradient(circle at 30% 30%, #98FB98, #50C878 40%, #006400 100%)'
   },
   sapphire: {
     label: 'Сапфир',
     color: '#0F52BA',
+    image: '/gems/sapphire.png',
     gradient: 'radial-gradient(circle at 30% 30%, #6495ED, #0F52BA 40%, #000080 100%)'
   }
 };

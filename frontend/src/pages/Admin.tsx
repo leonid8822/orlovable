@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { ClientsTab } from '@/components/admin/ClientsTab';
+import { GemsTab } from '@/components/admin/GemsTab';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
 
@@ -349,7 +350,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
+          <TabsList className="grid w-full max-w-5xl grid-cols-7">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Заявки
@@ -365,6 +366,10 @@ const Admin = () => {
             <TabsTrigger value="payments" className="gap-2">
               <CreditCard className="h-4 w-4" />
               Платежи
+            </TabsTrigger>
+            <TabsTrigger value="gems" className="gap-2">
+              <span className="text-base">💎</span>
+              Камни
             </TabsTrigger>
             <TabsTrigger value="examples" className="gap-2">
               <Image className="h-4 w-4" />
@@ -802,6 +807,11 @@ const Admin = () => {
           {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-6">
             <PaymentsTab />
+          </TabsContent>
+
+          {/* Gems Tab */}
+          <TabsContent value="gems" className="space-y-6">
+            <GemsTab />
           </TabsContent>
 
           {/* Examples Tab */}

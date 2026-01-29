@@ -266,6 +266,104 @@ class SupabaseClient:
 
         return full_url, thumb_url
 
+    def remove_background(self, image_data: bytes, tolerance: int = 30) -> bytes:
+        """
+        Remove background from image (white/light gray background).
+        Returns PNG with transparent background.
+        """
+        img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+        pixels = img.load()
+        width, height = img.size
+
+        # Find background color (sample corners)
+        corner_samples = [
+            pixels[0, 0],
+            pixels[width-1, 0],
+            pixels[0, height-1],
+            pixels[width-1, height-1]
+        ]
+        # Average the corner colors (assuming they're background)
+        bg_r = sum(c[0] for c in corner_samples) // 4
+        bg_g = sum(c[1] for c in corner_samples) // 4
+        bg_b = sum(c[2] for c in corner_samples) // 4
+
+        # Make similar colors transparent
+        for y in range(height):
+            for x in range(width):
+                r, g, b, a = pixels[x, y]
+                # Check if pixel is similar to background
+                if (abs(r - bg_r) < tolerance and
+                    abs(g - bg_g) < tolerance and
+                    abs(b - bg_b) < tolerance):
+                    pixels[x, y] = (r, g, b, 0)  # Make transparent
+
+        # Save as PNG
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def crop_to_content(self, image_data: bytes, padding: int = 5) -> bytes:
+        """
+        Crop image to content (remove transparent borders).
+        Returns PNG.
+        """
+        img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+
+        # Get bounding box of non-transparent pixels
+        bbox = img.getbbox()
+        if bbox:
+            # Add padding
+            left = max(0, bbox[0] - padding)
+            top = max(0, bbox[1] - padding)
+            right = min(img.width, bbox[2] + padding)
+            bottom = min(img.height, bbox[3] + padding)
+            img = img.crop((left, top, right, bottom))
+
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def process_gem_image(self, image_data: bytes, max_size: int = 400, tolerance: int = 30) -> bytes:
+        """
+        Process gem image: remove background, crop to content, resize.
+        Returns PNG with transparent background.
+        """
+        # Remove background
+        no_bg = self.remove_background(image_data, tolerance)
+
+        # Crop to content
+        cropped = self.crop_to_content(no_bg)
+
+        # Resize
+        resized, _ = self.resize_image(cropped, max_size=max_size, format="PNG")
+
+        return resized
+
+    async def upload_gem_image(
+        self,
+        bucket: str,
+        path: str,
+        image_data: bytes,
+        remove_bg: bool = True,
+        max_size: int = 400,
+        bg_tolerance: int = 30
+    ) -> str:
+        """
+        Upload gem image with optional background removal.
+        Returns public URL.
+        """
+        if remove_bg:
+            processed = self.process_gem_image(image_data, max_size, bg_tolerance)
+        else:
+            processed, _ = self.resize_image(image_data, max_size=max_size, format="PNG")
+
+        # Ensure path ends with .png
+        if not path.lower().endswith('.png'):
+            path = path.rsplit('.', 1)[0] + '.png'
+
+        await self.upload_file(bucket, path, processed, "image/png")
+        return await self.get_public_url(bucket, path)
+
 
 # Singleton instance
 supabase = SupabaseClient()
