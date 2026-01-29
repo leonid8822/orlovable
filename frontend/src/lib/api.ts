@@ -404,5 +404,76 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+    // Client management
+    createClient: async (payload: {
+        email: string;
+        name?: string;
+        first_name?: string;
+        last_name?: string;
+        telegram_username?: string;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/clients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Create failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    updateClient: async (userId: string, payload: {
+        email?: string;
+        name?: string;
+        first_name?: string;
+        last_name?: string;
+        telegram_username?: string;
+        is_admin?: boolean;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/clients/${userId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Update failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    assignClientToApplication: async (appId: string, userId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/applications/${appId}/client`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Assignment failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    searchClients: async (query: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/clients/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

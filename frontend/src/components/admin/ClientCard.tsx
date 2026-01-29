@@ -13,8 +13,10 @@ import {
   Image,
   CreditCard,
   Shield,
+  Edit2,
 } from "lucide-react";
 import { InvoiceForm } from "./InvoiceForm";
+import { ClientForm } from "./ClientForm";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { Client } from "./ClientsTab";
@@ -67,6 +69,7 @@ const MATERIAL_LABELS: Record<string, string> = {
 
 export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState<string | undefined>(
     undefined
   );
@@ -124,6 +127,10 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
         <div className="flex-1">
           <h2 className="text-2xl font-display">{getDisplayName()}</h2>
         </div>
+        <Button variant="outline" onClick={() => setShowEditForm(true)}>
+          <Edit2 className="w-4 h-4 mr-2" />
+          Редактировать
+        </Button>
         <Button onClick={() => handleCreateInvoice()}>
           <Receipt className="w-4 h-4 mr-2" />
           Выставить счёт
@@ -349,6 +356,17 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
           }}
         />
       )}
+
+      {/* Edit Client Form */}
+      <ClientForm
+        client={client}
+        isOpen={showEditForm}
+        onClose={() => setShowEditForm(false)}
+        onSuccess={() => {
+          setShowEditForm(false);
+          onRefresh();
+        }}
+      />
     </div>
   );
 }

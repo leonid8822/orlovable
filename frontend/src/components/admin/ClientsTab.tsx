@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { Loader2, RefreshCw, Users, Search, ChevronRight } from "lucide-react";
+import { Loader2, RefreshCw, Users, Search, ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { ClientCard } from "./ClientCard";
+import { ClientForm } from "./ClientForm";
 
 interface ClientApplication {
   id: string;
@@ -59,6 +60,7 @@ export function ClientsTab() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showClientForm, setShowClientForm] = useState(false);
 
   const loadClients = async () => {
     setLoading(true);
@@ -145,7 +147,7 @@ export function ClientsTab() {
         </div>
       </div>
 
-      {/* Search + Refresh */}
+      {/* Search + Actions */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -167,7 +169,24 @@ export function ClientsTab() {
           />
           Обновить
         </Button>
+        <Button
+          size="sm"
+          onClick={() => setShowClientForm(true)}
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          Новый клиент
+        </Button>
       </div>
+
+      {/* Client Form Modal */}
+      <ClientForm
+        isOpen={showClientForm}
+        onClose={() => setShowClientForm(false)}
+        onSuccess={() => {
+          setShowClientForm(false);
+          loadClients();
+        }}
+      />
 
       {/* Table */}
       {loading ? (

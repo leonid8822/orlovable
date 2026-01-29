@@ -1932,3 +1932,165 @@ async def admin_create_invoice(req: CreateInvoiceRequest):
     except Exception as e:
         print(f"Error creating invoice: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Client management endpoints
+
+class CreateClientRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    telegram_username: Optional[str] = None
+
+
+class UpdateClientRequest(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    telegram_username: Optional[str] = None
+    is_admin: Optional[bool] = None
+
+
+class AssignClientRequest(BaseModel):
+    user_id: str
+
+
+@router.post("/admin/clients")
+async def admin_create_client(req: CreateClientRequest):
+    """Create a new client (user)"""
+    try:
+        # Check if user with this email already exists
+        existing = await supabase.select("users", filters={"email": req.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Клиент с таким email уже существует")
+
+        user_id = str(uuid.uuid4())
+        user_data = {
+            "id": user_id,
+            "email": req.email,
+            "name": req.name or "",
+            "first_name": req.first_name or "",
+            "last_name": req.last_name or "",
+            "telegram_username": req.telegram_username or "",
+            "is_admin": False,
+        }
+        await supabase.insert("users", user_data)
+
+        return {"success": True, "id": user_id, "email": req.email}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating client: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/admin/clients/{user_id}")
+async def admin_update_client(user_id: str, req: UpdateClientRequest):
+    """Update client data"""
+    try:
+        user = await supabase.select_one("users", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+
+        updates = {}
+        if req.email is not None:
+            # Check if email is already taken by another user
+            existing = await supabase.select("users", filters={"email": req.email})
+            if existing and existing[0].get("id") != user_id:
+                raise HTTPException(status_code=400, detail="Email уже используется другим клиентом")
+            updates["email"] = req.email
+        if req.name is not None:
+            updates["name"] = req.name
+        if req.first_name is not None:
+            updates["first_name"] = req.first_name
+        if req.last_name is not None:
+            updates["last_name"] = req.last_name
+        if req.telegram_username is not None:
+            updates["telegram_username"] = req.telegram_username
+        if req.is_admin is not None:
+            updates["is_admin"] = req.is_admin
+
+        if updates:
+            await supabase.update("users", user_id, updates)
+
+        return {"success": True, "id": user_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating client: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/admin/applications/{app_id}/client")
+async def admin_assign_client_to_application(app_id: str, req: AssignClientRequest):
+    """Assign or change client (user) on an application"""
+    try:
+        # Verify application exists
+        app = await supabase.select_one("applications", app_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="Заявка не найдена")
+
+        # Verify user exists
+        user = await supabase.select_one("users", req.user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+
+        # Update application
+        await supabase.update("applications", app_id, {"user_id": req.user_id})
+
+        return {
+            "success": True,
+            "application_id": app_id,
+            "user_id": req.user_id,
+            "user_email": user.get("email"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error assigning client: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/clients/search")
+async def admin_search_clients(q: str = ""):
+    """Search clients by email, name or telegram for autocomplete"""
+    try:
+        if len(q) < 2:
+            return {"clients": []}
+
+        users = await supabase.select("users", order="created_at.desc", limit=100)
+        q_lower = q.lower()
+
+        results = []
+        for user in users:
+            email = user.get("email", "").lower()
+            name = user.get("name", "").lower()
+            first_name = user.get("first_name", "").lower()
+            last_name = user.get("last_name", "").lower()
+            telegram = user.get("telegram_username", "").lower()
+
+            if (q_lower in email or q_lower in name or
+                q_lower in first_name or q_lower in last_name or
+                q_lower in telegram):
+                results.append({
+                    "id": user.get("id"),
+                    "email": user.get("email"),
+                    "name": user.get("name", ""),
+                    "first_name": user.get("first_name", ""),
+                    "last_name": user.get("last_name", ""),
+                    "telegram_username": user.get("telegram_username", ""),
+                })
+
+            if len(results) >= 10:
+                break
+
+        return {"clients": results}
+
+    except Exception as e:
+        print(f"Error searching clients: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
