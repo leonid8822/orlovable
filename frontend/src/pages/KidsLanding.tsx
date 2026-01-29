@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Heart,
-  Pencil,
   Gem,
   Star,
   Gift,
@@ -88,7 +87,6 @@ const KidsLanding = () => {
               {/* Text content */}
               <div className="flex-1 text-center lg:text-left animate-fade-in">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-8" style={{ backgroundColor: 'hsl(174, 58%, 38%, 0.1)', borderColor: 'hsl(174, 58%, 38%, 0.2)' }}>
-                  <Pencil className="w-4 h-4" style={{ color: tiffanyColor }} />
                   <span className="text-sm" style={{ color: tiffanyColor }}>Детские рисунки в украшениях</span>
                 </div>
 
@@ -179,7 +177,7 @@ const KidsLanding = () => {
                 <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: 'hsl(174, 58%, 38%, 0.2)' }}>
                   <Gem className="w-8 h-8" style={{ color: tiffanyColor }} />
                 </div>
-                <h3 className="text-xl font-display mb-3">Вечная память</h3>
+                <h3 className="text-xl font-display mb-3">Долгая память</h3>
                 <p className="text-muted-foreground">
                   Бумажные рисунки теряются, а украшение остаётся на годы
                 </p>
@@ -219,7 +217,7 @@ const KidsLanding = () => {
                   <Sparkles className="w-10 h-10 mb-4" style={{ color: tiffanyColor }} />
                   <h3 className="text-lg font-display mb-2">Выберите форму и материал</h3>
                   <p className="text-sm text-muted-foreground">
-                    Круглый кулон или по контуру, серебро или позолота
+                    Круглый кулон или по контуру рисунка, серебро или позолота
                   </p>
                 </div>
               </div>

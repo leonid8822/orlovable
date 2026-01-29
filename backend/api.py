@@ -70,6 +70,11 @@ class SettingsUpdate(BaseModel):
     custom_form_prompt: Optional[str] = None
     custom_form_sizes: Optional[dict] = None
     custom_form_enabled: Optional[bool] = None
+    # Model selection
+    generation_model: Optional[str] = None  # 'seedream' | 'flux-kontext' | 'nano-banana'
+    # Separate prompts for flat medallion vs volumetric 3D
+    flat_pendant_prompt: Optional[str] = None  # For regular pendants (round, contour, oval)
+    volumetric_pendant_prompt: Optional[str] = None  # For custom 3D objects
 
 
 @router.get("/settings")
@@ -125,22 +130,62 @@ async def get_settings():
         },
         # Custom 3D form generation (arbitrary objects from photos)
         "custom_form_enabled": False,
-        "custom_form_prompt": """Создай ювелирный кулон-подвеску из 3D объекта на фотографии.
-{Опиши какой именно объект взять: {object_description}}
-{Дополнительные пожелания: {user_comment}}
-
-ВАЖНО: Превратит выбранный 3D объект в ювелирное украшение.
-- Сохрани форму и пропорции оригинального объекта
-- Добавь ушко для цепочки — простое, классическое ювелирное
-- Изделие должно быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати
-- Черный фон, изделие из серебра (silver metal)
-- Строго один вид спереди
-- Максимальная детализация поверхности, ювелирное качество""",
+        "custom_form_prompt": "",  # Deprecated, use volumetric_pendant_prompt instead
         "custom_form_sizes": {
             "silver": {
                 "s": {"label": "S", "dimensionsMm": 15, "price": 7000},
                 "m": {"label": "M", "dimensionsMm": 25, "price": 12000},
                 "l": {"label": "L", "dimensionsMm": 40, "price": 18000}
+            }
+        },
+        # Separate prompts for different pendant types
+        "flat_pendant_prompt": """Create a jewelry pendant from the reference image.
+Type: {form_label}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with no separate parts
+- Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes - the entire surface is solid silver
+- Bail/loop for chain - simple, classic jewelry style, integrated into the main object
+- Strictly front view only
+- Black background ONLY AROUND the pendant (outside). Silver metal finish. No paint, no enamel, no additional textures
+- Ready for 3D printing - no separate parts, everything connected into a single form
+- {form_addition}
+- Shape: {form_shape}
+- Maximum surface detail, jewelry quality finish""",
+        "volumetric_pendant_prompt": """Create a 3D silver pendant/charm based on the object from the photo.
+Object to transform: {object_description}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture, NOT a flat medallion or coin
+- The pendant must have DEPTH and VOLUME - it's a miniature 3D figurine/sculpture
+- Preserve the 3D shape, form and proportions of the original object
+- Show the object from a 3/4 angle to emphasize its three-dimensional nature
+- Add a simple classic jewelry bail/loop for the chain at the top
+- Material: polished silver metal with realistic reflections and highlights
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts
+- Black background, dramatic lighting to show depth and volume
+- Size: {size_dimensions}
+- Maximum surface detail, jewelry quality finish
+- Style: realistic silver miniature sculpture, like a detailed charm or figurine""",
+        # Model selection for AI generation
+        "generation_model": "seedream",  # 'seedream' | 'flux-kontext' | 'nano-banana'
+        "available_models": {
+            "seedream": {
+                "label": "Seedream v4",
+                "description": "Bytedance SeedDream - хорошая детализация",
+                "cost_per_image_cents": 3
+            },
+            "flux-kontext": {
+                "label": "Flux Kontext",
+                "description": "Black Forest Labs - качественное редактирование",
+                "cost_per_image_cents": 4
+            },
+            "nano-banana": {
+                "label": "Nano Banana",
+                "description": "Google - быстрая генерация",
+                "cost_per_image_cents": 3
             }
         }
     }
@@ -169,12 +214,16 @@ async def get_settings():
                 result['materials'] = value
             elif key == 'visualization' and isinstance(value, dict):
                 result['visualization'] = value
-            elif key in ['main_prompt', 'main_prompt_no_image', 'custom_form_prompt']:
+            elif key in ['main_prompt', 'main_prompt_no_image', 'custom_form_prompt', 'flat_pendant_prompt', 'volumetric_pendant_prompt']:
                 result[key] = str(value) if value else ""
             elif key == 'custom_form_sizes' and isinstance(value, dict):
                 result['custom_form_sizes'] = value
             elif key == 'custom_form_enabled':
                 result['custom_form_enabled'] = bool(value) if value is not None else False
+            elif key == 'generation_model':
+                result['generation_model'] = str(value) if value else "seedream"
+            elif key == 'available_models' and isinstance(value, dict):
+                result['available_models'] = value
 
         return result
     except Exception as e:
@@ -217,6 +266,12 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('custom_form_sizes', updates.custom_form_sizes)
         if updates.custom_form_enabled is not None:
             await set_val('custom_form_enabled', updates.custom_form_enabled)
+        if updates.generation_model is not None:
+            await set_val('generation_model', updates.generation_model)
+        if updates.flat_pendant_prompt is not None:
+            await set_val('flat_pendant_prompt', updates.flat_pendant_prompt)
+        if updates.volumetric_pendant_prompt is not None:
+            await set_val('volumetric_pendant_prompt', updates.volumetric_pendant_prompt)
 
         return {"success": True}
     except Exception as e:
@@ -328,8 +383,39 @@ async def get_history(limit: int = 20):
 
 
 # Cost constants (fal.ai pricing)
-COST_PER_IMAGE_CENTS = 3
+COST_PER_IMAGE_CENTS = 3  # Default, overridden by model config
 COST_REMOVE_BG_CENTS = 1  # Background removal cost
+
+# Model configurations
+MODEL_CONFIGS = {
+    "seedream": {
+        "edit_url": "https://queue.fal.run/fal-ai/bytedance/seedream/v4/edit",
+        "text_url": "https://queue.fal.run/fal-ai/bytedance/seedream/v4/text-to-image",
+        "edit_name": "seedream-v4-edit",
+        "text_name": "seedream-v4-text-to-image",
+        "cost_per_image_cents": 3,
+        "image_key": "image_urls",  # Key for input images in request
+        "supports_num_images": True,
+    },
+    "flux-kontext": {
+        "edit_url": "https://queue.fal.run/fal-ai/flux-kontext/dev",
+        "text_url": None,  # Flux Kontext doesn't support text-to-image
+        "edit_name": "flux-kontext-dev",
+        "text_name": None,
+        "cost_per_image_cents": 4,
+        "image_key": "image_url",  # Single image URL
+        "supports_num_images": True,
+    },
+    "nano-banana": {
+        "edit_url": "https://queue.fal.run/fal-ai/nano-banana/edit",
+        "text_url": "https://queue.fal.run/fal-ai/nano-banana",
+        "edit_name": "nano-banana-edit",
+        "text_name": "nano-banana",
+        "cost_per_image_cents": 3,
+        "image_key": "image_urls",  # Array of image URLs
+        "supports_num_images": True,
+    },
+}
 
 
 async def remove_background(image_url: str, fal_key: str) -> str:
@@ -408,83 +494,144 @@ async def generate_pendant(req: GenerateRequest):
 
     # Build prompt based on theme
     if is_custom_form:
-        # Custom 3D form generation - extract 3D object from photo
+        # Custom 3D form generation - extract 3D object from photo (volumetric)
         custom_sizes = settings.get("custom_form_sizes", {}).get(req.material, {})
         size_config = custom_sizes.get(req.size, custom_sizes.get("m", {}))
-        size_dimensions = f"{size_config.get('dimensionsMm', 25)}мм"
+        size_dimensions = f"{size_config.get('dimensionsMm', 25)}mm"
 
-        custom_prompt_template = settings.get("custom_form_prompt", "")
-        object_desc = req.objectDescription or "главный объект на фото"
+        object_desc = req.objectDescription or "the main object in the photo"
+        user_wishes = f"Additional wishes: {req.prompt}" if req.prompt else ""
 
-        pendant_prompt = f"""Создай ювелирный кулон-подвеску из 3D объекта на фотографии.
-Какой объект взять: {object_desc}
-{f'Дополнительные пожелания: {req.prompt}' if req.prompt else ''}
+        # Use admin-configurable volumetric prompt or fallback to default
+        volumetric_template = settings.get("volumetric_pendant_prompt", "")
+        if volumetric_template and "{object_description}" in volumetric_template:
+            pendant_prompt = volumetric_template.format(
+                object_description=object_desc,
+                user_wishes=user_wishes,
+                size_dimensions=size_dimensions
+            )
+        else:
+            pendant_prompt = f"""Create a 3D silver pendant/charm based on the object from the photo.
+Object to transform: {object_desc}
+{user_wishes}
 
-ВАЖНО: Преврати выбранный 3D объект в ювелирное украшение.
-- Сохрани форму и пропорции оригинального объекта
-- Добавь ушко для цепочки — простое, классическое ювелирное
-- Изделие должно быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, готовым к 3D-печати
-- Черный фон, изделие из серебра (silver metal)
-- Строго один вид спереди
-- Размер изделия: {size_dimensions}
-- Максимальная детализация поверхности, ювелирное качество"""
+CRITICAL REQUIREMENTS:
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture, NOT a flat medallion or coin
+- The pendant must have DEPTH and VOLUME - it's a miniature 3D figurine/sculpture
+- Preserve the 3D shape, form and proportions of the original object
+- Show the object from a 3/4 angle to emphasize its three-dimensional nature
+- Add a simple classic jewelry bail/loop for the chain at the top
+- Material: polished silver metal with realistic reflections and highlights
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts
+- Black background, dramatic lighting to show depth and volume
+- Size: {size_dimensions}
+- Maximum surface detail, jewelry quality finish
+- Style: realistic silver miniature sculpture, like a detailed charm or figurine"""
     else:
-        # Standard pendant generation
+        # Standard pendant generation (flat medallion style)
         # sizes structure: sizes[material][size_key] -> {label, price, apiSize, dimensionsMm}
         material_sizes = settings["sizes"].get(req.material, settings["sizes"].get("silver", {}))
         size_config = material_sizes.get(req.size, material_sizes.get("m", {}))
-        size_dimensions = f"{size_config.get('dimensionsMm', 18)}мм"
+        size_dimensions = f"{size_config.get('dimensionsMm', 18)}mm"
 
         form_config = settings["form_factors"].get(req.formFactor, settings["form_factors"]["round"])
         form_addition = form_config.get("addition", "")
-        form_shape_base = form_config.get("shape", "круглая форма, объект вписан в круг")
-        form_shape = f"{form_shape_base}, размер {size_dimensions}"
+        form_shape_base = form_config.get("shape", "round shape, object inscribed in circle")
+        form_shape = f"{form_shape_base}, size {size_dimensions}"
 
         # Get form factor label for prompt
-        form_label = form_config.get("label", "круглый кулон")
+        form_label = form_config.get("label", "round pendant")
+        user_wishes = f"Additional wishes: {req.prompt}" if req.prompt else ""
+
+        # Use admin-configurable flat pendant prompt or fallback to default
+        flat_template = settings.get("flat_pendant_prompt", "")
 
         if has_image:
-            pendant_prompt = f"""Создай ювелирный кулон из референса на картинке.
-Тип украшения: {form_label}.
-{f'Дополнительные пожелания заказчика: {req.prompt}' if req.prompt else ''}
-ВАЖНО: Максимально точно следуй референсу. Сохрани все детали и пропорции оригинального изображения.
-Кулон должен быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, состоящим из ОДНОЙ ЧАСТИ — единый серебряный объект без отдельных элементов.
-ВАЖНО: Поверхность кулона должна быть СПЛОШНОЙ, БЕЗ ДЫРОК И ПРОРЕЗЕЙ. Черный фон только СНАРУЖИ кулона, вокруг него. Внутри кулона не должно быть никаких черных областей или дырок — вся поверхность сплошная серебряная.
-Ушко для цепочки — простое, классическое ювелирное, интегрированное в основной объект.
-Строго один вид спереди.
-Черный фон ТОЛЬКО ВОКРУГ кулона (снаружи). Изделие из серебра (silver metal). Без красок, без эмали, без дополнительных текстур.
-Готов к 3D-печати — никаких отдельных частей, всё соединено в единую форму.
+            if flat_template and "{form_label}" in flat_template:
+                pendant_prompt = flat_template.format(
+                    form_label=form_label,
+                    user_wishes=user_wishes,
+                    form_addition=form_addition,
+                    form_shape=form_shape
+                )
+            else:
+                pendant_prompt = f"""Create a jewelry pendant from the reference image.
+Type: {form_label}
+{user_wishes}
+IMPORTANT: Follow the reference as closely as possible. Preserve all details and proportions of the original image.
+The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with no separate parts.
+IMPORTANT: Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes - the entire surface is solid silver.
+Bail/loop for chain - simple, classic jewelry style, integrated into the main object.
+Strictly front view only.
+Black background ONLY AROUND the pendant (outside). Silver metal finish. No paint, no enamel, no additional textures.
+Ready for 3D printing - no separate parts, everything connected into a single form.
 {form_addition}
-Форма — {form_shape}.
-Максимальная детализация поверхности, ювелирное качество."""
+Shape: {form_shape}
+Maximum surface detail, jewelry quality finish."""
         else:
-            pendant_prompt = f"""Создай ювелирный кулон.
-Тип украшения: {form_label}.
-{f'Описание: {req.prompt}' if req.prompt else 'Красивый элегантный ювелирный кулон.'}
-Кулон должен быть ЦЕЛЬНЫМ, МОНОЛИТНЫМ, состоящим из ОДНОЙ ЧАСТИ — единый серебряный объект без отдельных элементов.
-ВАЖНО: Поверхность кулона должна быть СПЛОШНОЙ, БЕЗ ДЫРОК И ПРОРЕЗЕЙ. Черный фон только СНАРУЖИ кулона, вокруг него. Внутри кулона не должно быть никаких черных областей или дырок.
-Ушко для цепочки — простое, классическое ювелирное, интегрированное в основной объект.
-Строго один вид спереди.
-Черный фон ТОЛЬКО ВОКРУГ кулона (снаружи). Изделие из серебра (silver metal). Без красок, без эмали, без дополнительных текстур.
-Готов к 3D-печати — никаких отдельных частей, всё соединено в единую форму.
+            pendant_prompt = f"""Create a jewelry pendant.
+Type: {form_label}
+{user_wishes if user_wishes else 'A beautiful elegant jewelry pendant.'}
+The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with no separate parts.
+IMPORTANT: Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes.
+Bail/loop for chain - simple, classic jewelry style, integrated into the main object.
+Strictly front view only.
+Black background ONLY AROUND the pendant (outside). Silver metal finish. No paint, no enamel, no additional textures.
+Ready for 3D printing - no separate parts, everything connected into a single form.
 {form_addition}
-Форма — {form_shape}.
-Максимальная детализация поверхности, ювелирное качество."""
+Shape: {form_shape}
+Maximum surface detail, jewelry quality finish."""
 
     print(f"Final prompt: {pendant_prompt}")
 
-    model_url = "https://queue.fal.run/fal-ai/bytedance/seedream/v4/edit" if has_image else "https://queue.fal.run/fal-ai/bytedance/seedream/v4/text-to-image"
-    model_name = "seedream-v4-edit" if has_image else "seedream-v4-text-to-image"
+    # Get selected model from settings
+    selected_model = settings.get("generation_model", "seedream")
+    model_config = MODEL_CONFIGS.get(selected_model, MODEL_CONFIGS["seedream"])
 
+    # Determine model URL and name based on whether we have an image
+    if has_image:
+        model_url = model_config["edit_url"]
+        model_name = model_config["edit_name"]
+    else:
+        # Fall back to seedream for text-to-image if model doesn't support it
+        if model_config["text_url"]:
+            model_url = model_config["text_url"]
+            model_name = model_config["text_name"]
+        else:
+            # Flux Kontext doesn't support text-to-image, fall back to seedream
+            fallback_config = MODEL_CONFIGS["seedream"]
+            model_url = fallback_config["text_url"]
+            model_name = fallback_config["text_name"]
+            print(f"Model {selected_model} doesn't support text-to-image, falling back to seedream")
+
+    print(f"Using model: {model_name} ({selected_model})")
+
+    # Build request body based on model
     request_body = {
         "prompt": pendant_prompt,
-        "num_images": num_images,
         "enable_safety_checker": True,
-        "image_size": "square_hd"
     }
 
-    if has_image:
-        request_body["image_urls"] = [req.imageBase64]
+    # Add num_images if supported
+    if model_config.get("supports_num_images", True):
+        request_body["num_images"] = num_images
+
+    # Model-specific parameters
+    if selected_model == "seedream":
+        request_body["image_size"] = "square_hd"
+        if has_image:
+            request_body["image_urls"] = [req.imageBase64]
+    elif selected_model == "flux-kontext":
+        request_body["output_format"] = "png"
+        request_body["guidance_scale"] = 2.5
+        request_body["num_inference_steps"] = 28
+        if has_image:
+            request_body["image_url"] = req.imageBase64
+    elif selected_model == "nano-banana":
+        request_body["aspect_ratio"] = "1:1"
+        request_body["output_format"] = "png"
+        if has_image:
+            request_body["image_urls"] = [req.imageBase64]
 
     headers = {
         "Authorization": f"Key {fal_key}",
@@ -569,7 +716,8 @@ async def generate_pendant(req: GenerateRequest):
             print(f"Upload complete")
 
             execution_time_ms = int((time.time() - start_time) * 1000)
-            cost_cents = len(image_urls) * COST_PER_IMAGE_CENTS + len(image_urls) * COST_REMOVE_BG_CENTS
+            cost_per_image = model_config.get("cost_per_image_cents", COST_PER_IMAGE_CENTS)
+            cost_cents = len(image_urls) * cost_per_image + len(image_urls) * COST_REMOVE_BG_CENTS
 
             # Save to Supabase
             gen_data = {
@@ -1588,6 +1736,7 @@ async def admin_list_clients():
                 "last_name": user.get("last_name", ""),
                 "telegram_username": user.get("telegram_username", ""),
                 "created_at": user.get("created_at"),
+                "is_admin": user.get("is_admin", False),
                 "orders_count": len(apps),
                 "paid_count": paid_count,
                 "total_spent": total_spent,
@@ -1692,6 +1841,27 @@ class CreateInvoiceRequest(BaseModel):
     description: str
     customer_email: str
     customer_name: Optional[str] = None
+
+
+class UpdateUserAdminRequest(BaseModel):
+    is_admin: bool
+
+
+@router.patch("/admin/users/{user_id}/admin")
+async def admin_update_user_admin(user_id: str, req: UpdateUserAdminRequest):
+    """Update user admin status"""
+    try:
+        user = await supabase.select_one("users", user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        result = await supabase.update("users", user_id, {"is_admin": req.is_admin})
+        return {"success": True, "is_admin": req.is_admin}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating user admin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/admin/create-invoice")

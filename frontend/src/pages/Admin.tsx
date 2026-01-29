@@ -81,6 +81,12 @@ interface VisualizationSettings {
   male: { attachX: number; attachY: number };
 }
 
+interface ModelInfo {
+  label: string;
+  description: string;
+  cost_per_image_cents: number;
+}
+
 interface SettingsMap {
   main_prompt: string;
   main_prompt_no_image: string;
@@ -89,6 +95,10 @@ interface SettingsMap {
   sizes: Record<string, Record<string, SizeSettings>>;
   materials: Record<string, MaterialSettings>;
   visualization: VisualizationSettings;
+  generation_model?: string;
+  available_models?: Record<string, ModelInfo>;
+  flat_pendant_prompt?: string;
+  volumetric_pendant_prompt?: string;
 }
 
 const Admin = () => {
@@ -801,27 +811,64 @@ const Admin = () => {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
-            {/* Num Images */}
+            {/* Generation Model & Num Images */}
             <Card>
               <CardHeader>
-                <CardTitle>Количество изображений</CardTitle>
+                <CardTitle>AI-модель генерации</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <Select
-                    value={String(settings.num_images)}
-                    onValueChange={(v) => setSettings(prev => ({ ...prev, num_images: parseInt(v) }))}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <CardContent className="space-y-6">
+                {/* Model selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Модель</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(settings.available_models || {
+                      'seedream': { label: 'Seedream v4', description: 'Bytedance SeedDream - хорошая детализация', cost_per_image_cents: 3 },
+                      'flux-kontext': { label: 'Flux Kontext', description: 'Black Forest Labs - качественное редактирование', cost_per_image_cents: 4 },
+                      'nano-banana': { label: 'Nano Banana', description: 'Google - быстрая генерация', cost_per_image_cents: 3 }
+                    }).map(([key, model]) => (
+                      <div
+                        key={key}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                          (settings.generation_model || 'seedream') === key
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/30'
+                            : 'border-border hover:border-muted-foreground'
+                        }`}
+                        onClick={() => setSettings(prev => ({ ...prev, generation_model: key }))}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{model.label}</span>
+                          <Badge variant="secondary">{model.cost_per_image_cents}¢/img</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{model.description}</p>
+                        {key === 'flux-kontext' && (
+                          <p className="text-xs text-yellow-600 mt-2">
+                            * Не поддерживает генерацию без изображения
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Num images */}
+                <div className="flex items-center gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Количество изображений</label>
+                    <Select
+                      value={String(settings.num_images)}
+                      onValueChange={(v) => setSettings(prev => ({ ...prev, num_images: parseInt(v) }))}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                        <SelectItem value="4">4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <span className="text-sm text-muted-foreground">
                     Количество вариантов за одну генерацию
                   </span>
@@ -829,39 +876,92 @@ const Admin = () => {
               </CardContent>
             </Card>
 
-            {/* Main Prompts */}
+            {/* Flat Pendant Prompt (for regular pendants) */}
             <Card>
               <CardHeader>
-                <CardTitle>Основной промпт (с изображением)</CardTitle>
+                <CardTitle>
+                  Промпт для плоских кулонов (Flat Pendant)
+                  <Badge variant="secondary" className="ml-2">English</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
-                  value={settings.main_prompt}
-                  onChange={(e) => setSettings(prev => ({ ...prev, main_prompt: e.target.value }))}
-                  rows={10}
+                  value={settings.flat_pendant_prompt || ''}
+                  onChange={(e) => setSettings(prev => ({ ...prev, flat_pendant_prompt: e.target.value }))}
+                  rows={12}
                   className="font-mono text-sm"
-                  placeholder="Промпт для генерации с референсом..."
+                  placeholder="Prompt for flat medallion-style pendants..."
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Переменные: {'{user_comment}'}, {'{form_addition}'}, {'{form_shape}'}
+                  Переменные: {'{form_label}'}, {'{user_wishes}'}, {'{form_addition}'}, {'{form_shape}'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Используется для тем: main, kids, totems (круглые, овальные, контурные кулоны)
                 </p>
               </CardContent>
             </Card>
 
+            {/* Volumetric Pendant Prompt (for 3D objects) */}
             <Card>
               <CardHeader>
-                <CardTitle>Промпт без изображения</CardTitle>
+                <CardTitle>
+                  Промпт для объёмных 3D объектов (Volumetric)
+                  <Badge variant="secondary" className="ml-2">English</Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
-                  value={settings.main_prompt_no_image}
-                  onChange={(e) => setSettings(prev => ({ ...prev, main_prompt_no_image: e.target.value }))}
-                  rows={10}
+                  value={settings.volumetric_pendant_prompt || ''}
+                  onChange={(e) => setSettings(prev => ({ ...prev, volumetric_pendant_prompt: e.target.value }))}
+                  rows={12}
                   className="font-mono text-sm"
-                  placeholder="Промпт для генерации без референса..."
+                  placeholder="Prompt for volumetric 3D sculpture pendants..."
                 />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Переменные: {'{object_description}'}, {'{user_wishes}'}, {'{size_dimensions}'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Используется для темы: custom (произвольные 3D объекты - игрушки, статуэтки)
+                </p>
               </CardContent>
             </Card>
+
+            {/* Legacy prompts (hidden but kept for backwards compatibility) */}
+            <details className="border rounded-lg p-4">
+              <summary className="cursor-pointer text-sm text-muted-foreground">
+                Устаревшие промпты (для совместимости)
+              </summary>
+              <div className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Основной промпт (legacy)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      value={settings.main_prompt}
+                      onChange={(e) => setSettings(prev => ({ ...prev, main_prompt: e.target.value }))}
+                      rows={6}
+                      className="font-mono text-xs"
+                      placeholder="Legacy prompt..."
+                    />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Промпт без изображения (legacy)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      value={settings.main_prompt_no_image}
+                      onChange={(e) => setSettings(prev => ({ ...prev, main_prompt_no_image: e.target.value }))}
+                      rows={6}
+                      className="font-mono text-xs"
+                      placeholder="Legacy prompt without image..."
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </details>
 
             {/* Form Factors */}
             <Card>

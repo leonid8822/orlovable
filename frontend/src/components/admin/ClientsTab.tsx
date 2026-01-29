@@ -51,6 +51,7 @@ export interface Client {
   total_spent: number;
   applications: ClientApplication[];
   payments: ClientPayment[];
+  is_admin?: boolean;
 }
 
 export function ClientsTab() {

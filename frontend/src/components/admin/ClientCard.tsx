@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft,
   Mail,
@@ -11,8 +12,11 @@ import {
   Receipt,
   Image,
   CreditCard,
+  Shield,
 } from "lucide-react";
 import { InvoiceForm } from "./InvoiceForm";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import type { Client } from "./ClientsTab";
 
 interface ClientCardProps {
@@ -66,6 +70,25 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
   const [selectedAppId, setSelectedAppId] = useState<string | undefined>(
     undefined
   );
+  const [isAdmin, setIsAdmin] = useState(client.is_admin ?? false);
+  const [savingAdmin, setSavingAdmin] = useState(false);
+
+  const handleAdminToggle = async (checked: boolean) => {
+    setSavingAdmin(true);
+    try {
+      const { error } = await api.updateUserAdmin(client.id, checked);
+      if (error) {
+        toast.error("Ошибка сохранения");
+        return;
+      }
+      setIsAdmin(checked);
+      toast.success(checked ? "Админ права выданы" : "Админ права отозваны");
+    } catch (err) {
+      toast.error("Ошибка сохранения");
+    } finally {
+      setSavingAdmin(false);
+    }
+  };
 
   const getDisplayName = () => {
     if (client.first_name || client.last_name) {
@@ -108,7 +131,7 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
       </div>
 
       {/* Client info */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-2 text-sm">
@@ -157,6 +180,20 @@ export function ClientCard({ client, onBack, onRefresh }: ClientCardProps) {
                 {client.total_spent.toLocaleString()} ₽
               </span>
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={isAdmin}
+                onCheckedChange={handleAdminToggle}
+                disabled={savingAdmin}
+              />
+              <Shield className="w-4 h-4 text-muted-foreground" />
+              <span>Админ</span>
+              {isAdmin && <Badge variant="secondary" className="text-xs">✓</Badge>}
+            </label>
           </CardContent>
         </Card>
       </div>

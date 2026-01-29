@@ -111,9 +111,6 @@ const TotemsLanding = () => {
 
             {/* Before/After Showcase */}
             <div className="max-w-2xl mx-auto">
-              <h3 className="text-xl font-display text-center mb-8">
-                Примеры <span className="text-gradient-brown">тотемов</span>
-              </h3>
               <BeforeAfterShowcase examples={examples} accentColor="brown" isLoading={isLoadingExamples} />
             </div>
           </div>
@@ -143,7 +140,7 @@ const TotemsLanding = () => {
                 <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: 'hsl(25, 45%, 35%, 0.15)' }}>
                   <Compass className="w-8 h-8" style={{ color: brownColor }} />
                 </div>
-                <h3 className="text-xl font-display mb-3">Руны и символы</h3>
+                <h3 className="text-xl font-display mb-3">Символы и знаки</h3>
                 <p className="text-muted-foreground">
                   Руны Старшего Футарка, Вегвизир, узлы и орнаменты
                 </p>
@@ -171,9 +168,9 @@ const TotemsLanding = () => {
                 Сила <span className="text-gradient-brown">тотема</span>
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                В северной традиции тотем — это не просто украшение.
-                Это связь с силой природы, предков и внутренним "я".
-                Носите свой символ как напоминание о том, кто вы есть.
+                В любой традиции тотем — это не просто украшение.
+                Это связь с силой природы, богов, предков и внутренним "я".
+                Носите свои символы как напоминание о том, кем вы являетесь.
               </p>
             </div>
 

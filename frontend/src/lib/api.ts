@@ -384,5 +384,21 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+    updateUserAdmin: async (userId: string, isAdmin: boolean) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/users/${userId}/admin`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_admin: isAdmin })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Update failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };
