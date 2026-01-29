@@ -154,22 +154,24 @@ CRITICAL REQUIREMENTS:
 - {form_addition}
 - Shape: {form_shape}
 - Maximum surface detail, jewelry quality finish""",
-        "volumetric_pendant_prompt": """Create a 3D silver pendant/charm based on the object from the photo.
+        "volumetric_pendant_prompt": """Create a wearable 3D silver pendant based on the object from the photo.
 Object to transform: {object_description}
 {user_wishes}
 
 CRITICAL REQUIREMENTS:
-- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture, NOT a flat medallion or coin
-- The pendant must have DEPTH and VOLUME - it's a miniature 3D figurine/sculpture
+- This is a REAL WEARABLE PENDANT that hangs on a chain around the neck
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture with DEPTH and VOLUME
+- The pendant must look like a finished jewelry piece ready to wear, not just a sculpture
+- BAIL/LOOP PLACEMENT: Add a jewelry bail (small loop for chain attachment) at the TOPMOST point of the object. The bail must be positioned so the pendant hangs correctly and naturally when worn. If user specified bail placement in wishes, follow their preference.
+- The bail must be integrated seamlessly into the design - a classic, elegant jewelry-style loop
 - Preserve the 3D shape, form and proportions of the original object
-- Show the object from a 3/4 angle to emphasize its three-dimensional nature
-- Add a simple classic jewelry bail/loop for the chain at the top
+- Show the pendant from a 3/4 angle to emphasize its three-dimensional nature and wearability
 - Material: polished silver metal with realistic reflections and highlights
-- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts, everything connected
 - Black background, dramatic lighting to show depth and volume
 - Size: {size_dimensions}
 - Maximum surface detail, jewelry quality finish
-- Style: realistic silver miniature sculpture, like a detailed charm or figurine""",
+- Style: realistic silver miniature sculpture that looks like a professional jewelry piece you can actually wear""",
         # Model selection for AI generation
         "generation_model": "seedream",  # 'seedream' | 'flux-kontext' | 'nano-banana'
         "available_models": {
@@ -514,22 +516,24 @@ async def generate_pendant(req: GenerateRequest):
                 size_dimensions=size_dimensions
             )
         else:
-            pendant_prompt = f"""Create a 3D silver pendant/charm based on the object from the photo.
+            pendant_prompt = f"""Create a wearable 3D silver pendant based on the object from the photo.
 Object to transform: {object_desc}
 {user_wishes}
 
 CRITICAL REQUIREMENTS:
-- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture, NOT a flat medallion or coin
-- The pendant must have DEPTH and VOLUME - it's a miniature 3D figurine/sculpture
+- This is a REAL WEARABLE PENDANT that hangs on a chain around the neck
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture with DEPTH and VOLUME
+- The pendant must look like a finished jewelry piece ready to wear, not just a sculpture
+- BAIL/LOOP PLACEMENT: Add a jewelry bail (small loop for chain attachment) at the TOPMOST point of the object. The bail must be positioned so the pendant hangs correctly and naturally when worn.
+- The bail must be integrated seamlessly into the design - a classic, elegant jewelry-style loop
 - Preserve the 3D shape, form and proportions of the original object
-- Show the object from a 3/4 angle to emphasize its three-dimensional nature
-- Add a simple classic jewelry bail/loop for the chain at the top
+- Show the pendant from a 3/4 angle to emphasize its three-dimensional nature and wearability
 - Material: polished silver metal with realistic reflections and highlights
-- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts, everything connected
 - Black background, dramatic lighting to show depth and volume
 - Size: {size_dimensions}
 - Maximum surface detail, jewelry quality finish
-- Style: realistic silver miniature sculpture, like a detailed charm or figurine"""
+- Style: realistic silver miniature sculpture that looks like a professional jewelry piece you can actually wear"""
     else:
         # Standard pendant generation (flat medallion style)
         # sizes structure: sizes[material][size_key] -> {label, price, apiSize, dimensionsMm}
