@@ -50,13 +50,13 @@ export function Header({
         <div className="flex items-center gap-6">
           <Link to={logoLink} className="flex items-center gap-3 group">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-shadow duration-300"
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-shadow duration-300 overflow-hidden p-1"
               style={{
                 background: `linear-gradient(135deg, ${themeConfig.accentColorLight} 0%, ${themeConfig.accentColor} 100%)`,
                 boxShadow: `0 4px 14px ${themeConfig.accentColor}40`,
               }}
             >
-              <EagleIcon className="w-5 h-5 text-primary-foreground" />
+              <EagleIcon className="w-full h-full" />
             </div>
             <span className="font-display text-xl tracking-wide">
               <span className="text-muted-foreground">{logoText.prefix}</span>

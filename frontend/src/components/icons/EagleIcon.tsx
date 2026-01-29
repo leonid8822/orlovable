@@ -9,7 +9,7 @@ export function EagleIcon({ className }: EagleIconProps) {
     <img
       src="/logo.png"
       alt="OLAI"
-      className={cn("w-full h-full object-cover scale-[2] invert", className)}
+      className={cn("w-full h-full object-contain invert", className)}
     />
   );
 }
