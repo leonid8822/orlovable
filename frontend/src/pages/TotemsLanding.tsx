@@ -7,7 +7,6 @@ import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
-  Shield,
   Compass,
   Mountain,
   Moon,
@@ -83,11 +82,6 @@ const TotemsLanding = () => {
         <section className="pt-28 pb-20 px-4">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center animate-fade-in">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-8" style={{ backgroundColor: 'hsl(25, 45%, 35%, 0.1)', borderColor: 'hsl(25, 45%, 35%, 0.2)' }}>
-                <Shield className="w-4 h-4" style={{ color: brownColor }} />
-                <span className="text-sm" style={{ color: brownColor }}>Скандинавский стиль</span>
-              </div>
-
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-display mb-6 leading-tight">
                 Создайте свой <span className="text-gradient-brown">тотем</span>
                 <br />в украшении
@@ -110,7 +104,7 @@ const TotemsLanding = () => {
             </div>
 
             {/* Before/After Showcase */}
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto mt-16">
               <BeforeAfterShowcase examples={examples} accentColor="brown" isLoading={isLoadingExamples} />
             </div>
           </div>

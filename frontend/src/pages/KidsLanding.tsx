@@ -132,9 +132,6 @@ const KidsLanding = () => {
 
             {/* Before/After Showcase */}
             <div className="mt-16 max-w-2xl mx-auto">
-              <h3 className="text-xl font-display text-center mb-8">
-                Примеры <span className="text-gradient-tiffany">превращений</span>
-              </h3>
               <BeforeAfterShowcase examples={examples} accentColor="tiffany" isLoading={isLoadingExamples} />
             </div>
           </div>

@@ -217,15 +217,6 @@ export function BeforeAfterShowcase({
           </div>
         </div>
 
-        {/* Title */}
-        <div
-          className={cn(
-            "text-center mt-4 transition-all duration-300",
-            isTransitioning ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
-          )}
-        >
-          <p className="text-muted-foreground">{currentExample.title}</p>
-        </div>
       </div>
 
       {/* Dots navigation */}

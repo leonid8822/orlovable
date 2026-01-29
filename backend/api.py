@@ -72,6 +72,7 @@ class SettingsUpdate(BaseModel):
     custom_form_enabled: Optional[bool] = None
     # Model selection
     generation_model: Optional[str] = None  # 'seedream' | 'flux-kontext' | 'nano-banana'
+    available_models: Optional[dict] = None  # Model definitions
     # Separate prompts for flat medallion vs volumetric 3D
     flat_pendant_prompt: Optional[str] = None  # For regular pendants (round, contour, oval)
     volumetric_pendant_prompt: Optional[str] = None  # For custom 3D objects
@@ -268,6 +269,8 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('custom_form_enabled', updates.custom_form_enabled)
         if updates.generation_model is not None:
             await set_val('generation_model', updates.generation_model)
+        if updates.available_models:
+            await set_val('available_models', updates.available_models)
         if updates.flat_pendant_prompt is not None:
             await set_val('flat_pendant_prompt', updates.flat_pendant_prompt)
         if updates.volumetric_pendant_prompt is not None:

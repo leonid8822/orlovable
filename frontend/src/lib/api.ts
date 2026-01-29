@@ -93,8 +93,12 @@ export const api = {
                 body: JSON.stringify(settings)
             });
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Settings update failed');
+            }
             return { data, error: null };
         } catch (error) {
+            console.error('Settings update error:', error);
             return { data: null, error };
         }
     },
