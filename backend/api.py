@@ -377,6 +377,64 @@ async def update_application(app_id: str, updates: ApplicationUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class SubmitOrderRequest(BaseModel):
+    """Request to submit order without payment"""
+    email: str
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    telegram: Optional[str] = None
+    material: str = 'silver'
+    size: str = 'pendant'
+    size_option: str = 'm'
+    order_comment: Optional[str] = None
+    gems: Optional[list] = None
+
+
+@router.post("/applications/{app_id}/submit")
+async def submit_order(app_id: str, req: SubmitOrderRequest):
+    """Submit order without payment - just save contact info and mark as submitted"""
+    try:
+        # Verify application exists
+        app = await supabase.select_one("applications", app_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        # Update application with order details
+        update_data = {
+            "status": "submitted",
+            "material": req.material,
+            "size": req.size,
+            "size_option": req.size_option,
+            "order_comment": req.order_comment,
+            "customer_email": req.email,
+            "customer_name": req.name,
+            "customer_phone": req.phone,
+            "customer_telegram": req.telegram,
+            "submitted_at": datetime.utcnow().isoformat(),
+        }
+
+        # Add gems if provided
+        if req.gems:
+            update_data["gems"] = req.gems
+
+        result = await supabase.update("applications", app_id, update_data)
+
+        # TODO: Send notification to admin (Telegram bot, email, etc.)
+
+        return {
+            "success": True,
+            "application_id": app_id,
+            "status": "submitted",
+            "message": "Заказ успешно оформлен! Мы свяжемся с вами для уточнения деталей."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error submitting order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/history")
 async def get_history(limit: int = 20):
     """Get generation history"""

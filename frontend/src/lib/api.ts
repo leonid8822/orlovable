@@ -572,5 +572,33 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Order submission (without payment)
+    submitOrder: async (applicationId: string, payload: {
+        email: string;
+        name?: string;
+        phone?: string;
+        telegram?: string;
+        material: string;
+        size: string;
+        size_option: string;
+        order_comment?: string;
+        gems?: any[];
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/applications/${applicationId}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Order submission failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

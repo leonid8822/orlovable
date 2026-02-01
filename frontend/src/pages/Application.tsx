@@ -497,7 +497,7 @@ const Application = () => {
                     transitionTo(AppStep.SELECTION);
                   }
                 }}
-                onPaymentSuccess={handlePaymentSuccess}
+                onOrderSuccess={() => transitionTo(AppStep.CONFIRMATION)}
                 applicationId={applicationId || undefined}
               />
             )}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, CreditCard, MessageCircle, Mail } from "lucide-react";
+import { ArrowLeft, Send, MessageCircle, Mail, Phone, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,7 +17,7 @@ interface StepCheckoutProps {
   config: PendantConfig;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onBack: () => void;
-  onPaymentSuccess?: (amount: number, orderId: string) => void;
+  onOrderSuccess?: () => void;
   applicationId?: string;
 }
 
@@ -27,16 +27,16 @@ export function StepCheckout({
   config,
   onConfigChange,
   onBack,
-  onPaymentSuccess,
+  onOrderSuccess,
   applicationId,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [email, setEmail] = useState(() => {
-    // Try to get email from localStorage (set during auth)
-    return localStorage.getItem('userEmail') || '';
-  });
+  const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [telegram, setTelegram] = useState('');
   const { config: themeConfig } = useAppTheme();
   const { toast } = useToast();
 
@@ -57,7 +57,6 @@ export function StepCheckout({
   // For on-neck preview calculations
   const sizeConfig = getSizeConfigByMaterial(config.material);
   const currentSize = sizeConfig[config.sizeOption];
-  // Get gender from form_factors settings
   const formFactorConfig = settings.form_factors[config.formFactor];
   const isMale = formFactorConfig?.gender === "male";
   const neckPhoto = isMale ? "/man-back.jpg" : "/woman-back.jpg";
@@ -92,7 +91,7 @@ export function StepCheckout({
     });
   };
 
-  const handleCheckout = async () => {
+  const handleSubmitOrder = async () => {
     if (!applicationId) {
       toast({
         title: "Ошибка",
@@ -102,12 +101,12 @@ export function StepCheckout({
       return;
     }
 
-    // Validate email (required for payment receipt)
+    // Validate email
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       toast({
         title: "Введите email",
-        description: "Email необходим для отправки чека об оплате",
+        description: "Email необходим для связи с вами",
         variant: "destructive",
       });
       return;
@@ -116,30 +115,40 @@ export function StepCheckout({
     setIsProcessing(true);
 
     try {
-      const { data, error } = await api.createPayment({
-        application_id: applicationId,
-        amount: depositAmount,
+      const { data, error } = await api.submitOrder(applicationId, {
         email: trimmedEmail,
-        order_comment: config.orderComment,
+        name: name.trim() || undefined,
+        phone: phone.trim() || undefined,
+        telegram: telegram.trim() || undefined,
+        material: config.material,
+        size: config.size,
+        size_option: config.sizeOption,
+        order_comment: config.orderComment || undefined,
+        gems: config.gems.length > 0 ? config.gems : undefined,
       });
 
       if (error || !data?.success) {
-        throw new Error(error?.message || "Ошибка создания платежа");
+        throw new Error(error?.message || "Ошибка оформления заказа");
       }
 
-      // Redirect to Tinkoff payment page
-      if (data.payment_url) {
-        window.location.href = data.payment_url;
-      } else {
-        throw new Error("Не получена ссылка на оплату");
-      }
-    } catch (err: any) {
-      console.error("Payment error:", err);
+      // Save email for future
+      localStorage.setItem('userEmail', trimmedEmail);
+
       toast({
-        title: "Ошибка оплаты",
-        description: err.message || "Не удалось создать платёж. Попробуйте позже.",
+        title: "Заказ оформлен!",
+        description: "Мы свяжемся с вами для уточнения деталей и оплаты.",
+      });
+
+      onOrderSuccess?.();
+
+    } catch (err: any) {
+      console.error("Order submission error:", err);
+      toast({
+        title: "Ошибка",
+        description: err.message || "Не удалось оформить заказ. Попробуйте позже.",
         variant: "destructive",
       });
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -151,19 +160,19 @@ export function StepCheckout({
         <h2 className="text-2xl md:text-3xl font-display text-gradient-theme mb-1">
           Оформление заказа
         </h2>
+        <p className="text-muted-foreground text-sm">
+          Оставьте контакты — мы свяжемся для уточнения деталей
+        </p>
       </div>
 
       {/* Two columns layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Column 1: Material & Size Selection */}
+        {/* Column 1: Preview & Size */}
         <div className="space-y-6">
-          <h3 className="text-lg font-display text-center">Материал и размер</h3>
-
           {/* Preview gallery */}
           <div className="flex flex-col items-center">
             <div className="w-full max-w-sm aspect-square rounded-2xl overflow-hidden shadow-lg relative">
               {activeImageIndex === 0 ? (
-                /* Pendant preview */
                 <div className="w-full h-full bg-black flex items-center justify-center">
                   {config.generatedPreview ? (
                     <img
@@ -181,7 +190,6 @@ export function StepCheckout({
                   )}
                 </div>
               ) : (
-                /* On-neck preview */
                 <div className="relative w-full h-full animate-fade-in">
                   <img
                     src={neckPhoto}
@@ -229,114 +237,119 @@ export function StepCheckout({
           </div>
 
           {/* Material selection */}
-          <div className="flex gap-2 justify-center">
-            {['silver', 'gold'].map((materialKey) => {
-              const materialInfo = materialsConfig[materialKey];
-              if (!materialInfo) return null;
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground text-center block">
+              Материал
+            </label>
+            <div className="flex gap-2 justify-center">
+              {['silver', 'gold'].map((materialKey) => {
+                const materialInfo = materialsConfig[materialKey];
+                if (!materialInfo) return null;
 
-              const isGold = materialKey === 'gold';
-              const isDisabled = !materialInfo.enabled;
+                const isGold = materialKey === 'gold';
+                const isDisabled = !materialInfo.enabled;
 
-              return (
-                <button
-                  key={materialKey}
-                  onClick={() => !isDisabled && handleMaterialChange(materialKey as Material)}
-                  disabled={isDisabled}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all text-sm relative",
-                    config.material === materialKey
-                      ? isGold
-                        ? "border-gold bg-gold/10"
-                        : "border-silver bg-silver/10"
-                      : "border-border hover:border-theme/50",
-                    isDisabled && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <div
+                return (
+                  <button
+                    key={materialKey}
+                    onClick={() => !isDisabled && handleMaterialChange(materialKey as Material)}
+                    disabled={isDisabled}
                     className={cn(
-                      "w-6 h-6 rounded-full shadow-inner",
-                      isGold
-                        ? "bg-gradient-to-br from-yellow-300 to-yellow-600"
-                        : "bg-gradient-to-br from-gray-200 to-gray-400"
+                      "flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all text-sm relative",
+                      config.material === materialKey
+                        ? isGold
+                          ? "border-gold bg-gold/10"
+                          : "border-silver bg-silver/10"
+                        : "border-border hover:border-theme/50",
+                      isDisabled && "opacity-50 cursor-not-allowed"
                     )}
-                  />
-                  <span className="font-medium">{materialInfo.label}</span>
-                  {isDisabled && (
-                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
-                      Скоро
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  >
+                    <div
+                      className={cn(
+                        "w-6 h-6 rounded-full shadow-inner",
+                        isGold
+                          ? "bg-gradient-to-br from-yellow-300 to-yellow-600"
+                          : "bg-gradient-to-br from-gray-200 to-gray-400"
+                      )}
+                    />
+                    <span className="font-medium">{materialInfo.label}</span>
+                    {isDisabled && (
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
+                        Скоро
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Size selection */}
-          <div className="flex gap-2 justify-center">
-            {['s', 'm', 'l'].map((sizeKey) => {
-              const sizeInfo = sizes[sizeKey];
-              if (!sizeInfo) return null;
+          {/* Size selection - now shows pendant HEIGHT */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground text-center block">
+              Высота кулона
+            </label>
+            <div className="flex gap-2 justify-center">
+              {['s', 'm', 'l'].map((sizeKey) => {
+                const sizeInfo = sizes[sizeKey];
+                if (!sizeInfo) return null;
 
-              return (
-                <button
-                  key={sizeKey}
-                  onClick={() => handleSizeChange(sizeKey as SizeOption)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl border-2 transition-all",
-                    config.sizeOption === sizeKey
-                      ? config.material === "gold"
-                        ? "border-gold bg-gold/10"
-                        : "border-silver bg-silver/10"
-                      : "border-border hover:border-theme/30"
-                  )}
-                >
-                  <span className="font-bold text-lg">{sizeInfo.label}</span>
-                  <span className="text-muted-foreground ml-2">
-                    {sizeInfo.dimensionsMm}мм
-                  </span>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={sizeKey}
+                    onClick={() => handleSizeChange(sizeKey as SizeOption)}
+                    className={cn(
+                      "px-4 py-3 rounded-xl border-2 transition-all min-w-[80px]",
+                      config.sizeOption === sizeKey
+                        ? config.material === "gold"
+                          ? "border-gold bg-gold/10"
+                          : "border-silver bg-silver/10"
+                        : "border-border hover:border-theme/30"
+                    )}
+                  >
+                    <div className="font-bold text-lg">{sizeInfo.label}</div>
+                    <div className="text-muted-foreground text-sm">
+                      {sizeInfo.dimensionsMm} мм
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Column 2: Deposit / Payment */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-display text-center">Предоплата</h3>
-
-          {/* Price breakdown */}
-          <div className="bg-card rounded-xl border border-theme/30 p-5 space-y-4">
+          {/* Price info */}
+          <div className="bg-card rounded-xl border border-theme/30 p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Полная стоимость</span>
+              <span className="text-muted-foreground">Примерная стоимость</span>
               <span className="font-display text-xl">
-                {price.toLocaleString("ru-RU")} ₽
+                от {price.toLocaleString("ru-RU")} ₽
               </span>
             </div>
 
-            <div className="border-t border-border pt-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium text-gradient-theme">Предоплата {depositPercent}%</p>
-                  <p className="text-sm text-muted-foreground">
-                    Остаток при получении: {(price - depositAmount).toLocaleString("ru-RU")} ₽
-                  </p>
-                </div>
-                <p className="text-2xl font-display text-gradient-theme">
+            <div className="border-t border-border pt-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Первоначальный взнос ({depositPercent}%)</span>
+                <span className="font-medium text-gradient-theme">
                   {depositAmount.toLocaleString("ru-RU")} ₽
-                </p>
+                </span>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground text-center pt-3 border-t border-border">
-              Бесплатная доставка по России
+            <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+              Точная стоимость зависит от сложности изделия. Оплата после согласования.
             </p>
           </div>
+        </div>
 
-          {/* Email for receipt */}
+        {/* Column 2: Contact Form */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-display text-center">Ваши контакты</h3>
+
+          {/* Email */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Mail className="w-4 h-4" />
-              Email для чека *
+              Email *
             </label>
             <Input
               type="email"
@@ -348,20 +361,66 @@ export function StepCheckout({
             />
           </div>
 
+          {/* Name */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Имя
+            </label>
+            <Input
+              type="text"
+              placeholder="Как к вам обращаться"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-card border-border focus:border-theme"
+            />
+          </div>
+
+          {/* Phone or Telegram - one is enough */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Телефон
+              </label>
+              <Input
+                type="tel"
+                placeholder="+7..."
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="bg-card border-border focus:border-theme"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <MessageCircle className="w-4 h-4" />
+                Telegram
+              </label>
+              <Input
+                type="text"
+                placeholder="@username"
+                value={telegram}
+                onChange={(e) => setTelegram(e.target.value)}
+                className="bg-card border-border focus:border-theme"
+              />
+            </div>
+          </div>
+
           {/* Order comment */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-              Комментарий к заказу
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Пожелания к заказу
             </label>
             <Textarea
-              placeholder="Камни, гравировка, особые пожелания..."
+              placeholder="Камни, особые детали, вопросы..."
               value={config.orderComment}
               onChange={(e) => onConfigChange({ orderComment: e.target.value })}
               className="min-h-[80px] text-sm bg-card border-border focus:border-theme resize-none"
             />
           </div>
 
-          {/* Telegram link */}
+          {/* Telegram support link */}
           <a
             href="https://t.me/olai_support"
             target="_blank"
@@ -403,7 +462,7 @@ export function StepCheckout({
             </label>
           </div>
 
-          {/* Action buttons - stacked on mobile */}
+          {/* Action buttons */}
           <div className="flex flex-col-reverse md:flex-row gap-3 pt-2">
             <Button
               variant="outline"
@@ -418,11 +477,11 @@ export function StepCheckout({
               variant="theme"
               size="lg"
               className="w-full md:flex-1"
-              onClick={handleCheckout}
+              onClick={handleSubmitOrder}
               disabled={isProcessing || !agreedToTerms || !email.trim()}
             >
-              <CreditCard className="w-4 h-4 mr-2" />
-              {isProcessing ? "Обработка..." : `Оплатить ${depositAmount.toLocaleString("ru-RU")} ₽`}
+              <Send className="w-4 h-4 mr-2" />
+              {isProcessing ? "Оформляем..." : "Оформить заказ"}
             </Button>
           </div>
         </div>
