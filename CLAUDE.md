@@ -16,29 +16,29 @@
 
 3. **Создание таблиц в Supabase**: Использовать API эндпоинт:
    ```bash
-   curl -X POST "https://olai-api.onrender.com/api/logs/init"
+   curl -X POST "https://olai.onrender.com/api/logs/init"
    ```
 
 4. **Проверка логов на проде**: Использовать API:
    ```bash
    # Все логи
-   curl "https://olai-api.onrender.com/api/logs"
+   curl "https://olai.onrender.com/api/logs"
 
    # Только ошибки
-   curl "https://olai-api.onrender.com/api/logs?level=error"
+   curl "https://olai.onrender.com/api/logs?level=error"
 
    # По источнику
-   curl "https://olai-api.onrender.com/api/logs?source=gem_upload"
+   curl "https://olai.onrender.com/api/logs?source=gem_upload"
    ```
 
 5. **Проверка настроек**:
    ```bash
-   curl "https://olai-api.onrender.com/api/settings"
+   curl "https://olai.onrender.com/api/settings"
    ```
 
 6. **Сброс настроек к дефолтам**:
    ```bash
-   curl -X POST "https://olai-api.onrender.com/api/settings/reset"
+   curl -X POST "https://olai.onrender.com/api/settings/reset"
    ```
 
 ### Принципы работы:
@@ -54,7 +54,7 @@
 **OLAI.ART** - full-stack платформа для кастомизации ювелирных изделий с AI-генерацией. Пользователи загружают рисунки, фото или описания, а AI генерирует превью кулонов/браслетов, которые затем изготавливаются из золота или серебра методом 3D-печати.
 
 **Production URL**: https://olai.art
-**Backend API**: https://olai-api.onrender.com/api (configured via VITE_API_URL)
+**Backend API**: https://olai.onrender.com/api (configured via VITE_API_URL)
 
 ---
 

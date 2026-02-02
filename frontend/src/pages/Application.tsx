@@ -21,15 +21,17 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 
-// State machine: valid transitions
-// GEMS and ENGRAVING are optional steps between SELECTION and CHECKOUT
+/// State machine: valid transitions
+// New flow: UPLOAD → GENERATING → SELECTION → CHECKOUT → [GEMS] → CONFIRMATION
+// GEMS is optional upsell step AFTER checkout (ordering base product)
+// ENGRAVING is integrated into CHECKOUT or removed
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
-  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.GEMS, AppStep.ENGRAVING, AppStep.CHECKOUT],
-  [AppStep.GEMS]: [AppStep.SELECTION, AppStep.ENGRAVING, AppStep.CHECKOUT],
-  [AppStep.ENGRAVING]: [AppStep.SELECTION, AppStep.GEMS, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.GEMS, AppStep.ENGRAVING, AppStep.CONFIRMATION],
+  [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
+  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.GEMS, AppStep.CONFIRMATION],
+  [AppStep.GEMS]: [AppStep.CHECKOUT, AppStep.CONFIRMATION], // Can go back to checkout or finish
+  [AppStep.ENGRAVING]: [AppStep.CHECKOUT], // Legacy: redirect to checkout
   [AppStep.CONFIRMATION]: [], // Terminal state
 };
 
@@ -144,8 +146,21 @@ const Application = () => {
       // Get theme from localStorage for new applications
       const currentTheme = localStorage.getItem("appTheme") || "main";
 
+      // Check if user is logged in and get their ID
+      let userId: string | undefined;
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          userId = user.id || user.userId;
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
       const { data: newApp, error } = await api.createApplication({
         session_id: sessionId,
+        user_id: userId,
         form_factor: config.formFactor,
         material: config.material,
         size: config.size,
@@ -430,18 +445,8 @@ const Application = () => {
                 onSelectVariant={handleSelectVariant}
                 onRegenerate={handleRegenerate}
                 onNext={() => {
-                  // Admin can go to GEMS step
-                  if (isAdmin) {
-                    transitionTo(AppStep.GEMS);
-                  } else {
-                    // Non-admin: check if flat pendant for engraving, otherwise checkout
-                    const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
-                    if (isFlat) {
-                      transitionTo(AppStep.ENGRAVING);
-                    } else {
-                      transitionTo(AppStep.CHECKOUT);
-                    }
-                  }
+                  // New flow: always go to CHECKOUT after selection
+                  transitionTo(AppStep.CHECKOUT);
                 }}
                 onBack={() => transitionTo(AppStep.UPLOAD)}
               />
@@ -452,22 +457,13 @@ const Application = () => {
                 config={config}
                 onConfigChange={handleConfigChange}
                 onNext={() => {
-                  // After gems, check if flat pendant for engraving
-                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
-                  if (isFlat) {
-                    transitionTo(AppStep.ENGRAVING);
-                  } else {
-                    transitionTo(AppStep.CHECKOUT);
-                  }
+                  // New flow: gems is after checkout, so go to confirmation
+                  transitionTo(AppStep.CONFIRMATION);
                 }}
-                onBack={() => transitionTo(AppStep.SELECTION)}
+                onBack={() => transitionTo(AppStep.CHECKOUT)}
                 onSkip={() => {
-                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
-                  if (isFlat) {
-                    transitionTo(AppStep.ENGRAVING);
-                  } else {
-                    transitionTo(AppStep.CHECKOUT);
-                  }
+                  // Skip gems and go to confirmation
+                  transitionTo(AppStep.CONFIRMATION);
                 }}
               />
             )}
@@ -487,17 +483,16 @@ const Application = () => {
                 config={config}
                 onConfigChange={handleConfigChange}
                 onBack={() => {
-                  // Go back to engraving for flat pendants, or gems for admin, or selection
-                  const isFlat = ['round', 'oval', 'contour'].includes(config.formFactor);
-                  if (isFlat) {
-                    transitionTo(AppStep.ENGRAVING);
-                  } else if (isAdmin) {
-                    transitionTo(AppStep.GEMS);
-                  } else {
-                    transitionTo(AppStep.SELECTION);
-                  }
+                  // New flow: always go back to selection
+                  transitionTo(AppStep.SELECTION);
                 }}
-                onOrderSuccess={() => transitionTo(AppStep.CONFIRMATION)}
+                onOrderSuccess={() => {
+                  // New flow: after checkout, offer gems as upsell (optional)
+                  // For now, go directly to confirmation
+                  // TODO: Add gems upsell option in StepCheckout
+                  transitionTo(AppStep.CONFIRMATION);
+                }}
+                onAddGems={() => transitionTo(AppStep.GEMS)}
                 applicationId={applicationId || undefined}
               />
             )}

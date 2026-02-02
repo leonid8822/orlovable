@@ -159,6 +159,13 @@ class SupabaseClient:
 
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(url, headers=headers, content=file_data)
+
+            # Log detailed error info for debugging
+            if response.status_code >= 400:
+                print(f"Storage upload error: {response.status_code} - {response.text}")
+                print(f"  URL: {url}")
+                print(f"  Bucket: {bucket}, Path: {path}")
+
             if response.status_code == 400 and "already exists" in response.text.lower():
                 # File exists and upsert didn't work, try to delete and re-upload
                 print(f"File exists, attempting to delete and re-upload: {path}")

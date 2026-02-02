@@ -1,12 +1,13 @@
 // Step enum for state machine
+// Flow: UPLOAD → GENERATING → SELECTION → CHECKOUT → [GEMS] → CONFIRMATION
 export enum AppStep {
   UPLOAD = 'UPLOAD',
   GENERATING = 'GENERATING',
   SELECTION = 'SELECTION',
-  GEMS = 'GEMS',              // Add gemstones (admin only)
-  ENGRAVING = 'ENGRAVING',    // Back side text (flat pendants only)
-  CHECKOUT = 'CHECKOUT',
-  CONFIRMATION = 'CONFIRMATION'  // After payment success
+  CHECKOUT = 'CHECKOUT',       // Select material, size + order
+  GEMS = 'GEMS',               // Optional: add gemstones (upsell after order)
+  ENGRAVING = 'ENGRAVING',     // Legacy: kept for compatibility
+  CONFIRMATION = 'CONFIRMATION'  // After payment/order success
 }
 
 // Step titles for UI
@@ -14,14 +15,14 @@ export const STEP_TITLES: Record<AppStep, string> = {
   [AppStep.UPLOAD]: 'Загрузка',
   [AppStep.GENERATING]: 'Генерация',
   [AppStep.SELECTION]: 'Выбор',
+  [AppStep.CHECKOUT]: 'Оформление',
   [AppStep.GEMS]: 'Камни',
   [AppStep.ENGRAVING]: 'Гравировка',
-  [AppStep.CHECKOUT]: 'Оформление',
   [AppStep.CONFIRMATION]: 'Готово'
 };
 
 // Visible steps in indicator (GENERATING is part of UPLOAD visually)
-// GEMS and ENGRAVING are optional admin steps, shown dynamically
+// GEMS is optional upsell after checkout, not shown in main indicator
 export const VISIBLE_STEPS: AppStep[] = [AppStep.UPLOAD, AppStep.SELECTION, AppStep.CHECKOUT];
 
 // Gem types

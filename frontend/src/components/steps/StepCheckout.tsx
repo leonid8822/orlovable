@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Send, MessageCircle, Mail, Phone, User, Sparkles } from "lucide-react";
+import { ArrowLeft, Send, MessageCircle, Mail, Phone, User, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -18,6 +17,7 @@ interface StepCheckoutProps {
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onBack: () => void;
   onOrderSuccess?: () => void;
+  onAddGems?: () => void;  // Optional: navigate to gems upsell step
   applicationId?: string;
 }
 
@@ -28,6 +28,7 @@ export function StepCheckout({
   onConfigChange,
   onBack,
   onOrderSuccess,
+  onAddGems,
   applicationId,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,12 +102,33 @@ export function StepCheckout({
       return;
     }
 
-    // Validate email
+    // Validate required fields
     const trimmedEmail = email.trim();
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       toast({
         title: "Введите email",
         description: "Email необходим для связи с вами",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!trimmedName) {
+      toast({
+        title: "Введите имя",
+        description: "Как к вам обращаться?",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!trimmedPhone) {
+      toast({
+        title: "Введите телефон",
+        description: "Телефон необходим для связи с вами",
         variant: "destructive",
       });
       return;
@@ -117,13 +139,12 @@ export function StepCheckout({
     try {
       const { data, error } = await api.submitOrder(applicationId, {
         email: trimmedEmail,
-        name: name.trim() || undefined,
-        phone: phone.trim() || undefined,
+        name: trimmedName,
+        phone: trimmedPhone,
         telegram: telegram.trim() || undefined,
         material: config.material,
         size: config.size,
         size_option: config.sizeOption,
-        order_comment: config.orderComment || undefined,
         gems: config.gems.length > 0 ? config.gems : undefined,
       });
 
@@ -320,7 +341,7 @@ export function StepCheckout({
           {/* Price info */}
           <div className="bg-card rounded-xl border border-theme/30 p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Примерная стоимость</span>
+              <span className="text-muted-foreground">Базовая стоимость</span>
               <span className="font-display text-xl">
                 от {price.toLocaleString("ru-RU")} ₽
               </span>
@@ -336,7 +357,7 @@ export function StepCheckout({
             </div>
 
             <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-              Точная стоимость зависит от сложности изделия. Оплата после согласования.
+              Это стоимость базового украшения. Точная цена зависит от сложности.
             </p>
           </div>
         </div>
@@ -361,11 +382,11 @@ export function StepCheckout({
             />
           </div>
 
-          {/* Name */}
+          {/* Name - required */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <User className="w-4 h-4" />
-              Имя
+              Имя *
             </label>
             <Input
               type="text"
@@ -373,50 +394,38 @@ export function StepCheckout({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="bg-card border-border focus:border-theme"
+              required
             />
           </div>
 
-          {/* Phone or Telegram - one is enough */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Телефон
-              </label>
-              <Input
-                type="tel"
-                placeholder="+7..."
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="bg-card border-border focus:border-theme"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <MessageCircle className="w-4 h-4" />
-                Telegram
-              </label>
-              <Input
-                type="text"
-                placeholder="@username"
-                value={telegram}
-                onChange={(e) => setTelegram(e.target.value)}
-                className="bg-card border-border focus:border-theme"
-              />
-            </div>
-          </div>
-
-          {/* Order comment */}
+          {/* Phone - required */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Пожелания к заказу
+              <Phone className="w-4 h-4" />
+              Телефон *
             </label>
-            <Textarea
-              placeholder="Камни, особые детали, вопросы..."
-              value={config.orderComment}
-              onChange={(e) => onConfigChange({ orderComment: e.target.value })}
-              className="min-h-[80px] text-sm bg-card border-border focus:border-theme resize-none"
+            <Input
+              type="tel"
+              placeholder="+7..."
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="bg-card border-border focus:border-theme"
+              required
+            />
+          </div>
+
+          {/* Telegram - optional */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Telegram
+            </label>
+            <Input
+              type="text"
+              placeholder="@username (необязательно)"
+              value={telegram}
+              onChange={(e) => setTelegram(e.target.value)}
+              className="bg-card border-border focus:border-theme"
             />
           </div>
 
@@ -478,11 +487,19 @@ export function StepCheckout({
               size="lg"
               className="w-full md:flex-1"
               onClick={handleSubmitOrder}
-              disabled={isProcessing || !agreedToTerms || !email.trim()}
+              disabled={isProcessing || !agreedToTerms || !email.trim() || !name.trim() || !phone.trim()}
             >
               <Send className="w-4 h-4 mr-2" />
               {isProcessing ? "Оформляем..." : "Оформить заказ"}
             </Button>
+          </div>
+
+          {/* Note about extras */}
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-theme/5 border border-theme/20 text-sm">
+            <Gem className="w-4 h-4 text-theme mt-0.5 flex-shrink-0" />
+            <p className="text-muted-foreground">
+              После оформления заказа вы сможете добавить камни, надпись на обратной стороне и другие пожелания.
+            </p>
           </div>
         </div>
       </div>

@@ -70,6 +70,8 @@ class SettingsUpdate(BaseModel):
     sizes: Optional[dict] = None
     materials: Optional[dict] = None
     visualization: Optional[dict] = None
+    # Gems settings
+    gems_config: Optional[dict] = None  # {scaleCoefficient, pricePerGem}
     # Custom 3D form generation settings
     custom_form_prompt: Optional[str] = None
     custom_form_sizes: Optional[dict] = None
@@ -132,6 +134,11 @@ async def get_settings():
             "imageWidthMm": 250,
             "female": {"attachX": 0.5, "attachY": 0.5},
             "male": {"attachX": 0.5, "attachY": 0.75}
+        },
+        # Gems configuration
+        "gems_config": {
+            "scaleCoefficient": 1.4,  # Pendant height * 1.4 = image height for gem sizing
+            "pricePerGem": 2000  # Price per gem in rubles
         },
         # Custom 3D form generation (arbitrary objects from photos)
         "custom_form_enabled": False,
@@ -221,6 +228,8 @@ CRITICAL REQUIREMENTS:
                 result['materials'] = value
             elif key == 'visualization' and isinstance(value, dict):
                 result['visualization'] = value
+            elif key == 'gems_config' and isinstance(value, dict):
+                result['gems_config'] = value
             elif key in ['main_prompt', 'main_prompt_no_image', 'custom_form_prompt', 'flat_pendant_prompt', 'volumetric_pendant_prompt']:
                 result[key] = str(value) if value else ""
             elif key == 'custom_form_sizes' and isinstance(value, dict):
@@ -267,6 +276,8 @@ async def update_settings(updates: SettingsUpdate):
             await set_val('materials', updates.materials)
         if updates.visualization:
             await set_val('visualization', updates.visualization)
+        if updates.gems_config:
+            await set_val('gems_config', updates.gems_config)
         if updates.custom_form_prompt is not None:
             await set_val('custom_form_prompt', updates.custom_form_prompt)
         if updates.custom_form_sizes:
