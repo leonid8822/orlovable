@@ -16,6 +16,7 @@ import asyncio
 import time
 import uuid
 import random
+import base64
 from datetime import datetime, timedelta
 
 router = APIRouter()
@@ -924,10 +925,29 @@ Maximum surface detail, jewelry quality finish."""
             cost_per_image = model_config.get("cost_per_image_cents", COST_PER_IMAGE_CENTS)
             cost_cents = len(image_urls) * cost_per_image + len(image_urls) * COST_REMOVE_BG_CENTS
 
+            # Upload input image to Supabase Storage for history
+            input_image_url = None
+            if has_image and req.imageBase64:
+                try:
+                    input_path = f"{generation_id}/input.webp"
+                    if req.imageBase64.startswith("data:"):
+                        # Base64 encoded image - extract base64 data after the comma
+                        base64_data = req.imageBase64.split(",", 1)[1] if "," in req.imageBase64 else req.imageBase64
+                        image_bytes = base64.b64decode(base64_data)
+                        await supabase.upload_file("generations", input_path, image_bytes, "image/webp")
+                        input_image_url = await supabase.get_public_url("generations", input_path)
+                    elif req.imageBase64.startswith("http"):
+                        # URL - download and upload
+                        input_image_url = await supabase.upload_from_url("generations", input_path, req.imageBase64)
+                    print(f"Uploaded input image: {input_image_url}")
+                except Exception as input_err:
+                    print(f"Failed to upload input image: {input_err}")
+                    input_image_url = None
+
             # Save to Supabase
             gen_data = {
                 "id": generation_id,
-                "input_image_url": req.imageBase64[:500] + "..." if has_image and req.imageBase64 else None,
+                "input_image_url": input_image_url,
                 "user_comment": req.prompt,
                 "form_factor": req.formFactor,
                 "material": req.material,
