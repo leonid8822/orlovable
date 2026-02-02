@@ -601,5 +601,101 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Shop / Products API
+    getProducts: async (category?: string, featuredOnly?: boolean) => {
+        try {
+            const params = new URLSearchParams();
+            if (category) params.append('category', category);
+            if (featuredOnly) params.append('featured_only', 'true');
+            const url = `${API_URL}/products${params.toString() ? '?' + params.toString() : ''}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    getProduct: async (productId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/products/${productId}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Product not found');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    // Admin Products API
+    adminGetProducts: async () => {
+        try {
+            const response = await fetch(`${API_URL}/admin/products`);
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    adminCreateProduct: async (product: {
+        name: string;
+        description?: string;
+        category?: string;
+        image_url: string;
+        gallery_urls?: string[];
+        price_silver: number;
+        price_gold?: number;
+        sizes_available?: string[];
+        is_available?: boolean;
+        is_featured?: boolean;
+        display_order?: number;
+        slug?: string;
+    }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/products`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(product)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Create failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    adminUpdateProduct: async (productId: string, updates: Record<string, unknown>) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/products/${productId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Update failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    adminDeleteProduct: async (productId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/products/${productId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Delete failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };
