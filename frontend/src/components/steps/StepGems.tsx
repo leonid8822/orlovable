@@ -2,9 +2,12 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Trash2, Gem, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PendantConfig, GemPlacement } from "@/types/pendant";
+import type { PendantConfig, GemPlacement, Size } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { api } from "@/lib/api";
+
+type SizeOption = "s" | "m" | "l";
 
 interface GemData {
   id: string;
@@ -34,10 +37,22 @@ export function StepGems({
   onSkip,
 }: StepGemsProps) {
   const { config: themeConfig } = useAppTheme();
+  const { settings } = useSettings();
   const [gems, setGems] = useState<GemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
   const imageRef = useRef<HTMLDivElement>(null);
+
+  // Get sizes from settings
+  const sizes = settings.sizes[config.material] || settings.sizes.silver;
+
+  const handleSizeChange = (size: SizeOption) => {
+    const newSizeConfig = sizes[size];
+    onConfigChange({
+      sizeOption: size,
+      size: (newSizeConfig?.apiSize || 'pendant') as Size,
+    });
+  };
 
   // Load gems from database
   useEffect(() => {
@@ -252,6 +267,41 @@ export function StepGems({
                 Очистить все
               </Button>
             )}
+          </div>
+
+          {/* Size selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              Размер изделия
+            </label>
+            <div className="flex gap-2">
+              {(['s', 'm', 'l'] as SizeOption[]).map((sizeKey) => {
+                const sizeInfo = sizes[sizeKey];
+                if (!sizeInfo) return null;
+
+                return (
+                  <button
+                    key={sizeKey}
+                    onClick={() => handleSizeChange(sizeKey)}
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-xl border-2 transition-all text-center",
+                      config.sizeOption === sizeKey
+                        ? "border-current shadow-md"
+                        : "border-border hover:border-muted-foreground"
+                    )}
+                    style={config.sizeOption === sizeKey ? { borderColor: themeConfig.accentColor } : undefined}
+                  >
+                    <div className="font-bold text-sm">{sizeInfo.label}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {sizeInfo.dimensionsMm} мм
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Размер влияет на масштаб камней относительно изделия
+            </p>
           </div>
         </div>
 
