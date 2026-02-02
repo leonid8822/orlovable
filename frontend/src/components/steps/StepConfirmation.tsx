@@ -119,7 +119,7 @@ export function StepConfirmation({
               </div>
 
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Размер</span>
+                <span className="text-muted-foreground">Размер (высота)</span>
                 <span>{sizeConfig?.label} ({sizeConfig?.dimensions})</span>
               </div>
 

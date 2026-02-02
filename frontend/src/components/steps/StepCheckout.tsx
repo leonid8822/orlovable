@@ -253,6 +253,10 @@ export function StepCheckout({
                 />
               ))}
             </div>
+            {/* Size indicator on preview */}
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              {activeImageIndex === 1 ? `Примерка: высота ${currentSize.dimensionsMm} мм` : `Высота изделия: ${currentSize.dimensionsMm} мм`}
+            </p>
           </div>
 
           {/* Material selection */}
