@@ -303,6 +303,12 @@ export function StepGems({
             <p className="text-xs text-muted-foreground">
               Размер влияет на масштаб камней относительно изделия
             </p>
+            {/* Warning for small size */}
+            {config.sizeOption === 's' && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                ⚠️ Маленький размер — мелкие детали могут быть сложны в реализации
+              </p>
+            )}
           </div>
         </div>
 

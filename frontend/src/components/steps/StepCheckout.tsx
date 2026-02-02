@@ -349,6 +349,12 @@ export function StepCheckout({
                 );
               })}
             </div>
+            {/* Warning for small size */}
+            {config.sizeOption === 's' && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-2 px-4">
+                ⚠️ Маленький размер — мелкие детали могут быть сложны в реализации
+              </p>
+            )}
           </div>
 
           {/* Price info */}
