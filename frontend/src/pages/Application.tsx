@@ -22,17 +22,17 @@ import { toast } from "sonner";
 import { ThemeProvider, AppTheme, themeConfigs } from "@/contexts/ThemeContext";
 
 /// State machine: valid transitions
-// New flow: UPLOAD → GENERATING → SELECTION → CHECKOUT → [GEMS] → CONFIRMATION
-// GEMS is optional upsell step AFTER checkout (ordering base product)
+// New flow: UPLOAD → GENERATING → SELECTION → CHECKOUT → CONFIRMATION → [GEMS upsell]
+// GEMS is optional upsell step accessible from CONFIRMATION
 // ENGRAVING is integrated into CHECKOUT or removed
 const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
   [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.GEMS, AppStep.CONFIRMATION],
-  [AppStep.GEMS]: [AppStep.CHECKOUT, AppStep.CONFIRMATION], // Can go back to checkout or finish
+  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.CONFIRMATION],
+  [AppStep.GEMS]: [AppStep.CONFIRMATION], // After gems, go back to confirmation
   [AppStep.ENGRAVING]: [AppStep.CHECKOUT], // Legacy: redirect to checkout
-  [AppStep.CONFIRMATION]: [], // Terminal state
+  [AppStep.CONFIRMATION]: [AppStep.GEMS], // Can add gems from confirmation
 };
 
 const Application = () => {
@@ -457,12 +457,12 @@ const Application = () => {
                 config={config}
                 onConfigChange={handleConfigChange}
                 onNext={() => {
-                  // New flow: gems is after checkout, so go to confirmation
+                  // After adding gems, go back to confirmation
                   transitionTo(AppStep.CONFIRMATION);
                 }}
-                onBack={() => transitionTo(AppStep.CHECKOUT)}
+                onBack={() => transitionTo(AppStep.CONFIRMATION)}
                 onSkip={() => {
-                  // Skip gems and go to confirmation
+                  // Skip gems and go back to confirmation
                   transitionTo(AppStep.CONFIRMATION);
                 }}
               />
@@ -504,6 +504,7 @@ const Application = () => {
                 paymentAmount={paymentInfo?.amount}
                 orderId={paymentInfo?.orderId}
                 onConfigChange={handleConfigChange}
+                onAddGems={() => transitionTo(AppStep.GEMS)}
               />
             )}
           </div>

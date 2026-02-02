@@ -1,9 +1,9 @@
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, MessageCircle, Gem, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import type { PendantConfig } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { materialLabels, SILVER_SIZE_CONFIG, GOLD_SIZE_CONFIG, SizeOption } from "@/types/pendant";
 
 interface StepConfirmationProps {
@@ -12,6 +12,7 @@ interface StepConfirmationProps {
   paymentAmount?: number;
   orderId?: string;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
+  onAddGems?: () => void;
 }
 
 export function StepConfirmation({
@@ -20,9 +21,11 @@ export function StepConfirmation({
   paymentAmount,
   orderId,
   onConfigChange,
+  onAddGems,
 }: StepConfirmationProps) {
   const navigate = useNavigate();
   const { config: themeConfig } = useAppTheme();
+  const { settings } = useSettings();
 
   const getSizeConfig = () => {
     const sizeConfigs = config.material === "gold" ? GOLD_SIZE_CONFIG : SILVER_SIZE_CONFIG;
@@ -30,6 +33,17 @@ export function StepConfirmation({
   };
 
   const sizeConfig = getSizeConfig();
+
+  // Get price from settings
+  const sizes = settings.sizes[config.material] || settings.sizes.silver;
+  const currentSizeConfig = sizes[config.sizeOption];
+  const basePrice = currentSizeConfig?.price || 0;
+
+  // Calculate gems price
+  const gemsConfig = settings.gems_config || { pricePerGem: 2000 };
+  const gemsCount = config.gems?.length || 0;
+  const gemsPrice = gemsCount * gemsConfig.pricePerGem;
+  const totalPrice = basePrice + gemsPrice;
 
   const handleNewOrder = () => {
     navigate("/");
@@ -42,7 +56,7 @@ export function StepConfirmation({
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       {/* Success header */}
-      <div className="text-center mb-12">
+      <div className="text-center mb-8">
         <div className="relative inline-block mb-6">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center"
@@ -69,48 +83,33 @@ export function StepConfirmation({
         </p>
       </div>
 
-      {/* Order summary */}
-      <div className="grid md:grid-cols-2 gap-8 mb-12">
-        {/* Left column - images */}
-        <div className="space-y-6">
-          {/* Original image */}
-          {config.imagePreview && (
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-sm">Ваш эскиз</Label>
-              <div className="rounded-xl overflow-hidden bg-card border border-border/50">
-                <img
-                  src={config.imagePreview}
-                  alt="Исходное изображение"
-                  className="w-full h-48 object-contain"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Generated design */}
+      {/* Main content - pendant preview large on white */}
+      <div className="grid md:grid-cols-2 gap-8 mb-8">
+        {/* Left column - large pendant preview on white background */}
+        <div className="flex flex-col items-center">
           {config.generatedPreview && (
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-sm">Выбранный дизайн</Label>
-              <div
-                className="rounded-xl overflow-hidden bg-gradient-to-br from-background via-card to-background border-2"
-                style={{ borderColor: `${themeConfig.accentColor}50` }}
-              >
-                <img
-                  src={config.generatedPreview}
-                  alt="Выбранный дизайн"
-                  className="w-full h-64 object-contain"
-                />
-              </div>
+            <div
+              className="w-full max-w-md aspect-square rounded-2xl overflow-hidden border-2 bg-white flex items-center justify-center p-8"
+              style={{ borderColor: `${themeConfig.accentColor}30` }}
+            >
+              <img
+                src={config.generatedPreview}
+                alt="Ваше украшение"
+                className="w-full h-full object-contain"
+                style={{
+                  filter: config.material === "gold"
+                    ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
+                    : "none"
+                }}
+              />
             </div>
           )}
         </div>
 
-        {/* Right column - details */}
+        {/* Right column - details and upsell */}
         <div className="space-y-6">
           {/* Order details */}
-          <div
-            className="bg-card/50 rounded-xl border border-border/50 p-6 space-y-4"
-          >
+          <div className="bg-card/50 rounded-xl border border-border/50 p-6 space-y-4">
             <h3 className="font-medium text-lg">Детали заказа</h3>
 
             <div className="space-y-3 text-sm">
@@ -124,24 +123,34 @@ export function StepConfirmation({
                 <span>{sizeConfig?.label} ({sizeConfig?.dimensions})</span>
               </div>
 
-              {config.orderComment && (
-                <div className="pt-2 border-t border-border/50">
-                  <span className="text-muted-foreground block mb-1">Пожелания</span>
-                  <p className="text-sm">{config.orderComment}</p>
+              <div className="flex justify-between pt-2 border-t border-border/50">
+                <span className="text-muted-foreground">Базовая стоимость</span>
+                <span>{basePrice.toLocaleString("ru-RU")} ₽</span>
+              </div>
+
+              {gemsCount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Камни ({gemsCount} шт.)</span>
+                  <span>+{gemsPrice.toLocaleString("ru-RU")} ₽</span>
                 </div>
               )}
 
-              {paymentAmount && (
-                <div className="flex justify-between pt-3 border-t border-border/50 font-medium">
+              <div className="flex justify-between pt-2 border-t border-border/50 font-medium text-base">
+                <span>Итого</span>
+                <span style={{ color: themeConfig.accentColor }}>
+                  от {totalPrice.toLocaleString("ru-RU")} ₽
+                </span>
+              </div>
+
+              {paymentAmount && paymentAmount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
                   <span>Оплачено</span>
-                  <span style={{ color: themeConfig.accentColor }}>
-                    {paymentAmount.toLocaleString()} ₽
-                  </span>
+                  <span>{paymentAmount.toLocaleString("ru-RU")} ₽</span>
                 </div>
               )}
 
               {orderId && (
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-xs text-muted-foreground pt-2">
                   <span>Номер заказа</span>
                   <span className="font-mono">{orderId}</span>
                 </div>
@@ -149,6 +158,37 @@ export function StepConfirmation({
             </div>
           </div>
 
+          {/* Gems upsell */}
+          {onAddGems && gemsCount === 0 && (
+            <div
+              className="rounded-xl border-2 border-dashed p-6 space-y-4 hover:border-theme/50 transition-colors cursor-pointer"
+              style={{ borderColor: `${themeConfig.accentColor}30` }}
+              onClick={onAddGems}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${themeConfig.accentColor}15` }}
+                >
+                  <Gem className="w-6 h-6" style={{ color: themeConfig.accentColor }} />
+                </div>
+                <div>
+                  <h4 className="font-medium">Добавить камни</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Украсьте изделие натуральными камнями
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                style={{ borderColor: themeConfig.accentColor, color: themeConfig.accentColor }}
+              >
+                <Plus className="w-4 h-4" />
+                Выбрать камни (+{gemsConfig.pricePerGem.toLocaleString("ru-RU")} ₽/шт)
+              </Button>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="space-y-3">
