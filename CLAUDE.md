@@ -394,6 +394,64 @@ key: varchar(255) PRIMARY KEY
 value: jsonb
 ```
 
+### app_logs (Debugging)
+```sql
+id: uuid PRIMARY KEY
+level: varchar(20)           -- debug, info, warning, error
+source: varchar(100)         -- gem_upload, generation, payment, etc.
+message: text
+details: jsonb               -- Stack trace, request data, etc.
+created_at: timestamp
+```
+
+---
+
+## Application Logs (Debugging)
+
+Логи приложения записываются в таблицу `app_logs` в Supabase для удалённой отладки.
+
+### Создание таблицы
+```sql
+-- Выполнить в Supabase SQL Editor:
+-- backend/migrations/003_create_logs_table.sql
+```
+
+### API доступ к логам
+```bash
+# Получить последние 100 логов
+curl "https://olai-api.onrender.com/api/logs"
+
+# Фильтр по уровню (error, warning, info, debug)
+curl "https://olai-api.onrender.com/api/logs?level=error"
+
+# Фильтр по источнику
+curl "https://olai-api.onrender.com/api/logs?source=gem_upload"
+
+# Комбинированный фильтр
+curl "https://olai-api.onrender.com/api/logs?level=error&source=gem_upload&limit=50"
+
+# Создать тестовый лог
+curl -X POST "https://olai-api.onrender.com/api/logs?level=info&source=test&message=hello"
+```
+
+### Источники логов (source)
+| Source | Description |
+|--------|-------------|
+| `gem_upload` | Загрузка камней в библиотеку |
+| `gem_update` | Обновление камней |
+| `generation` | AI генерация изображений |
+| `payment` | Платежи Tinkoff |
+
+### Использование в коде
+```python
+from app_logger import logger
+
+# Логирование
+await logger.info("source_name", "Message", {"key": "value"})
+await logger.error("source_name", "Error message", {"error": str(e)})
+await logger.exception("source_name", "Exception", exc, {"extra": "data"})
+```
+
 ---
 
 ## API Endpoints

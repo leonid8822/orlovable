@@ -29,13 +29,22 @@ class SupabaseClient:
     def _rest_url(self, table: str) -> str:
         return f"{self.url}/rest/v1/{table}"
 
-    async def select(self, table: str, columns: str = "*", filters: dict = None, order: str = None, limit: int = None):
-        """Select records from table"""
+    async def select(self, table: str, columns: str = "*", filters=None, order: str = None, limit: int = None):
+        """
+        Select records from table.
+
+        filters can be:
+        - dict: {"field": "value"} -> adds field=eq.value
+        - str: "field=eq.value&other=gt.5" -> appended directly
+        """
         url = f"{self._rest_url(table)}?select={columns}"
 
         if filters:
-            for key, value in filters.items():
-                url += f"&{key}=eq.{value}"
+            if isinstance(filters, dict):
+                for key, value in filters.items():
+                    url += f"&{key}=eq.{value}"
+            elif isinstance(filters, str) and filters:
+                url += f"&{filters}"
 
         if order:
             url += f"&order={order}"

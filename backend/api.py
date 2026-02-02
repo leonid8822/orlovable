@@ -2259,16 +2259,22 @@ async def admin_get_gems():
 async def admin_create_gem(req: CreateGemRequest):
     """Create a new gem type"""
     import traceback
+    from app_logger import logger
 
     try:
         gem_id = str(uuid.uuid4())
         image_url = None
 
+        await logger.info("gem_upload", f"Creating gem: {req.name}", {
+            "gem_id": gem_id,
+            "shape": req.shape,
+            "has_image": bool(req.image_base64),
+            "remove_bg": req.remove_background
+        })
+
         # Process and upload image if provided
         if req.image_base64:
             import base64
-
-            print(f"Processing gem image for {req.name}...")
 
             # Decode base64
             try:
@@ -2276,15 +2282,19 @@ async def admin_create_gem(req: CreateGemRequest):
                     image_data = base64.b64decode(req.image_base64.split(",")[1])
                 else:
                     image_data = base64.b64decode(req.image_base64)
-                print(f"  Image decoded, size: {len(image_data)} bytes")
+                await logger.debug("gem_upload", f"Image decoded", {"size_bytes": len(image_data)})
             except Exception as decode_err:
-                print(f"  Base64 decode error: {decode_err}")
+                await logger.error("gem_upload", "Base64 decode failed", {"error": str(decode_err)})
                 raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
             # Upload with background removal
             try:
                 path = f"gems/{gem_id}.png"
-                print(f"  Uploading to {path}, remove_bg={req.remove_background}, tolerance={req.bg_tolerance}")
+                await logger.debug("gem_upload", f"Uploading to storage", {
+                    "path": path,
+                    "remove_bg": req.remove_background,
+                    "tolerance": req.bg_tolerance
+                })
                 image_url = await supabase.upload_gem_image(
                     bucket="images",
                     path=path,
@@ -2293,10 +2303,9 @@ async def admin_create_gem(req: CreateGemRequest):
                     max_size=400,
                     bg_tolerance=req.bg_tolerance
                 )
-                print(f"  Upload successful: {image_url}")
+                await logger.info("gem_upload", "Upload successful", {"image_url": image_url})
             except Exception as upload_err:
-                print(f"  Upload error: {upload_err}")
-                print(traceback.format_exc())
+                await logger.exception("gem_upload", "Upload failed", upload_err)
                 raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         gem_data = {
@@ -2311,31 +2320,34 @@ async def admin_create_gem(req: CreateGemRequest):
             "sort_order": req.sort_order,
         }
 
-        print(f"  Inserting gem into database: {gem_id}")
         await supabase.insert("gems", gem_data)
-        print(f"  Gem created successfully: {req.name}")
+        await logger.info("gem_upload", f"Gem created successfully: {req.name}", {"gem_id": gem_id})
 
         return {"success": True, "gem": gem_data}
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating gem: {e}")
-        print(traceback.format_exc())
+        await logger.exception("gem_upload", "Unexpected error creating gem", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/admin/gems/{gem_id}")
 async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
     """Update a gem type"""
-    import traceback
+    from app_logger import logger
 
     try:
         gem = await supabase.select_one("gems", gem_id)
         if not gem:
+            await logger.warning("gem_update", f"Gem not found: {gem_id}")
             raise HTTPException(status_code=404, detail="Камень не найден")
 
-        print(f"Updating gem: {gem_id} ({gem.get('name')})")
+        await logger.info("gem_update", f"Updating gem: {gem.get('name')}", {
+            "gem_id": gem_id,
+            "has_new_image": bool(req.image_base64)
+        })
+
         updates = {}
 
         if req.name is not None:
@@ -2357,22 +2369,26 @@ async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
         if req.image_base64:
             import base64
 
-            print(f"  Processing new image...")
             try:
                 if "," in req.image_base64:
                     image_data = base64.b64decode(req.image_base64.split(",")[1])
                 else:
                     image_data = base64.b64decode(req.image_base64)
-                print(f"  Image decoded, size: {len(image_data)} bytes")
+                await logger.debug("gem_update", "Image decoded", {"size_bytes": len(image_data)})
             except Exception as decode_err:
-                print(f"  Base64 decode error: {decode_err}")
+                await logger.error("gem_update", "Base64 decode failed", {"error": str(decode_err)})
                 raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
             try:
                 path = f"gems/{gem_id}.png"
                 remove_bg = req.remove_background if req.remove_background is not None else True
                 tolerance = req.bg_tolerance if req.bg_tolerance is not None else 30
-                print(f"  Uploading to {path}, remove_bg={remove_bg}, tolerance={tolerance}")
+
+                await logger.debug("gem_update", "Uploading to storage", {
+                    "path": path,
+                    "remove_bg": remove_bg,
+                    "tolerance": tolerance
+                })
 
                 image_url = await supabase.upload_gem_image(
                     bucket="images",
@@ -2383,23 +2399,23 @@ async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
                     bg_tolerance=tolerance
                 )
                 updates["image_url"] = image_url
-                print(f"  Upload successful: {image_url}")
+                await logger.info("gem_update", "Upload successful", {"image_url": image_url})
             except Exception as upload_err:
-                print(f"  Upload error: {upload_err}")
-                print(traceback.format_exc())
+                await logger.exception("gem_update", "Upload failed", upload_err)
                 raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         if updates:
-            print(f"  Updating database with: {list(updates.keys())}")
+            await logger.debug("gem_update", f"Updating database", {"fields": list(updates.keys())})
             await supabase.update("gems", gem_id, updates)
 
         updated_gem = await supabase.select_one("gems", gem_id)
+        await logger.info("gem_update", f"Gem updated successfully: {updated_gem.get('name')}", {"gem_id": gem_id})
         return {"success": True, "gem": updated_gem}
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating gem: {e}")
+        await logger.exception("gem_update", "Unexpected error updating gem", e, {"gem_id": gem_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2436,3 +2452,67 @@ GEM_SHAPES = [
 async def get_gem_shapes():
     """Get available gem shapes"""
     return {"shapes": GEM_SHAPES}
+
+
+# ============== LOGS ENDPOINTS ==============
+
+@router.get("/logs")
+async def get_logs(
+    limit: int = 100,
+    level: Optional[str] = None,
+    source: Optional[str] = None
+):
+    """
+    Get application logs for debugging.
+
+    Query params:
+    - limit: Max number of logs to return (default 100)
+    - level: Filter by level (debug, info, warning, error)
+    - source: Filter by source (gem_upload, generation, payment, etc.)
+
+    Example: GET /api/logs?limit=50&level=error&source=gem_upload
+    """
+    try:
+        # Build filter string for Supabase REST API
+        filters = []
+        if level:
+            filters.append(f"level=eq.{level}")
+        if source:
+            filters.append(f"source=eq.{source}")
+
+        filter_str = "&".join(filters) if filters else ""
+
+        logs = await supabase.select(
+            "app_logs",
+            order="created_at.desc",
+            limit=limit,
+            filters=filter_str
+        )
+
+        return {
+            "logs": logs or [],
+            "count": len(logs) if logs else 0,
+            "filters": {"level": level, "source": source, "limit": limit}
+        }
+    except Exception as e:
+        # If app_logs table doesn't exist yet, return helpful message
+        print(f"Error getting logs: {e}")
+        error_msg = str(e)
+        if "app_logs" in error_msg.lower() or "does not exist" in error_msg.lower():
+            return {
+                "logs": [],
+                "count": 0,
+                "error": "Table app_logs not found. Run migration: backend/migrations/003_create_logs_table.sql"
+            }
+        return {"logs": [], "count": 0, "error": error_msg}
+
+
+@router.post("/logs")
+async def create_log(level: str = "info", source: str = "manual", message: str = "test"):
+    """Create a test log entry (for debugging)."""
+    try:
+        from app_logger import logger
+        await logger._log(level, source, message, {"manual": True})
+        return {"success": True, "message": "Log created"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
