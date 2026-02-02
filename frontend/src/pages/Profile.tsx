@@ -16,6 +16,7 @@ interface User {
   userId?: string;
   email: string;
   name?: string;
+  phone?: string;
   firstName?: string;
   lastName?: string;
   telegramUsername?: string;
@@ -80,6 +81,7 @@ export default function Profile() {
   // Profile editing state
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [telegramUsername, setTelegramUsername] = useState('');
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,22 +95,55 @@ export default function Profile() {
       return;
     }
 
-    try {
-      const userData = JSON.parse(storedUser) as User;
-      setUser(userData);
-
-      // Initialize form fields
-      setFirstName(userData.firstName || '');
-      setLastName(userData.lastName || '');
-      setTelegramUsername(userData.telegramUsername || '');
-      setSubscribeNewsletter(userData.subscribeNewsletter || false);
-
+    const loadUserData = async (userData: User) => {
       const userId = userData.userId || userData.id;
+
       if (userId) {
+        // Load fresh data from server (users table is source of truth)
+        const { data: serverUser } = await api.getUserProfile(userId);
+        if (serverUser) {
+          const mergedUser = {
+            ...userData,
+            name: serverUser.name || userData.name,
+            phone: serverUser.phone || userData.phone,
+            firstName: serverUser.first_name || userData.firstName,
+            lastName: serverUser.last_name || userData.lastName,
+            telegramUsername: serverUser.telegram_username || userData.telegramUsername,
+            subscribeNewsletter: serverUser.subscribe_newsletter ?? userData.subscribeNewsletter,
+          };
+          setUser(mergedUser);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(mergedUser));
+          // Initialize form fields from server
+          setFirstName(serverUser.first_name || '');
+          setLastName(serverUser.last_name || '');
+          setPhone(serverUser.phone || '');
+          setTelegramUsername(serverUser.telegram_username || '');
+          setSubscribeNewsletter(serverUser.subscribe_newsletter || false);
+        } else {
+          // Fallback to localStorage if server fails
+          setUser(userData);
+          setFirstName(userData.firstName || '');
+          setLastName(userData.lastName || '');
+          setPhone(userData.phone || '');
+          setTelegramUsername(userData.telegramUsername || '');
+          setSubscribeNewsletter(userData.subscribeNewsletter || false);
+        }
         fetchApplications(userId);
       } else {
+        setUser(userData);
+        setFirstName(userData.firstName || '');
+        setLastName(userData.lastName || '');
+        setPhone(userData.phone || '');
+        setTelegramUsername(userData.telegramUsername || '');
+        setSubscribeNewsletter(userData.subscribeNewsletter || false);
         setLoading(false);
       }
+    };
+
+    try {
+      const userData = JSON.parse(storedUser) as User;
+      loadUserData(userData);
     } catch {
       localStorage.removeItem('user');
       navigate('/auth?returnTo=/profile');
@@ -122,11 +157,12 @@ export default function Profile() {
     const changed =
       firstName !== (user.firstName || '') ||
       lastName !== (user.lastName || '') ||
+      phone !== (user.phone || '') ||
       telegramUsername !== (user.telegramUsername || '') ||
       subscribeNewsletter !== (user.subscribeNewsletter || false);
 
     setHasChanges(changed);
-  }, [firstName, lastName, telegramUsername, subscribeNewsletter, user]);
+  }, [firstName, lastName, phone, telegramUsername, subscribeNewsletter, user]);
 
   const fetchApplications = async (userId: string) => {
     setLoading(true);
@@ -163,6 +199,7 @@ export default function Profile() {
       const updates = {
         first_name: firstName.trim() || undefined,
         last_name: lastName.trim() || undefined,
+        phone: phone.trim() || undefined,
         telegram_username: formattedTelegram || undefined,
         subscribe_newsletter: subscribeNewsletter,
       };
@@ -178,6 +215,7 @@ export default function Profile() {
         ...user,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        phone: phone.trim(),
         telegramUsername: formattedTelegram,
         subscribeNewsletter,
       };
@@ -269,6 +307,20 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="phone">Телефон</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+7..."
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Для связи по заказам
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="telegram">Telegram</Label>
                   <Input
                     id="telegram"
@@ -276,9 +328,6 @@ export default function Profile() {
                     value={telegramUsername}
                     onChange={(e) => setTelegramUsername(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Для связи по заказам
-                  </p>
                 </div>
 
                 <div className="space-y-2">

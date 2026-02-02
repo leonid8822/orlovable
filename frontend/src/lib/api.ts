@@ -222,6 +222,7 @@ export const api = {
     updateUserProfile: async (userId: string, updates: {
         first_name?: string;
         last_name?: string;
+        phone?: string;
         telegram_username?: string;
         subscribe_newsletter?: boolean;
     }) => {

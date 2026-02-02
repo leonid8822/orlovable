@@ -51,30 +51,59 @@ const Application = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{ email?: string; name?: string; phone?: string }>({});
 
-  // Check if user is admin and load user info
+  // Check if user is admin and load user info from server (users is source of truth)
   useEffect(() => {
-    const checkAdmin = async () => {
+    const loadUserData = async () => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try {
           const user = JSON.parse(storedUser);
-          // Set customer info from stored user
-          setCustomerInfo(prev => ({
-            ...prev,
-            email: user.email || prev.email,
-            name: user.name || prev.name,
-            phone: user.phone || prev.phone,
-          }));
-          if (user.userId || user.id) {
-            const { data } = await api.checkAdminStatus(user.userId || user.id);
+          const userId = user.userId || user.id;
+
+          if (userId) {
+            // Load fresh data from server (users table is source of truth)
+            const { data: serverUser } = await api.getUserProfile(userId);
+            if (serverUser) {
+              // Update customer info from server
+              setCustomerInfo({
+                email: serverUser.email || user.email,
+                name: serverUser.name || user.name,
+                phone: serverUser.phone || user.phone,
+              });
+              // Update localStorage with fresh data
+              localStorage.setItem('user', JSON.stringify({
+                ...user,
+                name: serverUser.name || user.name,
+                phone: serverUser.phone,
+                firstName: serverUser.first_name,
+                lastName: serverUser.last_name,
+                telegramUsername: serverUser.telegram_username,
+              }));
+            } else {
+              // Fallback to localStorage if server fails
+              setCustomerInfo({
+                email: user.email,
+                name: user.name,
+                phone: user.phone,
+              });
+            }
+            // Check admin status
+            const { data } = await api.checkAdminStatus(userId);
             setIsAdmin(data?.is_admin || false);
+          } else {
+            // No user ID, use localStorage data
+            setCustomerInfo({
+              email: user.email,
+              name: user.name,
+              phone: user.phone,
+            });
           }
         } catch {
           setIsAdmin(false);
         }
       }
     };
-    checkAdmin();
+    loadUserData();
   }, []);
 
   // Theme config derived from appTheme state

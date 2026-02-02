@@ -500,18 +500,19 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
             raise HTTPException(status_code=404, detail="Application not found")
 
         # Find or create user by email
+        # ALWAYS save customer data to users table (source of truth)
         user_id = None
         if req.email:
             existing_user = await supabase.select_by_field("users", "email", req.email)
             if existing_user:
                 user_id = existing_user.get("id")
-                # Update user info if provided
+                # Always update user info when provided (users is source of truth)
                 user_updates = {}
-                if req.name and not existing_user.get("name"):
+                if req.name:
                     user_updates["name"] = req.name
-                if req.phone and not existing_user.get("phone"):
+                if req.phone:
                     user_updates["phone"] = req.phone
-                if req.telegram and not existing_user.get("telegram_username"):
+                if req.telegram:
                     user_updates["telegram_username"] = req.telegram
                 if user_updates:
                     await supabase.update("users", user_id, user_updates)
@@ -1106,6 +1107,7 @@ class VerifyCodeRequest(BaseModel):
 class UserProfileUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone: Optional[str] = None
     telegram_username: Optional[str] = None
     subscribe_newsletter: Optional[bool] = None
 
@@ -1332,6 +1334,7 @@ async def get_user_profile(user_id: str):
             "id": user["id"],
             "email": user.get("email"),
             "name": user.get("name"),
+            "phone": user.get("phone"),
             "first_name": user.get("first_name"),
             "last_name": user.get("last_name"),
             "telegram_username": user.get("telegram_username"),
@@ -1371,6 +1374,7 @@ async def update_user_profile(user_id: str, updates: UserProfileUpdate):
                 "id": user_id,
                 "email": user.get("email"),
                 "name": user.get("name"),
+                "phone": result.get("phone") if result else None,
                 "first_name": result.get("first_name") if result else None,
                 "last_name": result.get("last_name") if result else None,
                 "telegram_username": result.get("telegram_username") if result else None,

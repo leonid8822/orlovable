@@ -315,7 +315,7 @@ export function EmailAuthForm({
             )}
           </Button>
         </form>
-      ) : (
+      ) : step === 'code' ? (
         <div className="space-y-4">
           <button
             type="button"
