@@ -2317,6 +2317,186 @@ async def admin_assign_client_to_application(app_id: str, req: AssignClientReque
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== SHOP / PRODUCTS API ==============
+
+class ProductCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: str = "totem"
+    image_url: str
+    gallery_urls: Optional[list] = []
+    price_silver: int
+    price_gold: Optional[int] = None
+    sizes_available: Optional[list] = ["s", "m", "l"]
+    is_available: bool = True
+    stock_count: int = -1
+    display_order: int = 0
+    is_featured: bool = False
+    slug: Optional[str] = None
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    image_url: Optional[str] = None
+    gallery_urls: Optional[list] = None
+    price_silver: Optional[int] = None
+    price_gold: Optional[int] = None
+    sizes_available: Optional[list] = None
+    is_available: Optional[bool] = None
+    stock_count: Optional[int] = None
+    display_order: Optional[int] = None
+    is_featured: Optional[bool] = None
+    slug: Optional[str] = None
+
+
+@router.get("/products")
+async def get_products(category: Optional[str] = None, featured_only: bool = False):
+    """Get all available products for shop"""
+    try:
+        # Build query - get only available products, ordered by display_order
+        products = await supabase.select(
+            "products",
+            order="display_order.asc,created_at.desc"
+        )
+
+        # Filter by availability
+        products = [p for p in products if p.get("is_available", True)]
+
+        # Filter by category if specified
+        if category:
+            products = [p for p in products if p.get("category") == category]
+
+        # Filter featured only
+        if featured_only:
+            products = [p for p in products if p.get("is_featured", False)]
+
+        return products
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/products/{product_id}")
+async def get_product(product_id: str):
+    """Get single product by ID or slug"""
+    try:
+        # Try to find by ID first
+        product = await supabase.select_one("products", product_id)
+
+        # If not found by ID, try by slug
+        if not product:
+            product = await supabase.select_by_field("products", "slug", product_id)
+
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching product: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/products")
+async def admin_get_products():
+    """Get all products for admin (including unavailable)"""
+    try:
+        products = await supabase.select(
+            "products",
+            order="display_order.asc,created_at.desc"
+        )
+        return products
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/products")
+async def admin_create_product(req: ProductCreate):
+    """Create a new product"""
+    try:
+        # Generate slug from name if not provided
+        slug = req.slug
+        if not slug:
+            import re
+            # Transliterate Russian to English for slug
+            translit_map = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+                'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+                'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+                'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+                'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+            }
+            slug = req.name.lower()
+            for ru, en in translit_map.items():
+                slug = slug.replace(ru, en)
+            slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
+
+        product_data = {
+            "name": req.name,
+            "description": req.description,
+            "category": req.category,
+            "image_url": req.image_url,
+            "gallery_urls": req.gallery_urls or [],
+            "price_silver": req.price_silver,
+            "price_gold": req.price_gold,
+            "sizes_available": req.sizes_available or ["s", "m", "l"],
+            "is_available": req.is_available,
+            "stock_count": req.stock_count,
+            "display_order": req.display_order,
+            "is_featured": req.is_featured,
+            "slug": slug,
+        }
+
+        product = await supabase.insert("products", product_data)
+        return {"success": True, "product": product}
+    except Exception as e:
+        print(f"Error creating product: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/admin/products/{product_id}")
+async def admin_update_product(product_id: str, req: ProductUpdate):
+    """Update a product"""
+    try:
+        # Check product exists
+        existing = await supabase.select_one("products", product_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        updates = req.model_dump(exclude_unset=True)
+        if not updates:
+            raise HTTPException(status_code=400, detail="No updates provided")
+
+        product = await supabase.update("products", product_id, updates)
+        return {"success": True, "product": product}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating product: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/admin/products/{product_id}")
+async def admin_delete_product(product_id: str):
+    """Delete a product"""
+    try:
+        existing = await supabase.select_one("products", product_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        await supabase.delete("products", product_id)
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting product: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== GEM MANAGEMENT ENDPOINTS ==============
 
 class GemShape(str):
