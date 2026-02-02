@@ -53,9 +53,9 @@ export const api = {
             return { data: null, error };
         }
     },
-    getHistory: async () => {
+    getHistory: async (limit: number = 100) => {
         try {
-            const response = await fetch(`${API_URL}/history`);
+            const response = await fetch(`${API_URL}/history?limit=${limit}`);
             const data = await response.json();
             return { data, error: null };
         } catch (error) {
@@ -75,9 +75,12 @@ export const api = {
             return { data: null, error };
         }
     },
-    listApplications: async (userId?: string) => {
+    listApplications: async (userId?: string, limit: number = 100) => {
         try {
-            const url = userId ? `${API_URL}/applications?user_id=${userId}` : `${API_URL}/applications`;
+            const params = new URLSearchParams();
+            if (userId) params.append('user_id', userId);
+            params.append('limit', limit.toString());
+            const url = `${API_URL}/applications?${params.toString()}`;
             const response = await fetch(url);
             const data = await response.json();
             return { data, error: null };
