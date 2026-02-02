@@ -17,6 +17,7 @@ import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { ClientsTab } from '@/components/admin/ClientsTab';
 import { GemsTab } from '@/components/admin/GemsTab';
+import { ClientSelector } from '@/components/admin/ClientSelector';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
 
@@ -122,6 +123,7 @@ const Admin = () => {
   const [editingApplication, setEditingApplication] = useState<Partial<Application>>({});
   const [savingApplication, setSavingApplication] = useState(false);
   const [importingToExamples, setImportingToExamples] = useState(false);
+  const [showClientSelector, setShowClientSelector] = useState(false);
 
   // Settings state
   const [settings, setSettings] = useState<SettingsMap>({
@@ -1564,6 +1566,28 @@ const Admin = () => {
                     </div>
                   </div>
 
+                  {/* Client linking */}
+                  <div className="space-y-2 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">Клиент</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowClientSelector(true)}
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        {selectedApplication.user_id ? 'Изменить' : 'Привязать'}
+                      </Button>
+                    </div>
+                    {selectedApplication.user_id ? (
+                      <p className="text-sm text-muted-foreground">
+                        ID: <code className="text-xs">{selectedApplication.user_id}</code>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Клиент не привязан</p>
+                    )}
+                  </div>
+
                   {/* Editable fields */}
                   <div className="space-y-4 pt-4 border-t">
                     <h3 className="font-medium">Редактируемые поля</h3>
@@ -1719,6 +1743,23 @@ const Admin = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Client Selector Dialog */}
+              <ClientSelector
+                applicationId={selectedApplication.id}
+                currentUserId={selectedApplication.user_id}
+                currentUserEmail={null}
+                isOpen={showClientSelector}
+                onClose={() => setShowClientSelector(false)}
+                onSuccess={(userId, email) => {
+                  // Update local state
+                  setSelectedApplication(prev => prev ? { ...prev, user_id: userId } : null);
+                  setApplications(prev => prev.map(app =>
+                    app.id === selectedApplication.id ? { ...app, user_id: userId } : app
+                  ));
+                  setShowClientSelector(false);
+                }}
+              />
             </div>
           </div>
         )}
