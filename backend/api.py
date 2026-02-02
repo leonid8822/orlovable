@@ -287,6 +287,95 @@ async def update_settings(updates: SettingsUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/settings/reset")
+async def reset_settings_to_defaults():
+    """Reset critical settings to correct defaults - model, prompts, form factors"""
+    try:
+        settings_list = await supabase.select("generation_settings")
+        existing_keys = {item["key"]: item["id"] for item in settings_list}
+
+        async def set_val(key, val):
+            if key in existing_keys:
+                await supabase.update("generation_settings", existing_keys[key], {"value": val})
+            else:
+                await supabase.insert("generation_settings", {"key": key, "value": val})
+
+        # Reset model to seedream
+        await set_val('generation_model', 'seedream')
+
+        # Reset form factors with correct dog tag shape
+        await set_val('form_factors', {
+            "round": {
+                "label": "Круглый кулон",
+                "description": "Круглый кулон",
+                "icon": "circle",
+                "addition": "Объект вписан в круглую рамку-медальон.",
+                "shape": "круглая форма, объект вписан в круг"
+            },
+            "oval": {
+                "label": "Жетон",
+                "description": "Мужской жетон",
+                "icon": "rectangle-vertical",
+                "addition": "Форма армейского жетона (dog tag) - вертикальный скруглённый прямоугольник с небольшой выемкой сверху для цепочки.",
+                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain"
+            },
+            "contour": {
+                "label": "Контурный кулон",
+                "description": "По контуру рисунка",
+                "icon": "hexagon",
+                "addition": "Форма повторяет контур изображения.",
+                "shape": "по контуру выбранного объекта"
+            }
+        })
+
+        # Reset flat pendant prompt with NO COLORS requirement
+        await set_val('flat_pendant_prompt', """Create a jewelry pendant from the reference image.
+Type: {form_label}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with no separate parts
+- Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes - the entire surface is solid silver
+- Bail/loop for chain - simple, classic jewelry style, integrated into the main object
+- Strictly front view only
+- Black background ONLY AROUND the pendant (outside)
+- CRITICAL: The pendant must be made ENTIRELY of polished silver metal. ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL, NO COLORED AREAS. The entire pendant surface must be monochromatic silver/gray metallic only. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
+- Ready for 3D printing - no separate parts, everything connected into a single form
+- {form_addition}
+- Shape: {form_shape}
+- Maximum surface detail, jewelry quality finish""")
+
+        # Reset volumetric prompt with NO COLORS requirement
+        await set_val('volumetric_pendant_prompt', """Create a wearable 3D silver pendant based on the object from the photo.
+Object to transform: {object_description}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- This is a REAL WEARABLE PENDANT that hangs on a chain around the neck
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture with DEPTH and VOLUME
+- The pendant must look like a finished jewelry piece ready to wear, not just a sculpture
+- BAIL/LOOP PLACEMENT: Add a jewelry bail (small loop for chain attachment) at the TOPMOST point of the object. The bail must be positioned so the pendant hangs correctly and naturally when worn.
+- The bail must be integrated seamlessly into the design - a classic, elegant jewelry-style loop
+- Preserve the 3D shape, form and proportions of the original object
+- Show the pendant from a 3/4 angle to emphasize its three-dimensional nature and wearability
+- Material: polished silver metal with realistic reflections and highlights
+- CRITICAL: ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL. The entire pendant must be monochromatic silver/gray metallic ONLY. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts, everything connected
+- Black background, dramatic lighting to show depth and volume
+- Size: {size_dimensions}
+- Maximum surface detail, jewelry quality finish
+- Style: realistic silver miniature sculpture that looks like a professional jewelry piece you can actually wear""")
+
+        return {
+            "success": True,
+            "message": "Settings reset to defaults: seedream model, no-colors prompts, correct dog tag shape",
+            "updated": ["generation_model", "form_factors", "flat_pendant_prompt", "volumetric_pendant_prompt"]
+        }
+    except Exception as e:
+        print(f"Error resetting settings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/applications")
 async def list_applications(user_id: Optional[str] = None, limit: int = 20):
     """List applications"""
