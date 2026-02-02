@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
+import { GemsPromoBlock } from "@/components/GemsPromoBlock";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,6 +200,12 @@ const TotemsLanding = () => {
             </div>
           </div>
         </section>
+
+        {/* Gems Promo Block */}
+        <GemsPromoBlock
+          accentColor="hsl(25, 45%, 35%)"
+          accentColorLight="hsl(25, 45%, 45%)"
+        />
 
         {/* Constructor Section */}
         <LandingConstructor theme="totems" className="bg-card/30" />

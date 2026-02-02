@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
+import { GemsPromoBlock } from "@/components/GemsPromoBlock";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
@@ -221,6 +222,12 @@ const Landing = () => {
             </div>
           </div>
         </section>
+
+        {/* Gems Promo Block */}
+        <GemsPromoBlock
+          accentColor="hsl(43, 74%, 45%)"
+          accentColorLight="hsl(43, 74%, 55%)"
+        />
 
         {/* Constructor Section */}
         <LandingConstructor theme="main" className="bg-card/30" />

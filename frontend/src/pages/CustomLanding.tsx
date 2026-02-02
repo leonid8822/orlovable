@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ImageUploader } from "@/components/ImageUploader";
+import { GemsPromoBlock } from "@/components/GemsPromoBlock";
 import { api } from "@/lib/api";
 import {
   Sparkles,
@@ -303,6 +304,12 @@ const CustomLanding = () => {
             </div>
           </div>
         </section>
+
+        {/* Gems Promo Block */}
+        <GemsPromoBlock
+          accentColor="hsl(270, 50%, 45%)"
+          accentColorLight="hsl(270, 50%, 55%)"
+        />
       </main>
 
       <Footer />
