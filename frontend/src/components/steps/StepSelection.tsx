@@ -81,7 +81,7 @@ export function StepSelection({
               <img
                 src={thumbImage}
                 alt={`Вариант ${index + 1}`}
-                className="w-full h-full object-cover bg-black"
+                className="w-full h-full object-cover bg-card"
                 loading="lazy"
               />
               {/* Selection indicator */}
@@ -107,12 +107,12 @@ export function StepSelection({
             className="relative aspect-square rounded-2xl overflow-hidden border-2"
             style={{ borderColor: `${themeConfig.accentColor}50` }}
           >
-            <div className="absolute inset-0 blur-3xl bg-black/20" />
+            <div className="absolute inset-0 blur-3xl bg-theme/5" />
             {generatedImages[currentIndex] ? (
               <img
                 src={generatedImages[currentIndex]}
                 alt={`Выбранный вариант ${currentIndex + 1}`}
-                className="relative w-full h-full object-contain bg-black"
+                className="relative w-full h-full object-contain bg-gradient-to-br from-background via-card to-background"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-card">

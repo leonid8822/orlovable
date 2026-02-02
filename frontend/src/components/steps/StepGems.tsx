@@ -177,7 +177,7 @@ export function StepGems({
         <div className="space-y-4">
           <div
             ref={imageRef}
-            className="relative aspect-square rounded-2xl overflow-hidden bg-black border-2 cursor-crosshair"
+            className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-background via-card to-background border-2 cursor-crosshair"
             style={{ borderColor: `${themeConfig.accentColor}30` }}
             onClick={handleImageClick}
           >

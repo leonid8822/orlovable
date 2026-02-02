@@ -194,7 +194,7 @@ export function StepCheckout({
           <div className="flex flex-col items-center">
             <div className="w-full max-w-sm aspect-square rounded-2xl overflow-hidden shadow-lg relative">
               {activeImageIndex === 0 ? (
-                <div className="w-full h-full bg-black flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-br from-background via-card to-background flex items-center justify-center">
                   {config.generatedPreview ? (
                     <img
                       src={config.generatedPreview}

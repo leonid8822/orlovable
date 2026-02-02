@@ -177,7 +177,7 @@ export function StepConfirmation({
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Выбранный дизайн</Label>
               <div
-                className="rounded-xl overflow-hidden bg-black/90 border-2"
+                className="rounded-xl overflow-hidden bg-gradient-to-br from-background via-card to-background border-2"
                 style={{ borderColor: `${themeConfig.accentColor}50` }}
               >
                 <img
