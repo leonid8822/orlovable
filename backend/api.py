@@ -2690,6 +2690,29 @@ async def init_logs_table():
     }
 
 
+@router.post("/payments/migrate-url")
+async def migrate_payments_url():
+    """
+    Test that payments table has payment_url column.
+    If not, need to add it via Supabase SQL Editor.
+    """
+    try:
+        # Try to select with payment_url column
+        payments = await supabase.select("payments", order="created_at.desc", limit=1)
+        has_url_column = any("payment_url" in p for p in payments) if payments else True
+        return {
+            "success": True,
+            "has_payment_url_column": has_url_column,
+            "note": "If payment_url is missing, run: ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_url TEXT;"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "sql_to_run": "ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_url TEXT;"
+        }
+
+
 @router.post("/gems/migrate-description")
 async def migrate_gems_description():
     """
