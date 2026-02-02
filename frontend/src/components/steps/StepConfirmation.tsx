@@ -1,11 +1,7 @@
-import { useState, useEffect } from "react";
-import { Check, MessageCircle, Sparkles, Send } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
 import type { PendantConfig } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { materialLabels, SILVER_SIZE_CONFIG, GOLD_SIZE_CONFIG, SizeOption } from "@/types/pendant";
@@ -26,27 +22,7 @@ export function StepConfirmation({
   onConfigChange,
 }: StepConfirmationProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { config: themeConfig } = useAppTheme();
-  const [telegramUsername, setTelegramUsername] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-
-  // Load telegram username from localStorage or user data
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        if (user.telegramUsername) {
-          setTelegramUsername(user.telegramUsername);
-          setIsSaved(true);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
 
   const getSizeConfig = () => {
     const sizeConfigs = config.material === "gold" ? GOLD_SIZE_CONFIG : SILVER_SIZE_CONFIG;
@@ -54,67 +30,6 @@ export function StepConfirmation({
   };
 
   const sizeConfig = getSizeConfig();
-
-  const handleSaveTelegram = async () => {
-    if (!telegramUsername.trim()) {
-      toast({
-        title: "Введите ник",
-        description: "Укажите ваш Telegram для связи",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      // Format telegram username
-      let formattedUsername = telegramUsername.trim();
-      if (!formattedUsername.startsWith("@")) {
-        formattedUsername = `@${formattedUsername}`;
-      }
-
-      // Save to application
-      await api.updateApplication(applicationId, {
-        telegram_username: formattedUsername,
-      });
-
-      // Also save to user profile if logged in
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          if (user.userId) {
-            await api.updateUserProfile(user.userId, {
-              telegram_username: formattedUsername,
-            });
-
-            // Update localStorage
-            user.telegramUsername = formattedUsername;
-            localStorage.setItem("user", JSON.stringify(user));
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      setTelegramUsername(formattedUsername);
-      setIsSaved(true);
-
-      toast({
-        title: "Сохранено!",
-        description: "Мы свяжемся с вами в Telegram",
-      });
-    } catch (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось сохранить. Попробуйте ещё раз.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleNewOrder = () => {
     navigate("/");
@@ -234,53 +149,6 @@ export function StepConfirmation({
             </div>
           </div>
 
-          {/* Telegram input */}
-          <div
-            className="bg-card/50 rounded-xl border border-border/50 p-6 space-y-4"
-          >
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" style={{ color: themeConfig.accentColor }} />
-              <h3 className="font-medium">Как с вами связаться?</h3>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Укажите ваш Telegram ник для связи по заказу
-            </p>
-
-            <div className="flex gap-2">
-              <Input
-                placeholder="@username"
-                value={telegramUsername}
-                onChange={(e) => {
-                  setTelegramUsername(e.target.value);
-                  setIsSaved(false);
-                }}
-                disabled={isSaving}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSaveTelegram}
-                disabled={isSaving || isSaved}
-                size="icon"
-                style={{
-                  backgroundColor: isSaved ? "#22c55e" : themeConfig.accentColor,
-                }}
-              >
-                {isSaved ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-
-            {isSaved && (
-              <p className="text-xs text-green-600 flex items-center gap-1">
-                <Check className="w-3 h-3" />
-                Сохранено
-              </p>
-            )}
-          </div>
 
           {/* Action buttons */}
           <div className="space-y-3">
