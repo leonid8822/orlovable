@@ -350,7 +350,7 @@ export function StepCheckout({
             </div>
 
             <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-              Это стоимость базового украшения. Точная цена зависит от сложности.
+              Это стоимость базового украшения. После оформления можно добавить камни и другие пожелания. Они считаются отдельно
             </p>
           </div>
         </div>
