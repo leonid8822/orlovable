@@ -1,15 +1,29 @@
-import { Check, Sparkles, MessageCircle, Gem, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Sparkles, MessageCircle, Gem, Plus, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import type { PendantConfig } from "@/types/pendant";
+import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import type { PendantConfig, GemPlacement } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { useSettings } from "@/contexts/SettingsContext";
-import { materialLabels, SILVER_SIZE_CONFIG, GOLD_SIZE_CONFIG, SizeOption } from "@/types/pendant";
+import { useSettings, useVisualization } from "@/contexts/SettingsContext";
+import { materialLabels, SILVER_SIZE_CONFIG, GOLD_SIZE_CONFIG, SizeOption, getSizeConfigByMaterial } from "@/types/pendant";
+
+interface GemData {
+  id: string;
+  name: string;
+  name_en: string;
+  shape: string;
+  size_mm: number;
+  color: string;
+  image_url: string | null;
+}
 
 interface StepConfirmationProps {
   config: PendantConfig;
   applicationId: string;
   paymentAmount?: number;
+  totalPaid?: number;
   orderId?: string;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onAddGems?: () => void;
@@ -19,6 +33,7 @@ export function StepConfirmation({
   config,
   applicationId,
   paymentAmount,
+  totalPaid = 0,
   orderId,
   onConfigChange,
   onAddGems,
@@ -26,13 +41,70 @@ export function StepConfirmation({
   const navigate = useNavigate();
   const { config: themeConfig } = useAppTheme();
   const { settings } = useSettings();
+  const visualization = useVisualization();
 
-  const getSizeConfig = () => {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [gems, setGems] = useState<GemData[]>([]);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+
+  // Load gems data for rendering overlay
+  useEffect(() => {
+    const loadGems = async () => {
+      const { data } = await api.getGems();
+      if (data?.gems) {
+        setGems(data.gems);
+      }
+    };
+    if (config.gems?.length > 0) {
+      loadGems();
+    }
+  }, [config.gems?.length]);
+
+  // Auto-switch images every 15 seconds if we have gems
+  useEffect(() => {
+    if (config.gems?.length > 0) {
+      const interval = setInterval(() => {
+        setActiveImageIndex((prev) => (prev === 0 ? 1 : 0));
+      }, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [config.gems?.length]);
+
+  const getSizeConfigFn = () => {
     const sizeConfigs = config.material === "gold" ? GOLD_SIZE_CONFIG : SILVER_SIZE_CONFIG;
     return sizeConfigs[config.sizeOption as SizeOption];
   };
 
-  const sizeConfig = getSizeConfig();
+  const sizeConfig = getSizeConfigFn();
+
+  // On-neck visualization calculations
+  const sizeConfigByMaterial = getSizeConfigByMaterial(config.material);
+  const currentSize = sizeConfigByMaterial[config.sizeOption];
+  const formFactorConfig = settings.form_factors[config.formFactor];
+  const isMale = formFactorConfig?.gender === "male";
+  const neckPhoto = isMale ? "/man-back.jpg" : "/woman-back.jpg";
+  const attachPoint = isMale ? visualization.male : visualization.female;
+  const pendantSizeMm = currentSize.dimensionsMm;
+  const pendantSizePercent = (pendantSizeMm / visualization.imageWidthMm) * 100;
+  const pendantX = attachPoint.attachX * 100;
+  const pendantY = attachPoint.attachY * 100;
+
+  // Calculate gem size based on pendant size
+  const getGemSizePercent = (gemSizeMm: number = 1.5) => {
+    const pendantSizeMap: Record<string, number> = {
+      s: 13, m: 19, l: 25,
+    };
+    const pendantMm = pendantSizeMap[config.sizeOption] || 19;
+    return (gemSizeMm / pendantMm) * 80;
+  };
+
+  // Get gem config by placement
+  const getGemConfig = (placement: GemPlacement): GemData | undefined => {
+    if (placement.gemId) {
+      return gems.find((g) => g.id === placement.gemId);
+    }
+    return gems.find((g) => g.name_en === placement.type);
+  };
 
   // Get price from settings
   const sizes = settings.sizes[config.material] || settings.sizes.silver;
@@ -50,7 +122,9 @@ export function StepConfirmation({
   };
 
   const handleContactTelegram = () => {
-    window.open("https://t.me/orlovleo", "_blank");
+    const orderIdText = orderId ? `Заказ №${orderId}` : `Заявка ${applicationId}`;
+    const message = encodeURIComponent(`Здравствуйте! ${orderIdText}. Хочу уточнить детали.`);
+    window.open(`https://t.me/orlovleo?text=${message}`, "_blank");
   };
 
   return (
@@ -83,26 +157,155 @@ export function StepConfirmation({
         </p>
       </div>
 
-      {/* Main content - pendant preview large on white */}
+      {/* Main content - pendant preview large with gems */}
       <div className="grid md:grid-cols-2 gap-8 mb-8">
-        {/* Left column - large pendant preview on white background */}
+        {/* Left column - pendant preview with gems overlay */}
         <div className="flex flex-col items-center">
           {config.generatedPreview && (
-            <div
-              className="w-full max-w-md aspect-square rounded-2xl overflow-hidden border-2 bg-white flex items-center justify-center p-8"
-              style={{ borderColor: `${themeConfig.accentColor}30` }}
-            >
-              <img
-                src={config.generatedPreview}
-                alt="Ваше украшение"
-                className="w-full h-full object-contain"
-                style={{
-                  filter: config.material === "gold"
-                    ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
-                    : "none"
-                }}
-              />
-            </div>
+            <>
+              <div
+                className="w-full max-w-md aspect-square rounded-2xl overflow-hidden border-2 relative"
+                style={{ borderColor: `${themeConfig.accentColor}30` }}
+              >
+                {activeImageIndex === 0 ? (
+                  // Pendant with gems overlay
+                  <div className="w-full h-full bg-gradient-to-br from-background via-card to-background relative">
+                    <img
+                      src={config.generatedPreview}
+                      alt="Ваше украшение"
+                      className="w-full h-full object-contain"
+                      style={{
+                        filter: config.material === "gold"
+                          ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
+                          : "none"
+                      }}
+                    />
+                    {/* Gems overlay */}
+                    {config.gems?.map((placement) => {
+                      const gemConfig = getGemConfig(placement);
+                      if (!gemConfig) return null;
+                      const sizePercent = getGemSizePercent(gemConfig.size_mm);
+                      return (
+                        <div
+                          key={placement.id}
+                          className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                          style={{
+                            left: `${placement.x}%`,
+                            top: `${placement.y}%`,
+                            width: `${sizePercent}%`,
+                            height: `${sizePercent}%`,
+                          }}
+                        >
+                          {gemConfig.image_url ? (
+                            <img
+                              src={gemConfig.image_url}
+                              alt={gemConfig.name}
+                              className="w-full h-full object-contain drop-shadow-lg"
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full rounded-full shadow-lg"
+                              style={{
+                                backgroundColor: gemConfig.color,
+                                boxShadow: `0 2px 8px ${gemConfig.color}80`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // On-neck visualization
+                  <div className="relative w-full h-full animate-fade-in">
+                    <img
+                      src={neckPhoto}
+                      alt="На шее"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div
+                      className="absolute transition-all duration-300 ease-out"
+                      style={{
+                        left: `${pendantX}%`,
+                        top: `${pendantY}%`,
+                        width: `${pendantSizePercent}%`,
+                        transform: 'translate(-50%, -10%)',
+                      }}
+                    >
+                      <div className="relative">
+                        <img
+                          src={config.generatedPreview}
+                          alt="Кулон на шее"
+                          className="w-full h-full object-contain"
+                          style={{
+                            filter: config.material === "gold"
+                              ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
+                              : "none"
+                          }}
+                        />
+                        {/* Gems on neck view - scaled down */}
+                        {config.gems?.map((placement) => {
+                          const gemConfig = getGemConfig(placement);
+                          if (!gemConfig) return null;
+                          const sizePercent = getGemSizePercent(gemConfig.size_mm);
+                          return (
+                            <div
+                              key={placement.id}
+                              className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                              style={{
+                                left: `${placement.x}%`,
+                                top: `${placement.y}%`,
+                                width: `${sizePercent}%`,
+                                height: `${sizePercent}%`,
+                              }}
+                            >
+                              {gemConfig.image_url ? (
+                                <img
+                                  src={gemConfig.image_url}
+                                  alt={gemConfig.name}
+                                  className="w-full h-full object-contain drop-shadow-lg"
+                                />
+                              ) : (
+                                <div
+                                  className="w-full h-full rounded-full shadow-lg"
+                                  style={{
+                                    backgroundColor: gemConfig.color,
+                                    boxShadow: `0 2px 8px ${gemConfig.color}80`,
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Image toggle dots */}
+              {config.gems?.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  {[0, 1].map((index) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveImageIndex(index)}
+                      className={cn(
+                        "w-2.5 h-2.5 rounded-full transition-all",
+                        index === activeImageIndex
+                          ? "scale-125"
+                          : "bg-border hover:opacity-70"
+                      )}
+                      style={index === activeImageIndex ? { backgroundColor: themeConfig.accentColor } : undefined}
+                      aria-label={index === 0 ? "Кулон" : "На шее"}
+                    />
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                {activeImageIndex === 1 ? `Примерка: высота ${currentSize.dimensionsMm} мм` : `Высота изделия: ${currentSize.dimensionsMm} мм`}
+              </p>
+            </>
           )}
         </div>
 
@@ -142,10 +345,10 @@ export function StepConfirmation({
                 </span>
               </div>
 
-              {paymentAmount && paymentAmount > 0 && (
+              {totalPaid > 0 && (
                 <div className="flex justify-between text-green-600 font-medium">
                   <span>Оплачено</span>
-                  <span>{paymentAmount.toLocaleString("ru-RU")} ₽</span>
+                  <span>{totalPaid.toLocaleString("ru-RU")} ₽</span>
                 </div>
               )}
 
@@ -156,6 +359,40 @@ export function StepConfirmation({
                 </div>
               )}
             </div>
+
+            {/* Prepayment button */}
+            <Button
+              onClick={async () => {
+                setIsCreatingPayment(true);
+                try {
+                  const { data, error } = await api.createPayment({
+                    applicationId,
+                    amount: 5000, // 5000 rubles prepayment
+                    description: "Предоплата за украшение",
+                  });
+                  if (error) {
+                    console.error("Payment error:", error);
+                    return;
+                  }
+                  if (data?.paymentUrl) {
+                    window.location.href = data.paymentUrl;
+                  }
+                } finally {
+                  setIsCreatingPayment(false);
+                }
+              }}
+              disabled={isCreatingPayment}
+              className="w-full gap-2"
+              variant="outline"
+              style={{ borderColor: themeConfig.accentColor, color: themeConfig.accentColor }}
+            >
+              {isCreatingPayment ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CreditCard className="w-4 h-4" />
+              )}
+              Внести предоплату 5 000 ₽
+            </Button>
           </div>
 
           {/* Gems upsell */}

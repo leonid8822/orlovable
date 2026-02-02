@@ -394,7 +394,7 @@ const Application = () => {
   return (
     <ThemeProvider theme={appTheme}>
       <div className={`min-h-screen bg-background ${themeClass}`}>
-        <Header applicationId={applicationId} />
+        <Header applicationId={applicationId} minimal={true} theme={appTheme} />
 
         <main className="pt-24 pb-16 px-4">
           <div className="container mx-auto max-w-6xl">
@@ -501,8 +501,9 @@ const Application = () => {
             {currentStep === AppStep.CONFIRMATION && applicationId && (
               <StepConfirmation
                 config={config}
-                applicationId={applicationId}
+                applicationId={applicationId!}
                 paymentAmount={paymentInfo?.amount}
+                totalPaid={paymentInfo?.amount || 0}
                 orderId={paymentInfo?.orderId}
                 onConfigChange={handleConfigChange}
                 onAddGems={() => transitionTo(AppStep.GEMS)}

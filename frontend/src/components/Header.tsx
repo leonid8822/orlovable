@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   applicationId?: string | null;
+  minimal?: boolean;  // Hide navigation links for focused experience
+  theme?: AppTheme;   // Override active theme for application pages
 }
 
 const themeLinks: { theme: AppTheme; path: string; label: string }[] = [
@@ -15,14 +17,18 @@ const themeLinks: { theme: AppTheme; path: string; label: string }[] = [
 ];
 
 export function Header({
-  applicationId
+  applicationId,
+  minimal = false,
+  theme,
 }: HeaderProps) {
   const location = useLocation();
 
-  // Determine active theme based on current path
+  // Determine active theme based on current path or override
   const getActiveTheme = (): AppTheme => {
+    if (theme) return theme;
     if (location.pathname === "/kids") return "kids";
     if (location.pathname === "/totems") return "totems";
+    if (location.pathname === "/custom") return "custom";
     return "main";
   };
   const activeTheme = getActiveTheme();
@@ -64,30 +70,32 @@ export function Header({
             </span>
           </Link>
 
-          {/* Theme navigation */}
-          <nav className="hidden md:flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50">
-            {themeLinks.map(({ theme, path, label }) => {
-              const isActive = activeTheme === theme;
-              const linkThemeConfig = themeConfigs[theme];
-              return (
-                <Link
-                  key={theme}
-                  to={path}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-card"
-                  )}
-                  style={isActive ? {
-                    backgroundColor: linkThemeConfig.accentColor,
-                  } : undefined}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Theme navigation - hidden in minimal mode */}
+          {!minimal && (
+            <nav className="hidden md:flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50">
+              {themeLinks.map(({ theme: linkTheme, path, label }) => {
+                const isActive = activeTheme === linkTheme;
+                const linkThemeConfig = themeConfigs[linkTheme];
+                return (
+                  <Link
+                    key={linkTheme}
+                    to={path}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
+                      isActive
+                        ? "text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-card"
+                    )}
+                    style={isActive ? {
+                      backgroundColor: linkThemeConfig.accentColor,
+                    } : undefined}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         <div className="flex items-center gap-6">
@@ -97,7 +105,7 @@ export function Header({
             </span>
           )}
 
-<AuthButton />
+          {!minimal && <AuthButton />}
         </div>
       </div>
     </header>
