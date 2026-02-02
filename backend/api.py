@@ -533,6 +533,7 @@ CRITICAL REQUIREMENTS:
 - Preserve the 3D shape, form and proportions of the original object
 - Show the pendant from a 3/4 angle to emphasize its three-dimensional nature and wearability
 - Material: polished silver metal with realistic reflections and highlights
+- CRITICAL: ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL. The entire pendant must be monochromatic silver/gray metallic ONLY. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
 - The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts, everything connected
 - Black background, dramatic lighting to show depth and volume
 - Size: {size_dimensions}
@@ -574,7 +575,8 @@ The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with 
 IMPORTANT: Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes - the entire surface is solid silver.
 Bail/loop for chain - simple, classic jewelry style, integrated into the main object.
 Strictly front view only.
-Black background ONLY AROUND the pendant (outside). Silver metal finish. No paint, no enamel, no additional textures.
+Black background ONLY AROUND the pendant (outside).
+CRITICAL: The pendant must be made ENTIRELY of polished silver metal. ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL, NO COLORED AREAS. The entire pendant surface must be monochromatic silver/gray metallic only. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
 Ready for 3D printing - no separate parts, everything connected into a single form.
 {form_addition}
 Shape: {form_shape}
@@ -587,7 +589,8 @@ The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with 
 IMPORTANT: Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes.
 Bail/loop for chain - simple, classic jewelry style, integrated into the main object.
 Strictly front view only.
-Black background ONLY AROUND the pendant (outside). Silver metal finish. No paint, no enamel, no additional textures.
+Black background ONLY AROUND the pendant (outside).
+CRITICAL: The pendant must be made ENTIRELY of polished silver metal. ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL, NO COLORED AREAS. The entire pendant surface must be monochromatic silver/gray metallic only. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
 Ready for 3D printing - no separate parts, everything connected into a single form.
 {form_addition}
 Shape: {form_shape}
