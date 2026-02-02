@@ -1246,6 +1246,7 @@ async def verify_code(req: VerifyCodeRequest):
                 "id": user_id,
                 "email": email,
                 "name": user.get("name", ""),
+                "phone": user.get("phone"),
                 "first_name": user.get("first_name"),
                 "last_name": user.get("last_name"),
                 "telegram_username": user.get("telegram_username"),

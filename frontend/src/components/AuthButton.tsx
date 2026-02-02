@@ -23,6 +23,7 @@ interface UserData {
   userId?: string;
   email: string;
   name?: string;
+  phone?: string;
   firstName?: string;
   lastName?: string;
 }
@@ -75,6 +76,7 @@ export function AuthButton() {
       userId: userData.userId,
       email: userData.email,
       name: userData.name,
+      phone: userData.phone,
       firstName: userData.firstName,
       lastName: userData.lastName
     });

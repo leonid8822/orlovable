@@ -193,6 +193,7 @@ export const SIZE_CONFIG: Record<SizeOption, SizeConfig & { formFactor: FormFact
 export interface UserAuthData {
   email: string;
   name: string;
+  phone?: string;
   userId?: string;
   isVerified: boolean;
   firstName?: string;

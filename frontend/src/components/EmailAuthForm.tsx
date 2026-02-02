@@ -126,6 +126,7 @@ export function EmailAuthForm({
         const userData: UserAuthData = {
           email: email.trim().toLowerCase(),
           name: data.user?.name || name.trim() || '',
+          phone: data.user?.phone || undefined,
           userId: data.user_id,
           isVerified: true,
           firstName: data.user?.first_name,
@@ -139,6 +140,9 @@ export function EmailAuthForm({
         localStorage.setItem('userEmail', userData.email);
         if (userData.name) {
           localStorage.setItem('userName', userData.name);
+        }
+        if (userData.phone) {
+          localStorage.setItem('userPhone', userData.phone);
         }
 
         // Dispatch storage event for other components
