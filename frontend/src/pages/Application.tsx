@@ -49,6 +49,7 @@ const Application = () => {
   const [appTheme, setAppTheme] = useState<AppTheme>("main");
   const [paymentInfo, setPaymentInfo] = useState<{ amount: number; orderId: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState<{ email?: string; name?: string }>({});
 
   // Check if user is admin
   useEffect(() => {
@@ -373,6 +374,12 @@ const Application = () => {
       // Set generated images for selection step
       setGeneratedImages(allGeneratedImages);
 
+      // Set customer info for payments
+      setCustomerInfo({
+        email: data.customer_email,
+        name: data.customer_name,
+      });
+
       setLoading(false);
     };
 
@@ -394,7 +401,7 @@ const Application = () => {
   return (
     <ThemeProvider theme={appTheme}>
       <div className={`min-h-screen bg-background ${themeClass}`}>
-        <Header applicationId={applicationId} minimal={true} theme={appTheme} />
+        <Header applicationId={applicationId} minimal={true} theme={appTheme} userName={customerInfo.name} />
 
         <main className="pt-24 pb-16 px-4">
           <div className="container mx-auto max-w-6xl">
@@ -505,6 +512,8 @@ const Application = () => {
                 paymentAmount={paymentInfo?.amount}
                 totalPaid={paymentInfo?.amount || 0}
                 orderId={paymentInfo?.orderId}
+                userEmail={customerInfo.email}
+                userName={customerInfo.name}
                 onConfigChange={handleConfigChange}
                 onAddGems={() => transitionTo(AppStep.GEMS)}
               />

@@ -8,6 +8,7 @@ interface HeaderProps {
   applicationId?: string | null;
   minimal?: boolean;  // Hide navigation links for focused experience
   theme?: AppTheme;   // Override active theme for application pages
+  userName?: string;  // User name to display in minimal mode
 }
 
 const themeLinks: { theme: AppTheme; path: string; label: string }[] = [
@@ -20,6 +21,7 @@ export function Header({
   applicationId,
   minimal = false,
   theme,
+  userName,
 }: HeaderProps) {
   const location = useLocation();
 
@@ -98,7 +100,14 @@ export function Header({
           )}
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          {/* Show user name in minimal mode */}
+          {minimal && userName && (
+            <span className="text-sm font-medium" style={{ color: themeConfig.accentColor }}>
+              {userName}
+            </span>
+          )}
+
           {applicationId && (
             <span className="text-xs text-muted-foreground hidden sm:block font-mono">
               #{applicationId.slice(0, 8)}

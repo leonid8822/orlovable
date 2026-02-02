@@ -25,6 +25,8 @@ interface StepConfirmationProps {
   paymentAmount?: number;
   totalPaid?: number;
   orderId?: string;
+  userEmail?: string;
+  userName?: string;
   onConfigChange: (updates: Partial<PendantConfig>) => void;
   onAddGems?: () => void;
 }
@@ -35,6 +37,8 @@ export function StepConfirmation({
   paymentAmount,
   totalPaid = 0,
   orderId,
+  userEmail,
+  userName,
   onConfigChange,
   onAddGems,
 }: StepConfirmationProps) {
@@ -366,16 +370,18 @@ export function StepConfirmation({
                 setIsCreatingPayment(true);
                 try {
                   const { data, error } = await api.createPayment({
-                    applicationId,
+                    application_id: applicationId,
                     amount: 5000, // 5000 rubles prepayment
-                    description: "Предоплата за украшение",
+                    email: userEmail,
+                    name: userName,
+                    order_comment: "Предоплата за украшение",
                   });
                   if (error) {
                     console.error("Payment error:", error);
                     return;
                   }
-                  if (data?.paymentUrl) {
-                    window.location.href = data.paymentUrl;
+                  if (data?.payment_url) {
+                    window.location.href = data.payment_url;
                   }
                 } finally {
                   setIsCreatingPayment(false);
