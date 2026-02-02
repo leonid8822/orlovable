@@ -5,7 +5,7 @@
 **OLAI.ART** - full-stack платформа для кастомизации ювелирных изделий с AI-генерацией. Пользователи загружают рисунки, фото или описания, а AI генерирует превью кулонов/браслетов, которые затем изготавливаются из золота или серебра методом 3D-печати.
 
 **Production URL**: https://olai.art
-**Backend API**: https://jewelry-backend-nqev4d2b4a-lm.a.run.app/api
+**Backend API**: https://olai-api.onrender.com/api (configured via VITE_API_URL)
 
 ---
 
@@ -225,10 +225,11 @@ TINKOFF_PASSWORD=your_password
 ```
 
 ### Frontend
-Конфигурация в `frontend/src/lib/api.ts`:
+API URL настраивается через переменную окружения в Vercel:
 ```typescript
-const API_URL = 'https://jewelry-backend-nqev4d2b4a-lm.a.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 ```
+На проде: `VITE_API_URL=https://olai-api.onrender.com/api`
 
 ---
 
