@@ -287,6 +287,95 @@ async def update_settings(updates: SettingsUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/settings/reset")
+async def reset_settings_to_defaults():
+    """Reset critical settings to correct defaults - model, prompts, form factors"""
+    try:
+        settings_list = await supabase.select("generation_settings")
+        existing_keys = {item["key"]: item["id"] for item in settings_list}
+
+        async def set_val(key, val):
+            if key in existing_keys:
+                await supabase.update("generation_settings", existing_keys[key], {"value": val})
+            else:
+                await supabase.insert("generation_settings", {"key": key, "value": val})
+
+        # Reset model to seedream
+        await set_val('generation_model', 'seedream')
+
+        # Reset form factors with correct dog tag shape
+        await set_val('form_factors', {
+            "round": {
+                "label": "Круглый кулон",
+                "description": "Круглый кулон",
+                "icon": "circle",
+                "addition": "Объект вписан в круглую рамку-медальон.",
+                "shape": "круглая форма, объект вписан в круг"
+            },
+            "oval": {
+                "label": "Жетон",
+                "description": "Мужской жетон",
+                "icon": "rectangle-vertical",
+                "addition": "Форма армейского жетона (dog tag) - вертикальный скруглённый прямоугольник с небольшой выемкой сверху для цепочки.",
+                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain"
+            },
+            "contour": {
+                "label": "Контурный кулон",
+                "description": "По контуру рисунка",
+                "icon": "hexagon",
+                "addition": "Форма повторяет контур изображения.",
+                "shape": "по контуру выбранного объекта"
+            }
+        })
+
+        # Reset flat pendant prompt with NO COLORS requirement
+        await set_val('flat_pendant_prompt', """Create a jewelry pendant from the reference image.
+Type: {form_label}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- The pendant must be a SINGLE, MONOLITHIC piece - one unified silver object with no separate parts
+- Surface must be SOLID, NO HOLES OR CUTOUTS. Black background only OUTSIDE the pendant, around it. Inside the pendant there should be no black areas or holes - the entire surface is solid silver
+- Bail/loop for chain - simple, classic jewelry style, integrated into the main object
+- Strictly front view only
+- Black background ONLY AROUND the pendant (outside)
+- CRITICAL: The pendant must be made ENTIRELY of polished silver metal. ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL, NO COLORED AREAS. The entire pendant surface must be monochromatic silver/gray metallic only. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
+- Ready for 3D printing - no separate parts, everything connected into a single form
+- {form_addition}
+- Shape: {form_shape}
+- Maximum surface detail, jewelry quality finish""")
+
+        # Reset volumetric prompt with NO COLORS requirement
+        await set_val('volumetric_pendant_prompt', """Create a wearable 3D silver pendant based on the object from the photo.
+Object to transform: {object_description}
+{user_wishes}
+
+CRITICAL REQUIREMENTS:
+- This is a REAL WEARABLE PENDANT that hangs on a chain around the neck
+- Create a VOLUMETRIC, THREE-DIMENSIONAL silver sculpture with DEPTH and VOLUME
+- The pendant must look like a finished jewelry piece ready to wear, not just a sculpture
+- BAIL/LOOP PLACEMENT: Add a jewelry bail (small loop for chain attachment) at the TOPMOST point of the object. The bail must be positioned so the pendant hangs correctly and naturally when worn.
+- The bail must be integrated seamlessly into the design - a classic, elegant jewelry-style loop
+- Preserve the 3D shape, form and proportions of the original object
+- Show the pendant from a 3/4 angle to emphasize its three-dimensional nature and wearability
+- Material: polished silver metal with realistic reflections and highlights
+- CRITICAL: ABSOLUTELY NO COLORS, NO PAINT, NO ENAMEL. The entire pendant must be monochromatic silver/gray metallic ONLY. No red, no yellow, no blue, no any other colors - ONLY silver metal finish.
+- The object must be SOLID, MONOLITHIC, ready for 3D printing - no separate parts, everything connected
+- Black background, dramatic lighting to show depth and volume
+- Size: {size_dimensions}
+- Maximum surface detail, jewelry quality finish
+- Style: realistic silver miniature sculpture that looks like a professional jewelry piece you can actually wear""")
+
+        return {
+            "success": True,
+            "message": "Settings reset to defaults: seedream model, no-colors prompts, correct dog tag shape",
+            "updated": ["generation_model", "form_factors", "flat_pendant_prompt", "volumetric_pendant_prompt"]
+        }
+    except Exception as e:
+        print(f"Error resetting settings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/applications")
 async def list_applications(user_id: Optional[str] = None, limit: int = 20):
     """List applications"""
@@ -2227,30 +2316,55 @@ async def admin_get_gems():
 @router.post("/admin/gems")
 async def admin_create_gem(req: CreateGemRequest):
     """Create a new gem type"""
+    import traceback
+    from app_logger import logger
+
     try:
         gem_id = str(uuid.uuid4())
         image_url = None
+
+        await logger.info("gem_upload", f"Creating gem: {req.name}", {
+            "gem_id": gem_id,
+            "shape": req.shape,
+            "has_image": bool(req.image_base64),
+            "remove_bg": req.remove_background
+        })
 
         # Process and upload image if provided
         if req.image_base64:
             import base64
 
             # Decode base64
-            if "," in req.image_base64:
-                image_data = base64.b64decode(req.image_base64.split(",")[1])
-            else:
-                image_data = base64.b64decode(req.image_base64)
+            try:
+                if "," in req.image_base64:
+                    image_data = base64.b64decode(req.image_base64.split(",")[1])
+                else:
+                    image_data = base64.b64decode(req.image_base64)
+                await logger.debug("gem_upload", f"Image decoded", {"size_bytes": len(image_data)})
+            except Exception as decode_err:
+                await logger.error("gem_upload", "Base64 decode failed", {"error": str(decode_err)})
+                raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
             # Upload with background removal
-            path = f"gems/{gem_id}.png"
-            image_url = await supabase.upload_gem_image(
-                bucket="images",
-                path=path,
-                image_data=image_data,
-                remove_bg=req.remove_background,
-                max_size=400,
-                bg_tolerance=req.bg_tolerance
-            )
+            try:
+                path = f"gems/{gem_id}.png"
+                await logger.debug("gem_upload", f"Uploading to storage", {
+                    "path": path,
+                    "remove_bg": req.remove_background,
+                    "tolerance": req.bg_tolerance
+                })
+                image_url = await supabase.upload_gem_image(
+                    bucket="images",
+                    path=path,
+                    image_data=image_data,
+                    remove_bg=req.remove_background,
+                    max_size=400,
+                    bg_tolerance=req.bg_tolerance
+                )
+                await logger.info("gem_upload", "Upload successful", {"image_url": image_url})
+            except Exception as upload_err:
+                await logger.exception("gem_upload", "Upload failed", upload_err)
+                raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         gem_data = {
             "id": gem_id,
@@ -2265,21 +2379,32 @@ async def admin_create_gem(req: CreateGemRequest):
         }
 
         await supabase.insert("gems", gem_data)
+        await logger.info("gem_upload", f"Gem created successfully: {req.name}", {"gem_id": gem_id})
 
         return {"success": True, "gem": gem_data}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error creating gem: {e}")
+        await logger.exception("gem_upload", "Unexpected error creating gem", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/admin/gems/{gem_id}")
 async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
     """Update a gem type"""
+    from app_logger import logger
+
     try:
         gem = await supabase.select_one("gems", gem_id)
         if not gem:
+            await logger.warning("gem_update", f"Gem not found: {gem_id}")
             raise HTTPException(status_code=404, detail="Камень не найден")
+
+        await logger.info("gem_update", f"Updating gem: {gem.get('name')}", {
+            "gem_id": gem_id,
+            "has_new_image": bool(req.image_base64)
+        })
 
         updates = {}
 
@@ -2302,32 +2427,53 @@ async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
         if req.image_base64:
             import base64
 
-            if "," in req.image_base64:
-                image_data = base64.b64decode(req.image_base64.split(",")[1])
-            else:
-                image_data = base64.b64decode(req.image_base64)
+            try:
+                if "," in req.image_base64:
+                    image_data = base64.b64decode(req.image_base64.split(",")[1])
+                else:
+                    image_data = base64.b64decode(req.image_base64)
+                await logger.debug("gem_update", "Image decoded", {"size_bytes": len(image_data)})
+            except Exception as decode_err:
+                await logger.error("gem_update", "Base64 decode failed", {"error": str(decode_err)})
+                raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
-            path = f"gems/{gem_id}.png"
-            image_url = await supabase.upload_gem_image(
-                bucket="images",
-                path=path,
-                image_data=image_data,
-                remove_bg=req.remove_background if req.remove_background is not None else True,
-                max_size=400,
-                bg_tolerance=req.bg_tolerance if req.bg_tolerance is not None else 30
-            )
-            updates["image_url"] = image_url
+            try:
+                path = f"gems/{gem_id}.png"
+                remove_bg = req.remove_background if req.remove_background is not None else True
+                tolerance = req.bg_tolerance if req.bg_tolerance is not None else 30
+
+                await logger.debug("gem_update", "Uploading to storage", {
+                    "path": path,
+                    "remove_bg": remove_bg,
+                    "tolerance": tolerance
+                })
+
+                image_url = await supabase.upload_gem_image(
+                    bucket="images",
+                    path=path,
+                    image_data=image_data,
+                    remove_bg=remove_bg,
+                    max_size=400,
+                    bg_tolerance=tolerance
+                )
+                updates["image_url"] = image_url
+                await logger.info("gem_update", "Upload successful", {"image_url": image_url})
+            except Exception as upload_err:
+                await logger.exception("gem_update", "Upload failed", upload_err)
+                raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         if updates:
+            await logger.debug("gem_update", f"Updating database", {"fields": list(updates.keys())})
             await supabase.update("gems", gem_id, updates)
 
         updated_gem = await supabase.select_one("gems", gem_id)
+        await logger.info("gem_update", f"Gem updated successfully: {updated_gem.get('name')}", {"gem_id": gem_id})
         return {"success": True, "gem": updated_gem}
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating gem: {e}")
+        await logger.exception("gem_update", "Unexpected error updating gem", e, {"gem_id": gem_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2364,3 +2510,67 @@ GEM_SHAPES = [
 async def get_gem_shapes():
     """Get available gem shapes"""
     return {"shapes": GEM_SHAPES}
+
+
+# ============== LOGS ENDPOINTS ==============
+
+@router.get("/logs")
+async def get_logs(
+    limit: int = 100,
+    level: Optional[str] = None,
+    source: Optional[str] = None
+):
+    """
+    Get application logs for debugging.
+
+    Query params:
+    - limit: Max number of logs to return (default 100)
+    - level: Filter by level (debug, info, warning, error)
+    - source: Filter by source (gem_upload, generation, payment, etc.)
+
+    Example: GET /api/logs?limit=50&level=error&source=gem_upload
+    """
+    try:
+        # Build filter string for Supabase REST API
+        filters = []
+        if level:
+            filters.append(f"level=eq.{level}")
+        if source:
+            filters.append(f"source=eq.{source}")
+
+        filter_str = "&".join(filters) if filters else ""
+
+        logs = await supabase.select(
+            "app_logs",
+            order="created_at.desc",
+            limit=limit,
+            filters=filter_str
+        )
+
+        return {
+            "logs": logs or [],
+            "count": len(logs) if logs else 0,
+            "filters": {"level": level, "source": source, "limit": limit}
+        }
+    except Exception as e:
+        # If app_logs table doesn't exist yet, return helpful message
+        print(f"Error getting logs: {e}")
+        error_msg = str(e)
+        if "app_logs" in error_msg.lower() or "does not exist" in error_msg.lower():
+            return {
+                "logs": [],
+                "count": 0,
+                "error": "Table app_logs not found. Run migration: backend/migrations/003_create_logs_table.sql"
+            }
+        return {"logs": [], "count": 0, "error": error_msg}
+
+
+@router.post("/logs")
+async def create_log(level: str = "info", source: str = "manual", message: str = "test"):
+    """Create a test log entry (for debugging)."""
+    try:
+        from app_logger import logger
+        await logger._log(level, source, message, {"manual": True})
+        return {"success": True, "message": "Log created"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
