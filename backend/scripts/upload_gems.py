@@ -6,7 +6,7 @@ Supports background removal and automatic resizing.
 Usage:
     python upload_gems.py [--api-url API_URL]
 
-Default API URL: https://olai-api.onrender.com/api
+Default API URL: https://olai.onrender.com/api
 """
 
 import os
@@ -106,7 +106,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Upload gem images to OLAI.art")
     parser.add_argument(
         "--api-url",
-        default="https://olai-api.onrender.com/api",
+        default="https://olai.onrender.com/api",
         help="API base URL"
     )
     parser.add_argument(

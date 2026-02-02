@@ -40,9 +40,11 @@ const statusLabels: Record<string, string> = {
   generated: 'Сгенерировано',
   pending: 'В обработке',
   checkout: 'Оформление',
-  pending_payment: 'Ожидает оплаты',
-  paid: 'Оплачено',
-  completed: 'Завершено',
+  pending_order: 'Ожидает оформления',
+  completed: 'Оформлен',
+  // Legacy statuses (for backwards compatibility)
+  pending_payment: 'Ожидает оформления',
+  paid: 'Оформлен',
 };
 
 const statusColors: Record<string, string> = {
@@ -51,9 +53,11 @@ const statusColors: Record<string, string> = {
   generated: 'bg-primary/20 text-primary',
   pending: 'bg-yellow-500/20 text-yellow-500',
   checkout: 'bg-yellow-500/20 text-yellow-500',
+  pending_order: 'bg-orange-500/20 text-orange-500',
+  completed: 'bg-green-500/20 text-green-500',
+  // Legacy statuses
   pending_payment: 'bg-orange-500/20 text-orange-500',
   paid: 'bg-green-500/20 text-green-500',
-  completed: 'bg-green-500/20 text-green-500',
 };
 
 const sizeLabels: Record<string, string> = {

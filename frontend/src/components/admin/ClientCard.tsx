@@ -33,9 +33,11 @@ const STATUS_LABELS: Record<string, string> = {
   generated: "Сгенерировано",
   pending: "В обработке",
   checkout: "Оформление",
-  pending_payment: "Ожидает оплаты",
-  paid: "Оплачено",
-  completed: "Завершено",
+  pending_order: "Ожидает оформления",
+  completed: "Оформлен",
+  // Legacy
+  pending_payment: "Ожидает оформления",
+  paid: "Оформлен",
 };
 
 const PAYMENT_STATUS_LABELS: Record<

@@ -24,7 +24,7 @@ except ImportError:
 
 
 # API URL
-API_URL = os.environ.get("API_URL", "https://olai-api.onrender.com/api")
+API_URL = os.environ.get("API_URL", "https://olai.onrender.com/api")
 
 # Gem definitions with image URLs
 # Replace these with actual URLs or set environment variables

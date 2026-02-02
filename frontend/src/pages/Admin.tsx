@@ -1621,12 +1621,13 @@ const Admin = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="draft">draft</SelectItem>
-                          <SelectItem value="pending_generation">pending_generation</SelectItem>
-                          <SelectItem value="generating">generating</SelectItem>
-                          <SelectItem value="generated">generated</SelectItem>
-                          <SelectItem value="checkout">checkout</SelectItem>
-                          <SelectItem value="completed">completed</SelectItem>
+                          <SelectItem value="draft">Черновик</SelectItem>
+                          <SelectItem value="pending_generation">Ожидает генерации</SelectItem>
+                          <SelectItem value="generating">Генерация</SelectItem>
+                          <SelectItem value="generated">Сгенерировано</SelectItem>
+                          <SelectItem value="checkout">Оформление</SelectItem>
+                          <SelectItem value="pending_order">Ожидает оформления</SelectItem>
+                          <SelectItem value="completed">Оформлен</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

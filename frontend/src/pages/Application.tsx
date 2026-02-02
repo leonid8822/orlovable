@@ -89,7 +89,7 @@ const Application = () => {
           } else if (nextStep === AppStep.SELECTION) {
             updates.status = "generated";
           } else if (nextStep === AppStep.CONFIRMATION) {
-            updates.status = "paid";
+            updates.status = "completed"; // Order completed (payment is separate)
           }
 
           api.updateApplication(applicationId, updates);
@@ -277,7 +277,7 @@ const Application = () => {
       // Determine step based on status
       let determinedStep: AppStep;
 
-      if (confirmStep === "confirmation" || data.status === "paid") {
+      if (confirmStep === "confirmation" || data.status === "completed" || data.status === "paid") {
         determinedStep = AppStep.CONFIRMATION;
         // Try to get payment info
         if (orderId) {
@@ -293,6 +293,7 @@ const Application = () => {
             break;
           case "checkout":
           case "pending_payment":
+          case "pending_order":
             determinedStep = AppStep.CHECKOUT;
             break;
           case "generated":

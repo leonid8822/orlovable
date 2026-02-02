@@ -278,7 +278,7 @@ API URL настраивается через переменную окруже�
 ```typescript
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 ```
-На проде: `VITE_API_URL=https://olai-api.onrender.com/api`
+На проде: `VITE_API_URL=https://olai.onrender.com/api`
 
 ---
 
@@ -468,19 +468,19 @@ created_at: timestamp
 ### API доступ к логам
 ```bash
 # Получить последние 100 логов
-curl "https://olai-api.onrender.com/api/logs"
+curl "https://olai.onrender.com/api/logs"
 
 # Фильтр по уровню (error, warning, info, debug)
-curl "https://olai-api.onrender.com/api/logs?level=error"
+curl "https://olai.onrender.com/api/logs?level=error"
 
 # Фильтр по источнику
-curl "https://olai-api.onrender.com/api/logs?source=gem_upload"
+curl "https://olai.onrender.com/api/logs?source=gem_upload"
 
 # Комбинированный фильтр
-curl "https://olai-api.onrender.com/api/logs?level=error&source=gem_upload&limit=50"
+curl "https://olai.onrender.com/api/logs?level=error&source=gem_upload&limit=50"
 
 # Создать тестовый лог
-curl -X POST "https://olai-api.onrender.com/api/logs?level=info&source=test&message=hello"
+curl -X POST "https://olai.onrender.com/api/logs?level=info&source=test&message=hello"
 ```
 
 ### Источники логов (source)
