@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
 import { UserAuthData } from '@/types/pendant';
-import { Loader2, Mail, ArrowLeft, Check } from 'lucide-react';
+import { Loader2, Mail, ArrowLeft, Check, User, PartyPopper } from 'lucide-react';
 
 // Test email for development - auto-verifies with code 123456
 const TEST_EMAIL = 'test@olai.art';
@@ -21,7 +21,7 @@ interface EmailAuthFormProps {
   className?: string;
 }
 
-type AuthStep = 'email' | 'code';
+type AuthStep = 'email' | 'code' | 'success';
 
 export function EmailAuthForm({
   mode = 'inline',
@@ -34,6 +34,7 @@ export function EmailAuthForm({
 }: EmailAuthFormProps) {
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(true);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +42,7 @@ export function EmailAuthForm({
   const [userId, setUserId] = useState<string | null>(null);
   const [isTestEmail, setIsTestEmail] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [verifiedUserData, setVerifiedUserData] = useState<UserAuthData | null>(null);
 
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -77,6 +79,7 @@ export function EmailAuthForm({
 
       const { data, error: apiError } = await api.requestCode({
         email: trimmedEmail,
+        name: name.trim() || undefined,
         application_id: applicationId,
         subscribe_newsletter: subscribeNewsletter
       });
@@ -122,7 +125,7 @@ export function EmailAuthForm({
       if (data?.success) {
         const userData: UserAuthData = {
           email: email.trim().toLowerCase(),
-          name: data.user?.name || '',
+          name: data.user?.name || name.trim() || '',
           userId: data.user_id,
           isVerified: true,
           firstName: data.user?.first_name,
@@ -134,11 +137,16 @@ export function EmailAuthForm({
         // Save to localStorage
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('userEmail', userData.email);
+        if (userData.name) {
+          localStorage.setItem('userName', userData.name);
+        }
 
         // Dispatch storage event for other components
         window.dispatchEvent(new Event('storage'));
 
-        onSuccess?.(userData);
+        // Show success step before calling onSuccess
+        setVerifiedUserData(userData);
+        setStep('success');
       } else {
         setError(data?.error || 'Неверный код');
         setCode(['', '', '', '', '', '']);
@@ -232,6 +240,25 @@ export function EmailAuthForm({
           )}
 
           <div className="space-y-2">
+            <Label htmlFor="name" className={isCompact ? 'text-xs' : ''}>
+              Ваше имя
+            </Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="name"
+                type="text"
+                placeholder="Как вас зовут?"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={`pl-10 ${isCompact ? 'h-9 text-sm' : ''}`}
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="email" className={isCompact ? 'text-xs' : ''}>
               Email
             </Label>
@@ -272,7 +299,7 @@ export function EmailAuthForm({
           <Button
             type="submit"
             className={`w-full ${isCompact ? 'h-9' : ''}`}
-            disabled={isLoading || !email.trim()}
+            disabled={isLoading || !email.trim() || !name.trim()}
           >
             {isLoading ? (
               <>
@@ -355,6 +382,35 @@ export function EmailAuthForm({
                 : 'Отправить код повторно'}
             </button>
           </div>
+        </div>
+      ) : (
+        // Success step - show cabinet created message
+        <div className="space-y-4 text-center">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <PartyPopper className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">
+              {verifiedUserData?.name ? `${verifiedUserData.name}, добро пожаловать!` : 'Добро пожаловать!'}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Теперь у вас есть личный кабинет. Там сохраняются все ваши эскизы и заказы.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => {
+              if (verifiedUserData) {
+                onSuccess?.(verifiedUserData);
+              }
+            }}
+            className="w-full"
+          >
+            Продолжить
+          </Button>
         </div>
       )}
     </div>
