@@ -11,7 +11,7 @@ export function GemsPromoBlock({
   accentColorLight = "hsl(43, 74%, 55%)",
 }: GemsPromoBlockProps) {
   const handleConsultation = () => {
-    window.open("https://t.me/orlovleo", "_blank");
+    window.open("https://t.me/olai_support?text=Хочу%20записаться%20на%20консультацию%20по%20камням", "_blank");
   };
 
   return (
@@ -41,7 +41,7 @@ export function GemsPromoBlock({
               >
                 <Gem className="w-4 h-4" style={{ color: accentColorLight }} />
                 <span className="text-sm" style={{ color: accentColorLight }}>
-                  Усильте украшение
+                  Усиление украшения
                 </span>
               </div>
 

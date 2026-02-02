@@ -128,7 +128,7 @@ export function StepConfirmation({
   const handleContactTelegram = () => {
     const orderIdText = orderId ? `Заказ №${orderId}` : `Заявка ${applicationId}`;
     const message = encodeURIComponent(`Здравствуйте! ${orderIdText}. Хочу уточнить детали.`);
-    window.open(`https://t.me/orlovleo?text=${message}`, "_blank");
+    window.open(`https://t.me/olai_support?text=${message}`, "_blank");
   };
 
   return (
