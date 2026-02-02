@@ -29,6 +29,38 @@ class SupabaseClient:
     def _rest_url(self, table: str) -> str:
         return f"{self.url}/rest/v1/{table}"
 
+    async def execute_sql(self, sql: str) -> dict:
+        """
+        Execute raw SQL via Supabase's SQL endpoint.
+        Requires service key with appropriate permissions.
+        """
+        url = f"{self.url}/rest/v1/rpc/exec_sql"
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            # Try using RPC with a custom function first
+            response = await client.post(
+                url,
+                headers=self.headers,
+                json={"query": sql}
+            )
+
+            if response.status_code == 404:
+                # Function doesn't exist, try direct SQL endpoint
+                # Some Supabase setups have this
+                sql_url = f"{self.url}/pg/query"
+                response = await client.post(
+                    sql_url,
+                    headers=self.headers,
+                    json={"query": sql}
+                )
+
+            return {
+                "status": response.status_code,
+                "success": response.status_code in [200, 201],
+                "data": response.json() if response.status_code in [200, 201] else None,
+                "error": response.text if response.status_code not in [200, 201] else None
+            }
+
     async def select(self, table: str, columns: str = "*", filters=None, order: str = None, limit: int = None):
         """
         Select records from table.

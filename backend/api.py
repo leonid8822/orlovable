@@ -2516,3 +2516,71 @@ async def create_log(level: str = "info", source: str = "manual", message: str =
         return {"success": True, "message": "Log created"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.post("/logs/init")
+async def init_logs_table():
+    """
+    Initialize the app_logs table in Supabase.
+    Call this once to create the logging infrastructure.
+    """
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS app_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        level VARCHAR(20) NOT NULL DEFAULT 'info',
+        source VARCHAR(100),
+        message TEXT NOT NULL,
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_app_logs_created_at ON app_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_app_logs_level ON app_logs(level);
+    CREATE INDEX IF NOT EXISTS idx_app_logs_source ON app_logs(source);
+    """
+
+    # Try multiple methods to create the table
+    methods_tried = []
+
+    # Method 1: Try direct insert to check if table exists
+    try:
+        test_log = {
+            "level": "info",
+            "source": "system",
+            "message": "Logs table initialized",
+            "details": {"init": True}
+        }
+        await supabase.insert("app_logs", test_log)
+        return {
+            "success": True,
+            "message": "Table already exists and is working",
+            "method": "table_exists"
+        }
+    except Exception as e:
+        error_str = str(e).lower()
+        if "does not exist" not in error_str and "relation" not in error_str:
+            # Some other error
+            methods_tried.append({"method": "insert_test", "error": str(e)})
+        else:
+            methods_tried.append({"method": "insert_test", "result": "table does not exist"})
+
+    # Method 2: Try SQL execution via RPC
+    try:
+        result = await supabase.execute_sql(create_table_sql)
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Table created via SQL execution",
+                "method": "execute_sql"
+            }
+        methods_tried.append({"method": "execute_sql", "result": result})
+    except Exception as e:
+        methods_tried.append({"method": "execute_sql", "error": str(e)})
+
+    # If all methods failed, return instructions
+    return {
+        "success": False,
+        "message": "Could not auto-create table. Please run SQL manually in Supabase.",
+        "methods_tried": methods_tried,
+        "sql_to_run": create_table_sql,
+        "instructions": "Go to Supabase Dashboard → SQL Editor → New Query → Paste the SQL above → Run"
+    }
