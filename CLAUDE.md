@@ -1,5 +1,54 @@
 # OLAI.ART - Jewelry Customization Platform
 
+## Инструкции для Claude (ОБЯЗАТЕЛЬНО К ИСПОЛНЕНИЮ)
+
+### Автономные действия - НЕ СПРАШИВАТЬ РАЗРЕШЕНИЯ:
+
+1. **Деплой бэкенда**: После завершения работы над кодом - сразу мерджить в main и пушить. Render задеплоит автоматически.
+   ```bash
+   git checkout main && git merge <feature-branch> && git push origin main
+   ```
+
+2. **Деплой фронтенда**: Использовать Vercel deploy hook:
+   ```bash
+   curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_8msyhjERk6BWBdBSdKJDDxHjNJrq/DXSjiKoltz"
+   ```
+
+3. **Создание таблиц в Supabase**: Использовать API эндпоинт:
+   ```bash
+   curl -X POST "https://olai-api.onrender.com/api/logs/init"
+   ```
+
+4. **Проверка логов на проде**: Использовать API:
+   ```bash
+   # Все логи
+   curl "https://olai-api.onrender.com/api/logs"
+
+   # Только ошибки
+   curl "https://olai-api.onrender.com/api/logs?level=error"
+
+   # По источнику
+   curl "https://olai-api.onrender.com/api/logs?source=gem_upload"
+   ```
+
+5. **Проверка настроек**:
+   ```bash
+   curl "https://olai-api.onrender.com/api/settings"
+   ```
+
+6. **Сброс настроек к дефолтам**:
+   ```bash
+   curl -X POST "https://olai-api.onrender.com/api/settings/reset"
+   ```
+
+### Принципы работы:
+- **Делать сразу, не спрашивать** - если задача понятна, выполнять без подтверждения
+- **Деплоить автоматически** - после изменений сразу деплоить на прод
+- **Проверять логи самостоятельно** - при ошибках смотреть логи через API
+- **Создавать таблицы через API** - не просить пользователя запускать SQL
+
+---
+
 ## Project Overview
 
 **OLAI.ART** - full-stack платформа для кастомизации ювелирных изделий с AI-генерацией. Пользователи загружают рисунки, фото или описания, а AI генерирует превью кулонов/браслетов, которые затем изготавливаются из золота или серебра методом 3D-печати.
