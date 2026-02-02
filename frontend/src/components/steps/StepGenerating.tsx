@@ -428,15 +428,6 @@ export function StepGenerating({
         </div>
       )}
 
-      {/* Already authenticated message */}
-      {isUserAuthenticated && !generationDone && (
-        <div className="w-full max-w-sm p-4 bg-card/50 rounded-xl border border-border/50 text-center">
-          <p className="text-sm text-muted-foreground">
-            Вы авторизованы. Дождитесь завершения генерации...
-          </p>
-        </div>
-      )}
-
       {/* Fun facts - only while generating */}
       {!generationDone && (
         <div className="max-w-md p-4 bg-card/50 rounded-xl border border-border/50">
