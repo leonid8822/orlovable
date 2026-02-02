@@ -2688,3 +2688,39 @@ async def init_logs_table():
         "sql_to_run": create_table_sql,
         "instructions": "Go to Supabase Dashboard → SQL Editor → New Query → Paste the SQL above → Run"
     }
+
+
+@router.post("/gems/migrate-description")
+async def migrate_gems_description():
+    """
+    Add description column to gems table and populate default values.
+    Call this once to add semantic descriptions to gems.
+    """
+    descriptions = {
+        "ruby": "Символ страсти, энергии и любви. Привлекает удачу и защищает от негатива.",
+        "sapphire": "Камень мудрости и ясности ума. Помогает сосредоточиться и принять верное решение.",
+        "emerald": "Символ надежды и обновления. Приносит гармонию и душевный покой.",
+    }
+
+    results = []
+
+    # Try to update each gem with description
+    for name_en, description in descriptions.items():
+        try:
+            # Find gem by name_en
+            gems = await supabase.select("gems", filters={"name_en": name_en})
+            if gems:
+                gem_id = gems[0]["id"]
+                await supabase.update("gems", gem_id, {"description": description})
+                results.append({"name_en": name_en, "status": "updated"})
+            else:
+                results.append({"name_en": name_en, "status": "not_found"})
+        except Exception as e:
+            results.append({"name_en": name_en, "status": "error", "error": str(e)})
+
+    return {
+        "success": True,
+        "message": "Migration completed",
+        "results": results,
+        "note": "If 'description' column doesn't exist, run: ALTER TABLE gems ADD COLUMN IF NOT EXISTS description TEXT;"
+    }
