@@ -389,9 +389,11 @@ CRITICAL REQUIREMENTS:
 
 
 @router.get("/applications")
-async def list_applications(user_id: Optional[str] = None, limit: int = 20):
+async def list_applications(user_id: Optional[str] = None, limit: int = 100):
     """List applications"""
     try:
+        # Cap limit at 500 for performance
+        limit = min(limit, 500)
         filters = {"user_id": user_id} if user_id else None
         apps = await supabase.select(
             "applications",
@@ -570,9 +572,11 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
 
 
 @router.get("/history")
-async def get_history(limit: int = 20):
+async def get_history(limit: int = 100):
     """Get generation history"""
     try:
+        # Cap limit at 500 for performance
+        limit = min(limit, 500)
         generations = await supabase.select(
             "pendant_generations",
             order="created_at.desc",
