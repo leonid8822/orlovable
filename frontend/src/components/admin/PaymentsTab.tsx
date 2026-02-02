@@ -30,6 +30,7 @@ interface Payment {
   customer_name: string | null;
   order_comment: string | null;
   card_pan: string | null;
+  payment_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -163,6 +164,7 @@ export function PaymentsTab() {
                 <TableHead>Статус</TableHead>
                 <TableHead>Клиент</TableHead>
                 <TableHead>Карта</TableHead>
+                <TableHead>Ссылка оплаты</TableHead>
                 <TableHead>Заявка</TableHead>
               </TableRow>
             </TableHeader>
@@ -195,6 +197,21 @@ export function PaymentsTab() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {payment.card_pan || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {payment.payment_url ? (
+                      <a
+                        href={payment.payment_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        Открыть
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {payment.application_id ? (

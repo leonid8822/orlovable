@@ -499,9 +499,36 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
         if not app:
             raise HTTPException(status_code=404, detail="Application not found")
 
+        # Find or create user by email
+        user_id = None
+        if req.email:
+            existing_user = await supabase.select_by_field("users", "email", req.email)
+            if existing_user:
+                user_id = existing_user.get("id")
+                # Update user info if provided
+                user_updates = {}
+                if req.name and not existing_user.get("name"):
+                    user_updates["name"] = req.name
+                if req.phone and not existing_user.get("phone"):
+                    user_updates["phone"] = req.phone
+                if req.telegram and not existing_user.get("telegram_username"):
+                    user_updates["telegram_username"] = req.telegram
+                if user_updates:
+                    await supabase.update("users", user_id, user_updates)
+            else:
+                # Create new user
+                new_user = await supabase.insert("users", {
+                    "email": req.email,
+                    "name": req.name or "",
+                    "phone": req.phone or "",
+                    "telegram_username": req.telegram or "",
+                })
+                if new_user:
+                    user_id = new_user.get("id")
+
         # Update application with order details
         update_data = {
-            "status": "submitted",
+            "status": "completed",  # Order completed (payment separate)
             "material": req.material,
             "size": req.size,
             "size_option": req.size_option,
@@ -512,6 +539,10 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
             "customer_telegram": req.telegram,
             "submitted_at": datetime.utcnow().isoformat(),
         }
+
+        # Link to user
+        if user_id:
+            update_data["user_id"] = user_id
 
         # Add gems if provided
         if req.gems:
@@ -524,7 +555,8 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
         return {
             "success": True,
             "application_id": app_id,
-            "status": "submitted",
+            "user_id": user_id,
+            "status": "completed",
             "message": "Заказ успешно оформлен! Мы свяжемся с вами для уточнения деталей."
         }
 
@@ -1423,12 +1455,13 @@ async def create_payment(req: CreatePaymentRequest):
             "customer_email": req.email,
             "customer_name": req.name,
             "order_comment": req.order_comment,
+            "payment_url": payment_result["payment_url"],
         }
         await supabase.insert("payments", payment_data)
 
         # Update application status
         await supabase.update("applications", req.application_id, {
-            "status": "pending_payment",
+            "status": "pending_order",
             "order_comment": req.order_comment,
         })
 
@@ -1597,6 +1630,7 @@ async def test_payment(amount: int = 100):
             "customer_email": None,
             "customer_name": "Test User",
             "order_comment": "Test payment",
+            "payment_url": payment_result["payment_url"],
         }
         await supabase.insert("payments", payment_data)
 
@@ -2114,13 +2148,14 @@ async def admin_create_invoice(req: CreateInvoiceRequest):
             "customer_email": req.customer_email,
             "customer_name": req.customer_name,
             "order_comment": req.description,
+            "payment_url": payment_result["payment_url"],
         }
         await supabase.insert("payments", payment_data)
 
         # Update application status if linked
         if req.application_id:
             await supabase.update("applications", req.application_id, {
-                "status": "pending_payment",
+                "status": "pending_order",
             })
 
         return {
