@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard, Users } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard, Users, Package } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -17,6 +17,7 @@ import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { ClientsTab } from '@/components/admin/ClientsTab';
 import { GemsTab } from '@/components/admin/GemsTab';
+import { ProductsTab } from '@/components/admin/ProductsTab';
 import { ClientSelector } from '@/components/admin/ClientSelector';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
@@ -352,7 +353,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-7">
+          <TabsList className="grid w-full max-w-6xl grid-cols-8">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Заявки
@@ -372,6 +373,10 @@ const Admin = () => {
             <TabsTrigger value="gems" className="gap-2">
               <span className="text-base">💎</span>
               Камни
+            </TabsTrigger>
+            <TabsTrigger value="products" className="gap-2">
+              <Package className="h-4 w-4" />
+              Товары
             </TabsTrigger>
             <TabsTrigger value="examples" className="gap-2">
               <Image className="h-4 w-4" />
@@ -814,6 +819,11 @@ const Admin = () => {
           {/* Gems Tab */}
           <TabsContent value="gems" className="space-y-6">
             <GemsTab />
+          </TabsContent>
+
+          {/* Products Tab */}
+          <TabsContent value="products" className="space-y-6">
+            <ProductsTab />
           </TabsContent>
 
           {/* Examples Tab */}
