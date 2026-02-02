@@ -49,15 +49,22 @@ const Application = () => {
   const [appTheme, setAppTheme] = useState<AppTheme>("main");
   const [paymentInfo, setPaymentInfo] = useState<{ amount: number; orderId: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState<{ email?: string; name?: string }>({});
+  const [customerInfo, setCustomerInfo] = useState<{ email?: string; name?: string; phone?: string }>({});
 
-  // Check if user is admin
+  // Check if user is admin and load user info
   useEffect(() => {
     const checkAdmin = async () => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try {
           const user = JSON.parse(storedUser);
+          // Set customer info from stored user
+          setCustomerInfo(prev => ({
+            ...prev,
+            email: user.email || prev.email,
+            name: user.name || prev.name,
+            phone: user.phone || prev.phone,
+          }));
           if (user.userId || user.id) {
             const { data } = await api.checkAdminStatus(user.userId || user.id);
             setIsAdmin(data?.is_admin || false);
@@ -374,11 +381,12 @@ const Application = () => {
       // Set generated images for selection step
       setGeneratedImages(allGeneratedImages);
 
-      // Set customer info for payments
-      setCustomerInfo({
-        email: data.customer_email,
-        name: data.customer_name,
-      });
+      // Set customer info for payments (from application data or keep existing from user)
+      setCustomerInfo(prev => ({
+        email: data.customer_email || prev.email,
+        name: data.customer_name || prev.name,
+        phone: data.customer_phone || prev.phone,
+      }));
 
       setLoading(false);
     };
@@ -417,8 +425,8 @@ const Application = () => {
               </div>
             )}
 
-          {/* Step indicator - hide on CONFIRMATION */}
-          {currentStep !== AppStep.CONFIRMATION && (
+          {/* Step indicator - hide on CONFIRMATION and GEMS */}
+          {currentStep !== AppStep.CONFIRMATION && currentStep !== AppStep.GEMS && (
             <div className="mb-12">
               <StepIndicator currentStep={currentStep} />
             </div>
@@ -502,6 +510,10 @@ const Application = () => {
                 }}
                 onAddGems={() => transitionTo(AppStep.GEMS)}
                 applicationId={applicationId || undefined}
+                userEmail={customerInfo.email}
+                userName={customerInfo.name}
+                userPhone={customerInfo.phone}
+                onCustomerInfoChange={(info) => setCustomerInfo(prev => ({ ...prev, ...info }))}
               />
             )}
 

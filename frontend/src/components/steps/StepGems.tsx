@@ -19,6 +19,7 @@ interface GemData {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  description?: string;
 }
 
 interface StepGemsProps {
@@ -164,7 +165,7 @@ export function StepGems({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-      {/* Header */}
+      {/* Header - simple label without step indicator */}
       <div className="text-center">
         <div
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-4"
@@ -175,7 +176,7 @@ export function StepGems({
         >
           <Gem className="w-4 h-4" style={{ color: themeConfig.accentColor }} />
           <span className="text-sm" style={{ color: themeConfig.accentColor }}>
-            Добавление камней
+            Добавление натуральных камней
           </span>
         </div>
         <h2 className="text-2xl md:text-3xl font-display mb-2">
@@ -349,6 +350,15 @@ export function StepGems({
                 );
               })}
             </div>
+
+            {/* Selected gem description */}
+            {selectedGem?.description && (
+              <p className="text-sm text-muted-foreground mt-3 p-3 bg-card/50 rounded-lg border border-border/50">
+                <span className="font-medium" style={{ color: selectedGem.color }}>{selectedGem.name}</span>
+                {" — "}
+                {selectedGem.description}
+              </p>
+            )}
           </div>
 
           <div className="p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground">

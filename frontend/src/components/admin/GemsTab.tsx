@@ -31,6 +31,7 @@ interface GemData {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  description?: string;
 }
 
 interface GemShape {
@@ -224,6 +225,7 @@ function GemDialog({
 }) {
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
+  const [description, setDescription] = useState("");
   const [shape, setShape] = useState("round");
   const [sizeMm, setSizeMm] = useState(1.5);
   const [color, setColor] = useState("#E31C25");
@@ -241,6 +243,7 @@ function GemDialog({
       if (gem) {
         setName(gem.name);
         setNameEn(gem.name_en || "");
+        setDescription(gem.description || "");
         setShape(gem.shape);
         setSizeMm(gem.size_mm);
         setColor(gem.color);
@@ -251,6 +254,7 @@ function GemDialog({
       } else {
         setName("");
         setNameEn("");
+        setDescription("");
         setShape("round");
         setSizeMm(1.5);
         setColor("#E31C25");
@@ -292,6 +296,7 @@ function GemDialog({
     const payload: any = {
       name: name.trim(),
       name_en: nameEn.trim() || name.trim().toLowerCase(),
+      description: description.trim() || null,
       shape,
       size_mm: sizeMm,
       color,
@@ -422,6 +427,19 @@ function GemDialog({
                 placeholder="ruby"
               />
             </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1">
+            <Label>Описание (смысловое)</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Символ страсти, энергии и любви..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Краткое описание значения камня для пользователей
+            </p>
           </div>
 
           {/* Shape and size */}

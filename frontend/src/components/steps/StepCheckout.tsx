@@ -19,6 +19,10 @@ interface StepCheckoutProps {
   onOrderSuccess?: () => void;
   onAddGems?: () => void;  // Optional: navigate to gems upsell step
   applicationId?: string;
+  userEmail?: string;  // Pre-filled from auth
+  userName?: string;   // Pre-filled from profile
+  userPhone?: string;  // Pre-filled from profile
+  onCustomerInfoChange?: (info: { email?: string; name?: string; phone?: string }) => void;
 }
 
 type SizeOption = "s" | "m" | "l";
@@ -30,16 +34,30 @@ export function StepCheckout({
   onOrderSuccess,
   onAddGems,
   applicationId,
+  userEmail,
+  userName,
+  userPhone,
+  onCustomerInfoChange,
 }: StepCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  // Email is pre-filled from auth and read-only
+  const email = userEmail || localStorage.getItem('userEmail') || '';
+  const [name, setName] = useState(userName || '');
+  const [phone, setPhone] = useState(userPhone || '');
   const [telegram, setTelegram] = useState('');
   const { config: themeConfig } = useAppTheme();
   const { toast } = useToast();
+
+  // Update name/phone when props change
+  useEffect(() => {
+    if (userName && !name) setName(userName);
+  }, [userName]);
+
+  useEffect(() => {
+    if (userPhone && !phone) setPhone(userPhone);
+  }, [userPhone]);
 
   // Auto-switch images every 15 seconds
   useEffect(() => {
@@ -105,15 +123,6 @@ export function StepCheckout({
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
 
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      toast({
-        title: "Введите email",
-        description: "Email необходим для связи с вами",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!trimmedName) {
       toast({
         title: "Введите имя",
@@ -150,8 +159,10 @@ export function StepCheckout({
         throw new Error(error?.message || "Ошибка оформления заказа");
       }
 
-      // Save email for future
+      // Save customer info
       localStorage.setItem('userEmail', trimmedEmail);
+      localStorage.setItem('userName', trimmedName);
+      onCustomerInfoChange?.({ email: trimmedEmail, name: trimmedName, phone: trimmedPhone });
 
       toast({
         title: "Заказ оформлен!",
@@ -359,21 +370,13 @@ export function StepCheckout({
         <div className="space-y-4">
           <h3 className="text-lg font-display text-center">Ваши контакты</h3>
 
-          {/* Email */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email *
-            </label>
-            <Input
-              type="email"
-              placeholder="email@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-card border-border focus:border-theme"
-              required
-            />
-          </div>
+          {/* Email - read only, from auth */}
+          {email && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-card/50 border border-border">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{email}</span>
+            </div>
+          )}
 
           {/* Name - required */}
           <div className="space-y-2">
@@ -480,7 +483,7 @@ export function StepCheckout({
               size="lg"
               className="w-full md:flex-1"
               onClick={handleSubmitOrder}
-              disabled={isProcessing || !agreedToTerms || !email.trim() || !name.trim() || !phone.trim()}
+              disabled={isProcessing || !agreedToTerms || !name.trim() || !phone.trim()}
             >
               <Send className="w-4 h-4 mr-2" />
               {isProcessing ? "Оформляем..." : "Оформить заказ"}
