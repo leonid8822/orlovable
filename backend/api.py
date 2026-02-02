@@ -2258,6 +2258,8 @@ async def admin_get_gems():
 @router.post("/admin/gems")
 async def admin_create_gem(req: CreateGemRequest):
     """Create a new gem type"""
+    import traceback
+
     try:
         gem_id = str(uuid.uuid4())
         image_url = None
@@ -2266,22 +2268,36 @@ async def admin_create_gem(req: CreateGemRequest):
         if req.image_base64:
             import base64
 
+            print(f"Processing gem image for {req.name}...")
+
             # Decode base64
-            if "," in req.image_base64:
-                image_data = base64.b64decode(req.image_base64.split(",")[1])
-            else:
-                image_data = base64.b64decode(req.image_base64)
+            try:
+                if "," in req.image_base64:
+                    image_data = base64.b64decode(req.image_base64.split(",")[1])
+                else:
+                    image_data = base64.b64decode(req.image_base64)
+                print(f"  Image decoded, size: {len(image_data)} bytes")
+            except Exception as decode_err:
+                print(f"  Base64 decode error: {decode_err}")
+                raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
             # Upload with background removal
-            path = f"gems/{gem_id}.png"
-            image_url = await supabase.upload_gem_image(
-                bucket="images",
-                path=path,
-                image_data=image_data,
-                remove_bg=req.remove_background,
-                max_size=400,
-                bg_tolerance=req.bg_tolerance
-            )
+            try:
+                path = f"gems/{gem_id}.png"
+                print(f"  Uploading to {path}, remove_bg={req.remove_background}, tolerance={req.bg_tolerance}")
+                image_url = await supabase.upload_gem_image(
+                    bucket="images",
+                    path=path,
+                    image_data=image_data,
+                    remove_bg=req.remove_background,
+                    max_size=400,
+                    bg_tolerance=req.bg_tolerance
+                )
+                print(f"  Upload successful: {image_url}")
+            except Exception as upload_err:
+                print(f"  Upload error: {upload_err}")
+                print(traceback.format_exc())
+                raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         gem_data = {
             "id": gem_id,
@@ -2295,23 +2311,31 @@ async def admin_create_gem(req: CreateGemRequest):
             "sort_order": req.sort_order,
         }
 
+        print(f"  Inserting gem into database: {gem_id}")
         await supabase.insert("gems", gem_data)
+        print(f"  Gem created successfully: {req.name}")
 
         return {"success": True, "gem": gem_data}
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error creating gem: {e}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/admin/gems/{gem_id}")
 async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
     """Update a gem type"""
+    import traceback
+
     try:
         gem = await supabase.select_one("gems", gem_id)
         if not gem:
             raise HTTPException(status_code=404, detail="Камень не найден")
 
+        print(f"Updating gem: {gem_id} ({gem.get('name')})")
         updates = {}
 
         if req.name is not None:
@@ -2333,23 +2357,40 @@ async def admin_update_gem(gem_id: str, req: UpdateGemRequest):
         if req.image_base64:
             import base64
 
-            if "," in req.image_base64:
-                image_data = base64.b64decode(req.image_base64.split(",")[1])
-            else:
-                image_data = base64.b64decode(req.image_base64)
+            print(f"  Processing new image...")
+            try:
+                if "," in req.image_base64:
+                    image_data = base64.b64decode(req.image_base64.split(",")[1])
+                else:
+                    image_data = base64.b64decode(req.image_base64)
+                print(f"  Image decoded, size: {len(image_data)} bytes")
+            except Exception as decode_err:
+                print(f"  Base64 decode error: {decode_err}")
+                raise HTTPException(status_code=400, detail=f"Invalid image data: {decode_err}")
 
-            path = f"gems/{gem_id}.png"
-            image_url = await supabase.upload_gem_image(
-                bucket="images",
-                path=path,
-                image_data=image_data,
-                remove_bg=req.remove_background if req.remove_background is not None else True,
-                max_size=400,
-                bg_tolerance=req.bg_tolerance if req.bg_tolerance is not None else 30
-            )
-            updates["image_url"] = image_url
+            try:
+                path = f"gems/{gem_id}.png"
+                remove_bg = req.remove_background if req.remove_background is not None else True
+                tolerance = req.bg_tolerance if req.bg_tolerance is not None else 30
+                print(f"  Uploading to {path}, remove_bg={remove_bg}, tolerance={tolerance}")
+
+                image_url = await supabase.upload_gem_image(
+                    bucket="images",
+                    path=path,
+                    image_data=image_data,
+                    remove_bg=remove_bg,
+                    max_size=400,
+                    bg_tolerance=tolerance
+                )
+                updates["image_url"] = image_url
+                print(f"  Upload successful: {image_url}")
+            except Exception as upload_err:
+                print(f"  Upload error: {upload_err}")
+                print(traceback.format_exc())
+                raise HTTPException(status_code=500, detail=f"Image upload failed: {upload_err}")
 
         if updates:
+            print(f"  Updating database with: {list(updates.keys())}")
             await supabase.update("gems", gem_id, updates)
 
         updated_gem = await supabase.select_one("gems", gem_id)

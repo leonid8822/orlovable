@@ -102,8 +102,8 @@ class SupabaseClient:
     def _storage_url(self, bucket: str) -> str:
         return f"{self.url}/storage/v1/object/{bucket}"
 
-    async def upload_file(self, bucket: str, path: str, file_data: bytes, content_type: str = "image/png"):
-        """Upload file to storage bucket"""
+    async def upload_file(self, bucket: str, path: str, file_data: bytes, content_type: str = "image/png", upsert: bool = True):
+        """Upload file to storage bucket. Supports upsert to overwrite existing files."""
         url = f"{self._storage_url(bucket)}/{path}"
 
         headers = {
@@ -112,8 +112,21 @@ class SupabaseClient:
             "Content-Type": content_type,
         }
 
-        async with httpx.AsyncClient() as client:
+        # Add upsert header to allow overwriting existing files
+        if upsert:
+            headers["x-upsert"] = "true"
+
+        async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(url, headers=headers, content=file_data)
+            if response.status_code == 400 and "already exists" in response.text.lower():
+                # File exists and upsert didn't work, try to delete and re-upload
+                print(f"File exists, attempting to delete and re-upload: {path}")
+                try:
+                    delete_url = f"{self.url}/storage/v1/object/{bucket}/{path}"
+                    await client.delete(delete_url, headers={"apikey": self.key, "Authorization": f"Bearer {self.key}"})
+                    response = await client.post(url, headers=headers, content=file_data)
+                except Exception as e:
+                    print(f"Error during delete-reupload: {e}")
             response.raise_for_status()
             return response.json()
 
