@@ -101,8 +101,8 @@ async def get_settings():
                 "label": "Жетон",
                 "description": "Мужской жетон",
                 "icon": "rectangle-vertical",
-                "addition": "Объект овальный, в форме вертикального армейского жетона.",
-                "shape": "овальная вертикальная форма жетона (dog tag)"
+                "addition": "Форма армейского жетона (dog tag) - вертикальный скруглённый прямоугольник с небольшой выемкой сверху для цепочки.",
+                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain"
             },
             "contour": {
                 "label": "Контурный кулон",
