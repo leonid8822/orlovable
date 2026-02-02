@@ -1945,6 +1945,46 @@ async def admin_list_clients():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/admin/clients/search")
+async def admin_search_clients(q: str = ""):
+    """Search clients by email, name or telegram for autocomplete"""
+    try:
+        if len(q) < 2:
+            return {"clients": []}
+
+        users = await supabase.select("users", order="created_at.desc", limit=100)
+        q_lower = q.lower()
+
+        results = []
+        for user in users:
+            email = user.get("email", "").lower()
+            name = user.get("name", "").lower()
+            first_name = user.get("first_name", "").lower()
+            last_name = user.get("last_name", "").lower()
+            telegram = user.get("telegram_username", "").lower()
+
+            if (q_lower in email or q_lower in name or
+                q_lower in first_name or q_lower in last_name or
+                q_lower in telegram):
+                results.append({
+                    "id": user.get("id"),
+                    "email": user.get("email"),
+                    "name": user.get("name", ""),
+                    "first_name": user.get("first_name", ""),
+                    "last_name": user.get("last_name", ""),
+                    "telegram_username": user.get("telegram_username", ""),
+                })
+
+            if len(results) >= 10:
+                break
+
+        return {"clients": results}
+
+    except Exception as e:
+        print(f"Error searching clients: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/admin/clients/{user_id}")
 async def admin_get_client(user_id: str):
     """Get detailed client card"""
@@ -2214,46 +2254,6 @@ async def admin_assign_client_to_application(app_id: str, req: AssignClientReque
         raise
     except Exception as e:
         print(f"Error assigning client: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/admin/clients/search")
-async def admin_search_clients(q: str = ""):
-    """Search clients by email, name or telegram for autocomplete"""
-    try:
-        if len(q) < 2:
-            return {"clients": []}
-
-        users = await supabase.select("users", order="created_at.desc", limit=100)
-        q_lower = q.lower()
-
-        results = []
-        for user in users:
-            email = user.get("email", "").lower()
-            name = user.get("name", "").lower()
-            first_name = user.get("first_name", "").lower()
-            last_name = user.get("last_name", "").lower()
-            telegram = user.get("telegram_username", "").lower()
-
-            if (q_lower in email or q_lower in name or
-                q_lower in first_name or q_lower in last_name or
-                q_lower in telegram):
-                results.append({
-                    "id": user.get("id"),
-                    "email": user.get("email"),
-                    "name": user.get("name", ""),
-                    "first_name": user.get("first_name", ""),
-                    "last_name": user.get("last_name", ""),
-                    "telegram_username": user.get("telegram_username", ""),
-                })
-
-            if len(results) >= 10:
-                break
-
-        return {"clients": results}
-
-    except Exception as e:
-        print(f"Error searching clients: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
