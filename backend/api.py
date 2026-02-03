@@ -554,11 +554,21 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
         if user_id:
             update_data["user_id"] = user_id
 
-        # Add gems if provided
+        # Add gems if provided (with fallback if column doesn't exist)
         if req.gems:
             update_data["gems"] = req.gems
 
-        result = await supabase.update("applications", app_id, update_data)
+        # Try update with gems first
+        try:
+            result = await supabase.update("applications", app_id, update_data)
+        except Exception as update_error:
+            # If gems column doesn't exist, retry without it
+            if "gems" in str(update_error).lower() or "column" in str(update_error).lower():
+                print(f"Warning: gems column may not exist, retrying without gems: {update_error}")
+                update_data.pop("gems", None)
+                result = await supabase.update("applications", app_id, update_data)
+            else:
+                raise
 
         # TODO: Send notification to admin (Telegram bot, email, etc.)
 
@@ -2962,6 +2972,48 @@ async def migrate_gems_description():
         "results": results,
         "note": "If 'description' column doesn't exist, run: ALTER TABLE gems ADD COLUMN IF NOT EXISTS description TEXT;"
     }
+
+
+@router.post("/admin/add-admin")
+async def add_admin_user(email: str = "shauk@yandex.ru"):
+    """
+    Add or update a user as admin.
+    """
+    try:
+        # Check if user exists
+        users = await supabase.select("users", filters={"email": email})
+
+        if users:
+            # Update existing user to admin
+            user_id = users[0]["id"]
+            await supabase.update("users", user_id, {"is_admin": True})
+            return {
+                "success": True,
+                "action": "updated",
+                "user_id": user_id,
+                "email": email,
+                "message": f"User {email} is now admin"
+            }
+        else:
+            # Create new admin user
+            new_user = await supabase.insert("users", {
+                "email": email,
+                "is_admin": True,
+                "created_at": datetime.utcnow().isoformat()
+            })
+            return {
+                "success": True,
+                "action": "created",
+                "user_id": new_user.get("id") if new_user else None,
+                "email": email,
+                "message": f"Admin user {email} created"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "email": email
+        }
 
 
 @router.post("/health/test-generation")
