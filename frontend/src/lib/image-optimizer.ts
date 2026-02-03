@@ -49,26 +49,30 @@ export function optimizeImageUrl(
 ): string | null {
   if (!url) return null;
 
+  // TEMPORARY: Disable optimization until Supabase Image Transformation is configured
+  // Need to enable in Supabase Dashboard: Storage > Settings > Image Transformation
+  return url;
+
   // Skip if not a Supabase Storage URL
-  if (!url.includes('supabase.co/storage')) {
-    return url;
-  }
+  // if (!url.includes('supabase.co/storage')) {
+  //   return url;
+  // }
 
-  // Get transform options
-  const options = typeof size === 'string' ? SIZE_PRESETS[size] : size;
+  // // Get transform options
+  // const options = typeof size === 'string' ? SIZE_PRESETS[size] : size;
 
-  // Build transformation parameters
-  const params = new URLSearchParams();
+  // // Build transformation parameters
+  // const params = new URLSearchParams();
 
-  if (options.width) params.append('width', options.width.toString());
-  if (options.height) params.append('height', options.height.toString());
-  if (options.quality) params.append('quality', options.quality.toString());
-  if (options.format) params.append('format', options.format);
-  if (options.resize) params.append('resize', options.resize);
+  // if (options.width) params.append('width', options.width.toString());
+  // if (options.height) params.append('height', options.height.toString());
+  // if (options.quality) params.append('quality', options.quality.toString());
+  // if (options.format) params.append('format', options.format);
+  // if (options.resize) params.append('resize', options.resize);
 
-  // Add transformation parameters to URL
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}${params.toString()}`;
+  // // Add transformation parameters to URL
+  // const separator = url.includes('?') ? '&' : '?';
+  // return `${url}${separator}${params.toString()}`;
 }
 
 /**
@@ -83,17 +87,20 @@ export function generateSrcSet(
 ): string | null {
   if (!url) return null;
 
-  return sizes
-    .map((width) => {
-      const optimized = optimizeImageUrl(url, {
-        width,
-        quality: 85,
-        format: 'webp',
-        resize: 'contain',
-      });
-      return `${optimized} ${width}w`;
-    })
-    .join(', ');
+  // TEMPORARY: Disabled until Image Transformation is enabled
+  return null;
+
+  // return sizes
+  //   .map((width) => {
+  //     const optimized = optimizeImageUrl(url, {
+  //       width,
+  //       quality: 85,
+  //       format: 'webp',
+  //       resize: 'contain',
+  //     });
+  //     return `${optimized} ${width}w`;
+  //   })
+  //   .join(', ');
 }
 
 /**
