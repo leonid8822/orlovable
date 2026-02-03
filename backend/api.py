@@ -401,7 +401,8 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 100):
             order="created_at.desc",
             limit=limit
         )
-        return apps
+        # Return consistent format with other endpoints
+        return {"applications": apps if apps else []}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

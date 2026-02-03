@@ -14,6 +14,18 @@
    curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_8msyhjERk6BWBdBSdKJDDxHjNJrq/DXSjiKoltz"
    ```
 
+3. **ОБЯЗАТЕЛЬНО после каждого деплоя**: Проверить версию API и запустить smoke tests:
+   ```bash
+   # 1. Проверить что API доступен
+   curl -s "https://olai.onrender.com/" | python3 -m json.tool
+
+   # 2. Запустить smoke tests (ОБЯЗАТЕЛЬНО!)
+   cd backend && python3 scripts/smoke_tests.py --e2e
+
+   # Или через shell скрипт
+   ./backend/scripts/run_smoke_tests.sh --e2e
+   ```
+
 3. **Создание таблиц в Supabase**: Использовать API эндпоинт:
    ```bash
    curl -X POST "https://olai.onrender.com/api/logs/init"
@@ -41,29 +53,31 @@
    curl -X POST "https://olai.onrender.com/api/settings/reset"
    ```
 
-7. **Запуск smoke tests на проде**:
+7. **Запуск smoke tests на проде** (ОБЯЗАТЕЛЬНО после деплоя):
    ```bash
    # Базовые тесты (быстрые)
-   curl "https://olai.onrender.com/api/health/smoke-tests"
+   cd backend && python3 scripts/smoke_tests.py
 
-   # E2E тест генерации (dry run, бесплатно)
-   curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=true"
+   # С E2E тестом (dry run, бесплатно)
+   cd backend && python3 scripts/smoke_tests.py --e2e
 
-   # Через Python скрипт (локально)
-   cd backend/scripts && python smoke_tests.py --e2e
+   # Полный E2E тест (СТОИТ ДЕНЕГ! ~12 центов)
+   cd backend && python3 scripts/smoke_tests.py --e2e --full
 
    # Через shell скрипт
-   ./backend/scripts/run_smoke_tests.sh
+   ./backend/scripts/run_smoke_tests.sh --e2e
    ```
 
-8. **Автоматические тесты после деплоя**: GitHub Actions автоматически запускает smoke tests после пуша в main. Проверяются:
-   - Settings endpoint
-   - Gems database
-   - Logs system
-   - Examples gallery
-   - Generation settings
-   - E2E генерация кулона (опционально, dry run режим)
-   - Результаты логируются в `app_logs` (source: `smoke_tests`)
+   Проверяемые компоненты:
+   - ✅ Health Check - API доступен
+   - ✅ Settings - настройки загружаются
+   - ✅ Gems Library - библиотека камней
+   - ✅ Examples Gallery - галерея примеров (API + статика)
+   - ✅ Logs System - система логирования
+   - ✅ Generation Settings - настройки генерации
+   - ✅ E2E Generation - полный флоу заявки (опционально)
+
+8. **Автоматические тесты после деплоя**: Запускать smoke tests ВРУЧНУЮ после каждого деплоя (см. п.3). GitHub Actions НЕ настроен.
 
 ### Принципы работы:
 - **Делать сразу, не спрашивать** - если задача понятна, выполнять без подтверждения

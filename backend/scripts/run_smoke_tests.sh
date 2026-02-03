@@ -1,26 +1,16 @@
 #!/bin/bash
-# Быстрый запуск smoke tests на PROD
+# Run smoke tests for OLAI.art
+# Usage:
+#   ./run_smoke_tests.sh           # Basic tests
+#   ./run_smoke_tests.sh --e2e     # Include E2E test (dry run)
+#   ./run_smoke_tests.sh --full    # Full E2E test (costs money!)
 
 set -e
 
-echo "🚀 Running smoke tests on PROD..."
+cd "$(dirname "$0")/.."
+
+echo "Installing dependencies..."
+pip install -q requests 2>/dev/null || pip3 install -q requests 2>/dev/null || true
+
 echo ""
-
-# Check Python
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python3 not found. Please install Python 3.9+"
-    exit 1
-fi
-
-# Check httpx
-if ! python3 -c "import httpx" 2>/dev/null; then
-    echo "📦 Installing httpx..."
-    pip3 install httpx
-fi
-
-# Run tests
-cd "$(dirname "$0")"
-python3 smoke_tests.py
-
-# Exit with test result
-exit $?
+python3 scripts/smoke_tests.py "$@"

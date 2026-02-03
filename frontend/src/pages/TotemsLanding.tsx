@@ -5,7 +5,6 @@ import { LandingConstructor } from "@/components/LandingConstructor";
 import { GemsPromoBlock } from "@/components/GemsPromoBlock";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Compass,
@@ -44,29 +43,25 @@ const TotemsLanding = () => {
   const [isLoadingExamples, setIsLoadingExamples] = useState(true);
 
   useEffect(() => {
+    // Load examples from static JSON file (faster than API)
     const fetchExamples = async () => {
       setIsLoadingExamples(true);
       try {
-        const { data, error } = await supabase
-          .from('examples')
-          .select('*')
-          .eq('is_active', true)
-          .eq('theme', 'totems')
-          .order('display_order', { ascending: true })
-          .limit(5);
-
-        if (!error && data && data.length > 0) {
-          const formatted = data
-            .filter(e => e.after_image_url) // Only require after_image
-            .map(e => ({
-              before: e.before_image_url || '', // Can be empty
-              after: e.after_image_url!,
+        const response = await fetch('/examples/totems.json');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const formatted = data.map((e: any) => ({
+              before: e.before || '',
+              after: e.after,
               title: e.description || e.title || ''
             }));
-          if (formatted.length > 0) {
             setExamples(formatted);
           }
         }
+      } catch (error) {
+        console.error('Failed to load static examples:', error);
+        // Keep fallback examples
       } finally {
         setIsLoadingExamples(false);
       }
