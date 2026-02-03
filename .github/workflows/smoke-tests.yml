@@ -1,0 +1,75 @@
+name: Smoke Tests on Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  smoke-tests:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx
+
+      - name: Wait for Render deployment
+        run: |
+          echo "⏳ Waiting 2 minutes for Render to deploy..."
+          sleep 120
+
+      - name: Check Render deployment status
+        run: |
+          echo "🔍 Checking if backend is responsive..."
+          max_attempts=10
+          attempt=1
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts..."
+
+            if curl -s -f -o /dev/null "https://olai.onrender.com/api/settings"; then
+              echo "✅ Backend is responsive!"
+              break
+            fi
+
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Backend not responsive after $max_attempts attempts"
+              exit 1
+            fi
+
+            echo "Backend not ready, waiting 30 seconds..."
+            sleep 30
+            attempt=$((attempt + 1))
+          done
+
+      - name: Run smoke tests
+        run: |
+          cd backend/scripts
+          python smoke_tests.py
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: smoke-test-results
+          path: backend/scripts/smoke_tests.log
+          if-no-files-found: ignore
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Smoke tests failed! Check the logs for details."
+          echo "This indicates a problem with the production deployment."

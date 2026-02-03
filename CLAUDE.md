@@ -41,6 +41,26 @@
    curl -X POST "https://olai.onrender.com/api/settings/reset"
    ```
 
+7. **Запуск smoke tests на проде**:
+   ```bash
+   # Через API endpoint
+   curl "https://olai.onrender.com/api/health/smoke-tests"
+
+   # Через Python скрипт (локально)
+   cd backend/scripts && python smoke_tests.py
+
+   # Через shell скрипт
+   ./backend/scripts/run_smoke_tests.sh
+   ```
+
+8. **Автоматические тесты после деплоя**: GitHub Actions автоматически запускает smoke tests после пуша в main. Проверяются:
+   - Settings endpoint
+   - Gems database
+   - Logs system
+   - Examples gallery
+   - Generation settings
+   - Результаты логируются в `app_logs` (source: `smoke_tests`)
+
 ### Принципы работы:
 - **Делать сразу, не спрашивать** - если задача понятна, выполнять без подтверждения
 - **Деплоить автоматически** - после изменений сразу деплоить на прод

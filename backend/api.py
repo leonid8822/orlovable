@@ -2956,3 +2956,134 @@ async def migrate_gems_description():
         "results": results,
         "note": "If 'description' column doesn't exist, run: ALTER TABLE gems ADD COLUMN IF NOT EXISTS description TEXT;"
     }
+
+
+@router.get("/health/smoke-tests")
+async def run_smoke_tests():
+    """
+    Run smoke tests on critical endpoints.
+    Returns test results for monitoring and CI/CD.
+    """
+    test_results = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "tests": [],
+        "passed": 0,
+        "failed": 0
+    }
+
+    # Test 1: Settings endpoint
+    try:
+        settings = await get_settings()
+        if "sizeOptions" in settings and "formFactors" in settings:
+            test_results["tests"].append({
+                "name": "Settings Endpoint",
+                "status": "passed",
+                "endpoint": "/api/settings"
+            })
+            test_results["passed"] += 1
+        else:
+            raise ValueError("Missing required fields in settings")
+    except Exception as e:
+        test_results["tests"].append({
+            "name": "Settings Endpoint",
+            "status": "failed",
+            "endpoint": "/api/settings",
+            "error": str(e)
+        })
+        test_results["failed"] += 1
+
+    # Test 2: Gems endpoint
+    try:
+        gems = await supabase.select("gems", filters={"is_active": True})
+        test_results["tests"].append({
+            "name": "Gems Database",
+            "status": "passed",
+            "endpoint": "/api/gems",
+            "gems_count": len(gems) if gems else 0
+        })
+        test_results["passed"] += 1
+    except Exception as e:
+        test_results["tests"].append({
+            "name": "Gems Database",
+            "status": "failed",
+            "endpoint": "/api/gems",
+            "error": str(e)
+        })
+        test_results["failed"] += 1
+
+    # Test 3: Logs endpoint
+    try:
+        logs = await supabase.select("app_logs", order="created_at.desc", limit=1)
+        test_results["tests"].append({
+            "name": "Logs Database",
+            "status": "passed",
+            "endpoint": "/api/logs"
+        })
+        test_results["passed"] += 1
+    except Exception as e:
+        test_results["tests"].append({
+            "name": "Logs Database",
+            "status": "failed",
+            "endpoint": "/api/logs",
+            "error": str(e)
+        })
+        test_results["failed"] += 1
+
+    # Test 4: Examples endpoint
+    try:
+        examples = await supabase.select("examples", filters={"is_active": True})
+        test_results["tests"].append({
+            "name": "Examples Gallery",
+            "status": "passed",
+            "endpoint": "/api/examples",
+            "examples_count": len(examples) if examples else 0
+        })
+        test_results["passed"] += 1
+    except Exception as e:
+        test_results["tests"].append({
+            "name": "Examples Gallery",
+            "status": "failed",
+            "endpoint": "/api/examples",
+            "error": str(e)
+        })
+        test_results["failed"] += 1
+
+    # Test 5: Generation settings
+    try:
+        gen_settings = await supabase.get_value("generation_settings", "prompt_variants")
+        if gen_settings:
+            test_results["tests"].append({
+                "name": "Generation Settings",
+                "status": "passed",
+                "endpoint": "/api/generation-settings"
+            })
+            test_results["passed"] += 1
+        else:
+            raise ValueError("No generation settings found")
+    except Exception as e:
+        test_results["tests"].append({
+            "name": "Generation Settings",
+            "status": "failed",
+            "endpoint": "/api/generation-settings",
+            "error": str(e)
+        })
+        test_results["failed"] += 1
+
+    # Overall status
+    test_results["success"] = test_results["failed"] == 0
+    test_results["total"] = test_results["passed"] + test_results["failed"]
+
+    # Log results
+    try:
+        from app_logger import logger
+        log_level = "info" if test_results["success"] else "error"
+        await logger._log(
+            log_level,
+            "smoke_tests",
+            f"Smoke tests completed: {test_results['passed']}/{test_results['total']} passed",
+            test_results
+        )
+    except Exception:
+        pass  # Don't fail if logging fails
+
+    return test_results
