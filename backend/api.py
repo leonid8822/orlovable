@@ -404,7 +404,20 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 100):
         # Return consistent format with other endpoints
         return {"applications": apps if apps else []}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the error for debugging
+        error_msg = str(e)
+        print(f"Error in list_applications: {error_msg}")
+        try:
+            from app_logger import logger
+            import traceback
+            await logger.error("applications_list", f"Failed to list applications: {error_msg}", {
+                "user_id": user_id,
+                "limit": limit,
+                "traceback": traceback.format_exc()
+            })
+        except:
+            pass
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @router.get("/orders")
