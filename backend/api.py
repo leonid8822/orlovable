@@ -3137,6 +3137,51 @@ async def init_logs_table():
     }
 
 
+@router.post("/applications/migrate-gems")
+async def migrate_applications_gems():
+    """
+    Add gems column to applications table.
+    Call this once to enable gem placements storage.
+    """
+    migrate_sql = """
+    ALTER TABLE applications
+    ADD COLUMN IF NOT EXISTS gems jsonb DEFAULT '[]'::jsonb;
+    """
+
+    # Method 1: Check if column already exists
+    try:
+        apps = await supabase.select("applications", order="created_at.desc", limit=1)
+        if apps and len(apps) > 0 and "gems" in apps[0]:
+            return {
+                "success": True,
+                "message": "Column 'gems' already exists in applications table",
+                "method": "column_exists"
+            }
+    except Exception as e:
+        pass
+
+    # Method 2: Try SQL execution via RPC
+    try:
+        result = await supabase.execute_sql(migrate_sql)
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Column 'gems' added to applications table",
+                "method": "execute_sql"
+            }
+    except Exception as e:
+        pass
+
+    # If all methods failed, return instructions
+    return {
+        "success": False,
+        "message": "Could not auto-add column. Please run SQL manually in Supabase.",
+        "sql_to_run": migrate_sql,
+        "instructions": "Go to Supabase Dashboard → SQL Editor → New Query → Paste the SQL above → Run",
+        "migration_file": "backend/migrations/009_add_gems_to_applications.sql"
+    }
+
+
 @router.post("/payments/migrate-url")
 async def migrate_payments_url():
     """
