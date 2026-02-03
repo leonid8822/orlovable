@@ -234,6 +234,9 @@ export interface PendantConfig {
   backEngraving: string;
   hasBackEngraving: boolean;
 
+  // Gallery consent
+  allowGalleryUse: boolean;
+
   // Legacy fields (kept for compatibility)
   backImage: File | null;
   backImagePreview: string | null;
@@ -264,6 +267,8 @@ export const initialPendantConfig: PendantConfig = {
   // Engraving
   backEngraving: '',
   hasBackEngraving: false,
+  // Gallery consent (default: true)
+  allowGalleryUse: true,
   // Legacy
   backImage: null,
   backImagePreview: null,

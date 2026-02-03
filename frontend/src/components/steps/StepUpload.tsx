@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Sparkles, Circle, RectangleVertical, Hexagon, ChevronDown, Square, Pentagon, Octagon, Star, Heart, Diamond } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ImageUploader } from "@/components/ImageUploader";
 import { cn } from "@/lib/utils";
 import type { PendantConfig, FormFactor } from "@/types/pendant";
@@ -304,6 +305,23 @@ export function StepUpload({
             />
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Gallery consent checkbox */}
+        <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+          <Checkbox
+            id="gallery-consent"
+            checked={config.allowGalleryUse}
+            onCheckedChange={(checked) => onConfigChange({ allowGalleryUse: !!checked })}
+            disabled={isDisabled}
+            className="mt-0.5"
+          />
+          <label
+            htmlFor="gallery-consent"
+            className="text-sm text-muted-foreground leading-relaxed cursor-pointer select-none"
+          >
+            Я согласен, что мои изображения и результаты генерации могут быть использованы в галерее примеров на сайте
+          </label>
+        </div>
 
         {/* Generate button */}
         <Button

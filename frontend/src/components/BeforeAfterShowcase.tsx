@@ -19,7 +19,6 @@ interface BeforeAfterShowcaseProps {
 export function BeforeAfterShowcase({
   examples,
   accentColor = "gold",
-  autoPlayInterval = 4000,
   isLoading = false,
 }: BeforeAfterShowcaseProps) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -68,19 +67,18 @@ export function BeforeAfterShowcase({
     });
   }, [examples, isLoading]);
 
-  useEffect(() => {
-    if (examples.length <= 1 || !imagesLoaded) return;
-
-    const interval = setInterval(() => {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        setActiveIndex((prev) => (prev + 1) % examples.length);
-        setIsTransitioning(false);
-      }, 300);
-    }, autoPlayInterval);
-
-    return () => clearInterval(interval);
-  }, [examples.length, autoPlayInterval, imagesLoaded]);
+  // Auto-play disabled per user request
+  // useEffect(() => {
+  //   if (examples.length <= 1 || !imagesLoaded) return;
+  //   const interval = setInterval(() => {
+  //     setIsTransitioning(true);
+  //     setTimeout(() => {
+  //       setActiveIndex((prev) => (prev + 1) % examples.length);
+  //       setIsTransitioning(false);
+  //     }, 300);
+  //   }, autoPlayInterval);
+  //   return () => clearInterval(interval);
+  // }, [examples.length, autoPlayInterval, imagesLoaded]);
 
   const handleDotClick = (index: number) => {
     if (index === activeIndex) return;
@@ -149,31 +147,31 @@ export function BeforeAfterShowcase({
     return (
       <div className="space-y-6">
         <div className="relative">
-          {/* Mobile: vertical layout */}
-          <div className="flex flex-col gap-4 md:hidden">
+          {/* Mobile: vertical layout - reduced size */}
+          <div className="flex flex-col gap-3 md:hidden max-w-xs mx-auto">
             {/* Before skeleton */}
             <div className="relative">
-              <div className={cn("absolute -inset-1 rounded-2xl blur-xl", colors.bgLight)} />
-              <div className={cn("relative aspect-square rounded-2xl overflow-hidden border-2", colors.borderLight)}>
+              <div className={cn("absolute -inset-0.5 rounded-xl blur-lg", colors.bgLight)} />
+              <div className={cn("relative aspect-square rounded-xl overflow-hidden border", colors.borderLight)}>
                 <div className="w-full h-full bg-muted/50 animate-pulse flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                 </div>
               </div>
             </div>
 
             {/* Arrow - centered between */}
-            <div className="flex justify-center -my-2 z-10">
-              <div className={cn("w-12 h-12 rounded-full flex items-center justify-center opacity-50", colors.gradient)}>
-                <span className="text-2xl">🪄</span>
+            <div className="flex justify-center -my-1.5 z-10">
+              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center opacity-50", colors.gradient)}>
+                <span className="text-xl">🪄</span>
               </div>
             </div>
 
             {/* After skeleton */}
             <div className="relative">
-              <div className={cn("absolute -inset-1 rounded-2xl blur-xl", colors.bgMedium)} />
-              <div className={cn("relative aspect-square rounded-2xl overflow-hidden border-2", colors.borderMedium)}>
+              <div className={cn("absolute -inset-0.5 rounded-xl blur-lg", colors.bgMedium)} />
+              <div className={cn("relative aspect-square rounded-xl overflow-hidden border", colors.borderMedium)}>
                 <div className="w-full h-full bg-muted/50 animate-pulse flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                 </div>
               </div>
             </div>
@@ -262,20 +260,20 @@ export function BeforeAfterShowcase({
           </>
         )}
 
-        {/* Mobile: vertical layout */}
-        <div className="flex flex-col gap-4 md:hidden">
+        {/* Mobile: vertical layout - reduced size to fit both on screen */}
+        <div className="flex flex-col gap-3 md:hidden max-w-xs mx-auto">
           {/* Before */}
           <div className="relative">
             <div
               className={cn(
-                "absolute -inset-1 rounded-2xl blur-xl transition-opacity duration-500",
+                "absolute -inset-0.5 rounded-xl blur-lg transition-opacity duration-500",
                 colors.bgLight,
                 isTransitioning ? "opacity-0" : "opacity-100"
               )}
             />
             <div
               className={cn(
-                "relative aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-500",
+                "relative aspect-square rounded-xl overflow-hidden border transition-all duration-500",
                 colors.borderLight,
                 isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}
@@ -299,15 +297,15 @@ export function BeforeAfterShowcase({
           </div>
 
           {/* Arrow - centered between */}
-          <div className="flex justify-center -my-2 z-10">
+          <div className="flex justify-center -my-1.5 z-10">
             <div
               className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500",
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500",
                 colors.gradient,
                 isTransitioning ? "scale-75 opacity-50" : "scale-100 opacity-100"
               )}
             >
-              <span className="text-2xl">🪄</span>
+              <span className="text-xl">🪄</span>
             </div>
           </div>
 
@@ -315,14 +313,14 @@ export function BeforeAfterShowcase({
           <div className="relative">
             <div
               className={cn(
-                "absolute -inset-1 rounded-2xl blur-xl transition-opacity duration-500",
+                "absolute -inset-0.5 rounded-xl blur-lg transition-opacity duration-500",
                 colors.bgMedium,
                 isTransitioning ? "opacity-0" : "opacity-100"
               )}
             />
             <div
               className={cn(
-                "relative aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-500",
+                "relative aspect-square rounded-xl overflow-hidden border transition-all duration-500",
                 colors.borderMedium,
                 isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}

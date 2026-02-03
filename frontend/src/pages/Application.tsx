@@ -155,6 +155,7 @@ const Application = () => {
         if ("material" in updates) dbUpdates.material = updates.material;
         if ("size" in updates) dbUpdates.size = updates.size;
         if ("comment" in updates) dbUpdates.user_comment = updates.comment;
+        if ("allowGalleryUse" in updates) dbUpdates.allow_gallery_use = updates.allowGalleryUse;
         if ("generatedPreview" in updates)
           dbUpdates.generated_preview = updates.generatedPreview;
         if ("imagePreview" in updates)
@@ -209,6 +210,7 @@ const Application = () => {
         input_image_url: config.imagePreview,
         user_comment: config.comment,
         theme: currentTheme,
+        allow_gallery_use: config.allowGalleryUse,
       });
 
       if (error || !newApp) {
@@ -410,6 +412,8 @@ const Application = () => {
         gems: data.gems || [],
         backEngraving: data.back_engraving || "",
         hasBackEngraving: data.has_back_engraving || false,
+        // Gallery consent (default true if not set)
+        allowGalleryUse: data.allow_gallery_use !== undefined ? data.allow_gallery_use : true,
       });
 
       // Set generated images for selection step

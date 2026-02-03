@@ -56,6 +56,7 @@ interface Application {
   input_image_url: string | null;
   generated_images?: string[];
   theme?: string | null;
+  allow_gallery_use?: boolean;
 }
 
 interface FormFactorSettings {
@@ -525,6 +526,7 @@ const Admin = () => {
                           <TableHead>Статус</TableHead>
                           <TableHead>Форма</TableHead>
                           <TableHead>Пользователь</TableHead>
+                          <TableHead>Галерея</TableHead>
                           <TableHead>Действия</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -570,6 +572,13 @@ const Admin = () => {
                                 <Badge className="bg-green-500/20 text-green-500">Да</Badge>
                               ) : (
                                 <span className="text-muted-foreground text-xs">Гость</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {app.allow_gallery_use !== false ? (
+                                <Badge className="bg-blue-500/20 text-blue-500">✓</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">✗</Badge>
                               )}
                             </TableCell>
                             <TableCell>
