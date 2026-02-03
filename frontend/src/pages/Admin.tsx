@@ -215,20 +215,33 @@ const Admin = () => {
   // Open application detail with full data
   const openApplicationDetail = async (app: Application) => {
     // Fetch full application data including generated_images
-    const { data, error } = await api.getApplication(app.id);
-    if (error) {
-      toast.error('Ошибка загрузки заявки');
-      return;
+    console.log('Opening application detail:', app.id);
+    try {
+      const { data, error } = await api.getApplication(app.id);
+      console.log('API response:', { data, error });
+      if (error) {
+        console.error('Error loading application:', error);
+        toast.error('Ошибка загрузки заявки');
+        return;
+      }
+      if (!data || data.detail) {
+        console.error('Invalid data received:', data);
+        toast.error('Заявка не найдена');
+        return;
+      }
+      setSelectedApplication(data);
+      setEditingApplication({
+        status: data.status,
+        form_factor: data.form_factor,
+        material: data.material,
+        size: data.size,
+        generated_preview: data.generated_preview,
+        theme: data.theme || 'main',
+      });
+    } catch (e) {
+      console.error('Exception in openApplicationDetail:', e);
+      toast.error('Ошибка при открытии заявки');
     }
-    setSelectedApplication(data);
-    setEditingApplication({
-      status: data.status,
-      form_factor: data.form_factor,
-      material: data.material,
-      size: data.size,
-      generated_preview: data.generated_preview,
-      theme: data.theme || 'main',
-    });
   };
 
   // Save application changes
