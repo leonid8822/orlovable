@@ -374,7 +374,6 @@ export function StepConfirmation({
                     amount: 5000, // 5000 rubles prepayment
                     email: userEmail,
                     name: userName,
-                    order_comment: "Предоплата за украшение",
                   });
                   if (error) {
                     console.error("Payment error:", error);
