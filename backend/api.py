@@ -406,6 +406,26 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 100):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/orders")
+async def list_orders(limit: int = 100):
+    """List orders"""
+    try:
+        # Cap limit at 500 for performance
+        limit = min(limit, 500)
+        try:
+            orders = await supabase.select(
+                "orders",
+                order="created_at.desc",
+                limit=limit
+            )
+            return {"orders": orders}
+        except Exception:
+            # If orders table doesn't exist yet, return empty list
+            return {"orders": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/applications")
 async def create_application(app: ApplicationCreate):
     """Create new application"""

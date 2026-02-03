@@ -1,0 +1,96 @@
+{
+  "main": [
+    {
+      "id": "81c7e719-c37a-4e39-be19-d4e71d02bfe1",
+      "title": "Шаманский медведь",
+      "description": "Шаманский медведь с моей картинки",
+      "theme": "main",
+      "before": "/examples/main/81c7e719-c37a-4e39-be19-d4e71d02bfe1_before.jpg",
+      "after": "/examples/main/81c7e719-c37a-4e39-be19-d4e71d02bfe1_after.jpg"
+    }
+  ],
+  "totems": [
+    {
+      "id": "b8486ae4-d71b-4dca-9e2d-b5001d481235",
+      "title": "Ворон",
+      "description": "",
+      "theme": "totems",
+      "before": "/examples/totems/b8486ae4-d71b-4dca-9e2d-b5001d481235_before.jpg",
+      "after": "/examples/totems/b8486ae4-d71b-4dca-9e2d-b5001d481235_after.jpg"
+    },
+    {
+      "id": "74caf60d-ced9-4a2b-91e6-463e062f5c78",
+      "title": "Контурный кулон",
+      "description": "Серебро, размер M",
+      "theme": "totems",
+      "before": null,
+      "after": "/examples/totems/74caf60d-ced9-4a2b-91e6-463e062f5c78_after.jpg"
+    },
+    {
+      "id": "3211245a-bf89-4ab8-9c10-64c1aa28b891",
+      "title": "Круглый кулон",
+      "description": "Серебро, размер M",
+      "theme": "totems",
+      "before": null,
+      "after": "/examples/totems/3211245a-bf89-4ab8-9c10-64c1aa28b891_after.jpg"
+    }
+  ],
+  "kids": [
+    {
+      "id": "019f194f-4ba2-453b-aa03-fdbaee23a18e",
+      "title": "Контурный кулон",
+      "description": "Фрося, 4 года, \"Ждём сестрёнку\"",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/019f194f-4ba2-453b-aa03-fdbaee23a18e_after.jpg"
+    },
+    {
+      "id": "0c672ea8-63ce-4a32-a64f-b364e2db0609",
+      "title": "Жетон",
+      "description": "Безумная сова",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/0c672ea8-63ce-4a32-a64f-b364e2db0609_after.jpg"
+    },
+    {
+      "id": "dfbad07f-2b84-4810-bcf5-0ab6fa6429e2",
+      "title": "Жетон",
+      "description": "Аня",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/dfbad07f-2b84-4810-bcf5-0ab6fa6429e2_after.jpg"
+    },
+    {
+      "id": "eb749e4f-b7f6-480f-af0d-dbbbca6008b6",
+      "title": "Контурный кулон",
+      "description": "Серебро, размер M",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/eb749e4f-b7f6-480f-af0d-dbbbca6008b6_after.jpg"
+    },
+    {
+      "id": "533f025a-61ab-41b8-9c28-50cc6f0c7fcf",
+      "title": "Контурный кулон",
+      "description": "Щелкунчик",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/533f025a-61ab-41b8-9c28-50cc6f0c7fcf_after.jpg"
+    },
+    {
+      "id": "91f91fea-494f-41b9-a377-7f52061463d7",
+      "title": "Круглый кулон",
+      "description": "Серебро, размер M",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/91f91fea-494f-41b9-a377-7f52061463d7_after.jpg"
+    },
+    {
+      "id": "db5a57bf-70e0-426b-b216-9071f0b1de30",
+      "title": "Жетон",
+      "description": "Серебро, размер M",
+      "theme": "kids",
+      "before": null,
+      "after": "/examples/kids/db5a57bf-70e0-426b-b216-9071f0b1de30_after.jpg"
+    }
+  ]
+}
