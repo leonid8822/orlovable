@@ -1033,10 +1033,54 @@ Maximum surface detail, jewelry quality finish."""
         error_msg = str(e)
         print(f"Error: {error_msg}")
 
+        # Categorize error for better monitoring
+        error_category = "unknown"
+        error_details = {
+            "error_message": error_msg,
+            "model": selected_model,
+            "has_image": has_image,
+            "theme": req.theme,
+            "session_id": req.sessionId,
+            "application_id": req.applicationId
+        }
+
+        # Detect error type from message
+        if "403" in error_msg or "Forbidden" in error_msg:
+            error_category = "auth_failed"
+            error_details["likely_cause"] = "FAL_KEY invalid or expired"
+            error_details["action_required"] = "Check FAL.ai API key in Render environment variables"
+        elif "429" in error_msg or "rate limit" in error_msg.lower():
+            error_category = "rate_limit"
+            error_details["likely_cause"] = "Too many requests"
+            error_details["action_required"] = "Wait before retrying"
+        elif "payment" in error_msg.lower() or "balance" in error_msg.lower() or "credits" in error_msg.lower():
+            error_category = "insufficient_balance"
+            error_details["likely_cause"] = "FAL.ai account out of credits"
+            error_details["action_required"] = "Add credits to FAL.ai account"
+        elif "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            error_category = "timeout"
+            error_details["likely_cause"] = "Generation took too long"
+        elif "safety" in error_msg.lower() or "nsfw" in error_msg.lower():
+            error_category = "safety_check_failed"
+            error_details["likely_cause"] = "Content blocked by safety checker"
+
+        # Log to app_logs database
+        try:
+            from app_logger import logger
+            import traceback
+            error_details["traceback"] = traceback.format_exc()
+            await logger.error(
+                "generation",
+                f"Generation failed: {error_category}",
+                error_details
+            )
+        except Exception as log_err:
+            print(f"Failed to log error: {log_err}")
+
         # Save error to application if exists
         if req.applicationId:
             import traceback
-            full_error = f"{error_msg}\n\nTraceback:\n{traceback.format_exc()}"
+            full_error = f"[{error_category}] {error_msg}\n\nTraceback:\n{traceback.format_exc()}"
             try:
                 await supabase.update("applications", req.applicationId, {
                     "status": "error",
@@ -3067,6 +3111,131 @@ async def create_log(level: str = "info", source: str = "manual", message: str =
         return {"success": True, "message": "Log created"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.get("/health/fal-status")
+async def check_fal_status():
+    """
+    Check FAL.ai API status and balance.
+    Returns connection status and any issues detected.
+    """
+    fal_key = os.environ.get("FAL_KEY")
+
+    result = {
+        "fal_configured": bool(fal_key),
+        "fal_accessible": False,
+        "error": None,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    if not fal_key:
+        result["error"] = "FAL_KEY not configured in environment"
+        return result
+
+    # Test FAL.ai API with a minimal request
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            # Try to call FAL.ai with an invalid/minimal request to check auth
+            test_response = await client.post(
+                "https://queue.fal.run/fal-ai/bytedance/seedream/v4/edit",
+                json={"prompt": "test"},  # Minimal invalid request to test auth
+                headers={
+                    "Authorization": f"Key {fal_key}",
+                    "Content-Type": "application/json"
+                }
+            )
+
+            # 400 = bad request (auth worked, request invalid) - OK
+            # 403 = forbidden (auth failed) - PROBLEM
+            # 401 = unauthorized - PROBLEM
+            # 429 = rate limited - WARNING
+
+            if test_response.status_code == 400:
+                result["fal_accessible"] = True
+                result["status"] = "healthy"
+                result["message"] = "FAL.ai API key is valid"
+            elif test_response.status_code == 403:
+                result["error"] = "FAL.ai API key is invalid or expired (403 Forbidden)"
+                result["action_required"] = "Update FAL_KEY in Render environment"
+            elif test_response.status_code == 401:
+                result["error"] = "FAL.ai authentication failed (401 Unauthorized)"
+                result["action_required"] = "Check FAL_KEY format"
+            elif test_response.status_code == 429:
+                result["fal_accessible"] = True
+                result["status"] = "rate_limited"
+                result["message"] = "FAL.ai API is accessible but rate limited"
+            else:
+                result["fal_accessible"] = True
+                result["status"] = "unknown_response"
+                result["status_code"] = test_response.status_code
+
+    except Exception as e:
+        result["error"] = f"Failed to connect to FAL.ai: {str(e)}"
+        result["action_required"] = "Check network connectivity or FAL.ai service status"
+
+    # Log if there's a problem
+    if result.get("error"):
+        try:
+            from app_logger import logger
+            await logger.error("fal_health_check", result["error"], result)
+        except:
+            pass
+
+    return result
+
+
+@router.get("/health/system")
+async def check_system_health():
+    """
+    Comprehensive system health check.
+    Checks database, FAL.ai, and other critical services.
+    """
+    health = {
+        "timestamp": datetime.now().isoformat(),
+        "overall_status": "healthy",
+        "checks": {}
+    }
+
+    # Check database
+    try:
+        test_data = await supabase.select("generation_settings", limit=1)
+        health["checks"]["database"] = {
+            "status": "healthy",
+            "accessible": True
+        }
+    except Exception as e:
+        health["checks"]["database"] = {
+            "status": "unhealthy",
+            "accessible": False,
+            "error": str(e)
+        }
+        health["overall_status"] = "degraded"
+
+    # Check FAL.ai
+    fal_status = await check_fal_status()
+    health["checks"]["fal_ai"] = fal_status
+    if fal_status.get("error"):
+        health["overall_status"] = "critical" if not fal_status.get("fal_accessible") else "degraded"
+
+    # Check recent generation errors
+    try:
+        error_logs = await supabase.select(
+            "app_logs",
+            filters="source=eq.generation&level=eq.error",
+            order="created_at.desc",
+            limit=10
+        )
+        recent_errors = len(error_logs) if error_logs else 0
+        health["checks"]["recent_generation_errors"] = {
+            "count_last_10": recent_errors,
+            "status": "warning" if recent_errors > 5 else "healthy"
+        }
+        if recent_errors > 5:
+            health["overall_status"] = "degraded"
+    except:
+        pass
+
+    return health
 
 
 @router.post("/logs/init")
