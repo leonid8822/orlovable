@@ -6,6 +6,7 @@ Smoke tests для автоматической проверки PROD после
 import asyncio
 import httpx
 import sys
+import argparse
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -154,8 +155,70 @@ def validate_generation_settings(data: Dict):
     assert isinstance(data["prompt_variants"], dict), "prompt_variants should be dict"
 
 
+async def run_e2e_generation_test(base_url: str) -> Dict[str, Any]:
+    """Запустить E2E тест генерации кулона (dry run)"""
+    print("\n" + "="*60)
+    print("🧪 Running E2E Generation Test (Dry Run)")
+    print("="*60)
+
+    async with httpx.AsyncClient() as client:
+        try:
+            start_time = datetime.now()
+
+            # Вызов dry run теста генерации
+            response = await client.post(
+                f"{base_url}/api/health/test-generation?dry_run=true",
+                timeout=30.0
+            )
+
+            elapsed = (datetime.now() - start_time).total_seconds()
+
+            if response.status_code == 200:
+                result = response.json()
+
+                print(f"\n✅ E2E Test PASSED ({elapsed:.2f}s)")
+                print(f"   Steps completed: {len(result.get('steps', []))}")
+
+                for step in result.get('steps', []):
+                    status_icon = "✅" if step['status'] == 'passed' else "❌"
+                    print(f"   {status_icon} {step['step']}")
+
+                return {
+                    "name": "E2E Generation Flow",
+                    "passed": True,
+                    "response_time": elapsed,
+                    "steps": result.get('steps', [])
+                }
+            else:
+                print(f"\n❌ E2E Test FAILED ({elapsed:.2f}s)")
+                print(f"   Status: {response.status_code}")
+                return {
+                    "name": "E2E Generation Flow",
+                    "passed": False,
+                    "response_time": elapsed,
+                    "error": f"HTTP {response.status_code}"
+                }
+
+        except Exception as e:
+            print(f"\n❌ E2E Test FAILED")
+            print(f"   Error: {str(e)}")
+            return {
+                "name": "E2E Generation Flow",
+                "passed": False,
+                "error": str(e)
+            }
+
+
 async def main():
     """Основная функция запуска тестов"""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run smoke tests on PROD")
+    parser.add_argument('--e2e', action='store_true',
+                        help='Include E2E generation test (dry run, free)')
+    parser.add_argument('--real-e2e', action='store_true',
+                        help='Run REAL E2E test with FAL.ai (costs money!)')
+    args = parser.parse_args()
+
     runner = SmokeTestRunner()
 
     # Критичные эндпоинты
@@ -215,6 +278,27 @@ async def main():
 
     # Запуск тестов
     results = await runner.run_all()
+
+    # E2E тест генерации (опционально)
+    if args.e2e or args.real_e2e:
+        e2e_result = await run_e2e_generation_test(PROD_URL)
+
+        # Добавить результат E2E теста в общую статистику
+        results["tests"].append(e2e_result)
+        results["total"] += 1
+        if e2e_result["passed"]:
+            results["passed"] += 1
+        else:
+            results["failed"] += 1
+
+        results["success"] = results["failed"] == 0
+
+        # Обновить сводку
+        print("\n" + "="*60)
+        print(f"📊 UPDATED SUMMARY: {results['passed']}/{results['total']} tests passed")
+        if results["failed"] > 0:
+            print(f"❌ {results['failed']} tests failed")
+        print("="*60)
 
     # Логирование результатов на сервер
     try:

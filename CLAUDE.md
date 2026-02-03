@@ -43,11 +43,14 @@
 
 7. **Запуск smoke tests на проде**:
    ```bash
-   # Через API endpoint
+   # Базовые тесты (быстрые)
    curl "https://olai.onrender.com/api/health/smoke-tests"
 
+   # E2E тест генерации (dry run, бесплатно)
+   curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=true"
+
    # Через Python скрипт (локально)
-   cd backend/scripts && python smoke_tests.py
+   cd backend/scripts && python smoke_tests.py --e2e
 
    # Через shell скрипт
    ./backend/scripts/run_smoke_tests.sh
@@ -59,6 +62,7 @@
    - Logs system
    - Examples gallery
    - Generation settings
+   - E2E генерация кулона (опционально, dry run режим)
    - Результаты логируются в `app_logs` (source: `smoke_tests`)
 
 ### Принципы работы:

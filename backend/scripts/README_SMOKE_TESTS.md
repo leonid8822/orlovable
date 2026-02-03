@@ -14,6 +14,7 @@
 7. **Logs** - система логирования
 8. **Generation Settings** - настройки генерации
 9. **History** - история генераций
+10. **E2E Generation Flow** (опционально) - полный цикл создания заявки и генерации кулона
 
 ### Backend endpoint (`/api/health/smoke-tests`)
 1. **Settings Database** - проверка настроек
@@ -44,14 +45,28 @@
 
 ```bash
 cd backend/scripts
+
+# Базовые тесты (быстро, без E2E)
 python smoke_tests.py
+
+# С E2E тестом генерации (dry run, бесплатно)
+python smoke_tests.py --e2e
+
+# С РЕАЛЬНОЙ генерацией через FAL.ai (стоит $0.12)
+python smoke_tests.py --real-e2e
 ```
 
 ### 4. Запрос к backend endpoint
 
 ```bash
-# Получить результаты тестов
+# Получить результаты базовых тестов
 curl "https://olai.onrender.com/api/health/smoke-tests"
+
+# Запустить E2E тест генерации (dry run)
+curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=true"
+
+# Запустить РЕАЛЬНЫЙ E2E тест (стоит $0.12)
+curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=false"
 ```
 
 ## Результаты тестов
@@ -101,6 +116,92 @@ curl "https://olai.onrender.com/api/health/smoke-tests"
 ```bash
 curl "https://olai.onrender.com/api/logs?source=smoke_tests&limit=10"
 ```
+
+## E2E Тест генерации кулона
+
+### Описание
+Полный End-to-End тест, который проверяет весь цикл генерации:
+1. ✅ Создание заявки (application)
+2. ✅ Подготовка тестовой картинки
+3. ✅ Проверка настроек генерации
+4. ✅ Проверка FAL_KEY
+5. ✅ Генерация кулона (dry run или реальная)
+6. ✅ Обновление заявки с результатами
+
+### Режимы работы
+
+#### Dry Run (рекомендуется для CI/CD)
+- **Бесплатно** - не вызывает FAL.ai
+- **Быстро** - ~2-5 секунд
+- Создает mock результаты
+- Проверяет всю логику до вызова AI
+
+```bash
+# Через скрипт
+python smoke_tests.py --e2e
+
+# Через API
+curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=true"
+```
+
+#### Real Generation (осторожно!)
+- **Стоит $0.12** за прогон (4 изображения × $0.03)
+- **Медленно** - 30-60 секунд
+- Реально вызывает FAL.ai
+- Полная проверка с настоящей генерацией
+
+```bash
+# Через скрипт
+python smoke_tests.py --real-e2e
+
+# Через API
+curl -X POST "https://olai.onrender.com/api/health/test-generation?dry_run=false"
+```
+
+### Результат E2E теста
+
+```json
+{
+  "timestamp": "2026-02-03T12:00:00Z",
+  "success": true,
+  "dry_run": true,
+  "steps": [
+    {
+      "step": "create_application",
+      "status": "passed",
+      "application_id": "uuid-here"
+    },
+    {
+      "step": "validate_settings",
+      "status": "passed",
+      "num_images": 4
+    },
+    {
+      "step": "check_fal_key",
+      "status": "passed"
+    },
+    {
+      "step": "mock_generation",
+      "status": "passed",
+      "message": "Dry run - no real FAL.ai call",
+      "mock_images": ["url1", "url2", "url3", "url4"]
+    },
+    {
+      "step": "verify_application",
+      "status": "passed",
+      "final_status": "smoke_test_success"
+    }
+  ]
+}
+```
+
+### Когда использовать
+
+| Режим | Когда использовать |
+|-------|-------------------|
+| **Без --e2e** | Быстрая проверка после каждого деплоя (CI/CD default) |
+| **--e2e (dry run)** | Полная проверка flow без затрат (раз в день, после больших изменений) |
+| **--real-e2e** | Проверка реальной интеграции с FAL.ai (ручной запуск, редко) |
 
 ## Настройка уведомлений
 

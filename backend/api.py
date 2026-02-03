@@ -2958,6 +2958,153 @@ async def migrate_gems_description():
     }
 
 
+@router.post("/health/test-generation")
+async def test_generation_flow(dry_run: bool = True):
+    """
+    Test the full generation flow without calling FAL.ai (dry_run=True).
+    Creates application, validates generation request, returns mock results.
+    Use dry_run=False to test with real FAL.ai call (costs money).
+    """
+    test_result = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "steps": [],
+        "success": False,
+        "dry_run": dry_run
+    }
+
+    try:
+        # Step 1: Create test application
+        test_session_id = f"smoke_test_{uuid.uuid4().hex[:8]}"
+        app_data = {
+            "session_id": test_session_id,
+            "form_factor": "round",
+            "material": "silver",
+            "size": "m",
+            "theme": "main",
+            "status": "draft"
+        }
+
+        app = await supabase.insert("applications", app_data)
+        app_id = app["id"]
+        test_result["steps"].append({
+            "step": "create_application",
+            "status": "passed",
+            "application_id": app_id
+        })
+
+        # Step 2: Prepare generation request
+        # Simple test image (1x1 red pixel PNG in base64)
+        test_image_base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
+
+        gen_request = {
+            "imageBase64": test_image_base64,
+            "prompt": "Smoke test generation",
+            "formFactor": "round",
+            "size": "pendant",
+            "material": "silver",
+            "sessionId": test_session_id,
+            "applicationId": app_id,
+            "theme": "main"
+        }
+
+        # Step 3: Validate settings
+        settings = await get_settings()
+        if not settings.get("num_images"):
+            raise ValueError("Settings missing num_images")
+
+        test_result["steps"].append({
+            "step": "validate_settings",
+            "status": "passed",
+            "num_images": settings.get("num_images", 4)
+        })
+
+        # Step 4: Check FAL_KEY
+        fal_key = os.environ.get("FAL_KEY")
+        if not fal_key:
+            raise ValueError("FAL_KEY not configured")
+
+        test_result["steps"].append({
+            "step": "check_fal_key",
+            "status": "passed"
+        })
+
+        if dry_run:
+            # Dry run - don't call FAL.ai, just return mock results
+            mock_images = [
+                f"https://mock-image-{i}.jpg" for i in range(1, 5)
+            ]
+
+            test_result["steps"].append({
+                "step": "mock_generation",
+                "status": "passed",
+                "message": "Dry run - no real FAL.ai call",
+                "mock_images": mock_images
+            })
+
+            # Update application status
+            await supabase.update("applications", app_id, {
+                "status": "smoke_test_success",
+                "generated_preview": mock_images[0]
+            })
+        else:
+            # Real generation - call FAL.ai
+            from api import generate_pendant, GenerateRequest
+
+            gen_req_obj = GenerateRequest(**gen_request)
+            result = await generate_pendant(gen_req_obj)
+
+            test_result["steps"].append({
+                "step": "real_generation",
+                "status": "passed",
+                "images_count": len(result.get("images", [])),
+                "cost_cents": result.get("costCents", 0),
+                "execution_time_ms": result.get("executionTimeMs", 0)
+            })
+
+            # Update application
+            if result.get("images"):
+                await supabase.update("applications", app_id, {
+                    "status": "generated",
+                    "generated_preview": result["images"][0]
+                })
+
+        # Step 5: Verify application updated
+        updated_app = await supabase.select("applications", filters={"id": app_id})
+        if updated_app and len(updated_app) > 0:
+            test_result["steps"].append({
+                "step": "verify_application",
+                "status": "passed",
+                "final_status": updated_app[0].get("status")
+            })
+        else:
+            raise ValueError("Failed to retrieve updated application")
+
+        test_result["success"] = True
+        test_result["message"] = f"Generation flow test {'(dry run)' if dry_run else '(real)'} completed successfully"
+
+        # Log result
+        from app_logger import logger
+        await logger.info("smoke_tests", f"Generation flow test completed: {test_result['message']}", test_result)
+
+    except Exception as e:
+        test_result["success"] = False
+        test_result["error"] = str(e)
+        test_result["steps"].append({
+            "step": "error",
+            "status": "failed",
+            "error": str(e)
+        })
+
+        # Log error
+        try:
+            from app_logger import logger
+            await logger.error("smoke_tests", f"Generation flow test failed: {str(e)}", test_result)
+        except:
+            pass
+
+    return test_result
+
+
 @router.get("/health/smoke-tests")
 async def run_smoke_tests():
     """
