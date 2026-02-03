@@ -397,8 +397,9 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 100):
         filters = {"user_id": user_id} if user_id else None
 
         # Exclude heavy base64 fields when listing (input_image_url can be 300KB+ per record!)
-        # Only fetch these when getting a single application
-        columns = "id,user_id,session_id,current_step,status,form_factor,material,size,size_option,generated_preview,user_comment,order_comment,theme,gems,back_engraving,has_back_engraving,customer_email,customer_name,customer_phone,customer_telegram,created_at,updated_at,submitted_at,paid_at"
+        # PostgREST supports column exclusion with *,-column_name syntax
+        # This gets all columns EXCEPT the specified ones
+        columns = "*,-input_image_url,-back_image_url"
 
         apps = await supabase.select(
             "applications",
