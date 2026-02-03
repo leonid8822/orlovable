@@ -2607,6 +2607,61 @@ async def admin_delete_product(product_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/admin/products/init")
+async def init_products_table():
+    """
+    Initialize the products table in Supabase.
+    Creates table with sample totem products.
+    """
+    try:
+        # Read migration SQL
+        import os
+        migration_path = os.path.join(os.path.dirname(__file__), 'migrations', '010_create_products_table.sql')
+        with open(migration_path, 'r') as f:
+            create_table_sql = f.read()
+
+        # Execute SQL directly using httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Try to create table via PostgREST
+            # Note: This may not work as PostgREST doesn't support DDL
+            # User may need to run SQL manually in Supabase SQL Editor
+            response = await client.post(
+                f"{supabase.url}/rest/v1/rpc/exec_sql",
+                headers=supabase.headers,
+                json={"query": create_table_sql}
+            )
+
+            if response.status_code == 404:
+                # RPC function doesn't exist, provide manual instructions
+                return {
+                    "success": False,
+                    "message": "Cannot create table via API. Please run SQL manually.",
+                    "sql_editor_url": "https://supabase.com/dashboard/project/vofigcbihwkmocrsfowt/sql/new",
+                    "sql": create_table_sql
+                }
+
+            response.raise_for_status()
+            return {
+                "success": True,
+                "message": "Products table created successfully",
+                "result": response.json()
+            }
+    except Exception as e:
+        # Return SQL for manual execution
+        import os
+        migration_path = os.path.join(os.path.dirname(__file__), 'migrations', '010_create_products_table.sql')
+        with open(migration_path, 'r') as f:
+            sql_content = f.read()
+
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Please run the following SQL in Supabase SQL Editor",
+            "sql_editor_url": "https://supabase.com/dashboard/project/vofigcbihwkmocrsfowt/sql/new",
+            "sql": sql_content
+        }
+
+
 # ============== ORDERS MANAGEMENT ENDPOINTS ==============
 
 class OrderCreate(BaseModel):
