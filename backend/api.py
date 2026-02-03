@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from supabase_client import supabase
 from email_service import send_verification_email
