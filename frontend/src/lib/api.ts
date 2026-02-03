@@ -1,6 +1,45 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+import { supabase } from '@/integrations/supabase/client';
+
 export const api = {
+    // Upload image to Supabase Storage
+    uploadImage: async (file: File, bucket: string = 'pendants'): Promise<{ url: string | null; error: any }> => {
+        try {
+            if (!supabase) {
+                return { url: null, error: new Error('Supabase not configured') };
+            }
+
+            // Generate unique filename
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `uploads/${fileName}`;
+
+            // Upload file
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from(bucket)
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error('Upload error:', uploadError);
+                return { url: null, error: uploadError };
+            }
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from(bucket)
+                .getPublicUrl(filePath);
+
+            return { url: publicUrl, error: null };
+        } catch (error) {
+            console.error('Upload error:', error);
+            return { url: null, error };
+        }
+    },
+
     generate: async (payload: any) => {
         try {
             const response = await fetch(`${API_URL}/generate`, {

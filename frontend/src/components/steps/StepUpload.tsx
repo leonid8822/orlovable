@@ -12,6 +12,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 // Icon mapping from string to component
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -171,11 +172,32 @@ export function StepUpload({
     setIsProcessing(true);
 
     try {
+      // First, generate preview for immediate display
       const dataUrl = await processImage(file);
+
+      // Set temporary preview immediately
       onConfigChange({
         image: file,
-        imagePreview: dataUrl,
+        imagePreview: dataUrl, // Temporary preview
       });
+
+      // Upload to Supabase Storage in background
+      const { url: storageUrl, error: uploadError } = await api.uploadImage(file);
+
+      if (uploadError || !storageUrl) {
+        console.error('Upload error:', uploadError);
+        // Keep using data URL if upload fails (fallback)
+        toast({
+          title: "Предупреждение",
+          description: "Изображение загружено временно. Сохраните заявку как можно скорее.",
+          variant: "default",
+        });
+      } else {
+        // Update with permanent URL
+        onConfigChange({
+          imagePreview: storageUrl,
+        });
+      }
     } catch (error) {
       console.error('Error processing image:', error);
       toast({
