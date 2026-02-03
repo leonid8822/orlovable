@@ -3322,6 +3322,102 @@ async def test_generation_flow(dry_run: bool = True):
     return test_result
 
 
+@router.post("/migrations/run")
+async def run_migrations():
+    """
+    Run pending migrations automatically.
+    Executes SQL migrations to update database schema.
+    """
+    migrations = []
+
+    # Migration 1: Add gems and engraving fields to applications
+    migration_1_sql = """
+    -- Add gems and engraving fields to applications table
+    ALTER TABLE applications
+    ADD COLUMN IF NOT EXISTS gems JSONB DEFAULT '[]'::jsonb;
+
+    ALTER TABLE applications
+    ADD COLUMN IF NOT EXISTS back_engraving TEXT;
+
+    ALTER TABLE applications
+    ADD COLUMN IF NOT EXISTS has_back_engraving BOOLEAN DEFAULT false;
+
+    -- Add comments
+    COMMENT ON COLUMN applications.gems IS 'Array of gem placements: [{id, gemId, x, y}]';
+    COMMENT ON COLUMN applications.back_engraving IS 'Text for back engraving';
+    COMMENT ON COLUMN applications.has_back_engraving IS 'Whether back engraving is enabled';
+
+    -- Create index for querying applications with gems
+    CREATE INDEX IF NOT EXISTS idx_applications_has_gems ON applications ((jsonb_array_length(gems) > 0));
+    """
+
+    # Try to run migration 1
+    try:
+        # Test if columns already exist by trying to select
+        test_app = await supabase.select("applications", limit=1)
+        if test_app and len(test_app) > 0:
+            has_gems = "gems" in test_app[0]
+            has_engraving = "back_engraving" in test_app[0]
+
+            if has_gems and has_engraving:
+                migrations.append({
+                    "name": "Add gems and engraving fields",
+                    "status": "already_applied",
+                    "message": "Columns already exist"
+                })
+            else:
+                # Try to execute SQL
+                try:
+                    result = await supabase.execute_sql(migration_1_sql)
+                    migrations.append({
+                        "name": "Add gems and engraving fields",
+                        "status": "success",
+                        "message": "Migration applied successfully"
+                    })
+                except Exception as sql_error:
+                    migrations.append({
+                        "name": "Add gems and engraving fields",
+                        "status": "failed",
+                        "error": str(sql_error),
+                        "sql": migration_1_sql,
+                        "instructions": "Please run this SQL manually in Supabase SQL Editor"
+                    })
+        else:
+            # No applications yet, try to run migration anyway
+            try:
+                result = await supabase.execute_sql(migration_1_sql)
+                migrations.append({
+                    "name": "Add gems and engraving fields",
+                    "status": "success",
+                    "message": "Migration applied successfully"
+                })
+            except Exception as sql_error:
+                migrations.append({
+                    "name": "Add gems and engraving fields",
+                    "status": "failed",
+                    "error": str(sql_error),
+                    "sql": migration_1_sql,
+                    "instructions": "Please run this SQL manually in Supabase SQL Editor"
+                })
+    except Exception as e:
+        migrations.append({
+            "name": "Add gems and engraving fields",
+            "status": "error",
+            "error": str(e),
+            "sql": migration_1_sql
+        })
+
+    # Check overall success
+    all_success = all(m["status"] in ["success", "already_applied"] for m in migrations)
+
+    return {
+        "success": all_success,
+        "migrations": migrations,
+        "total": len(migrations),
+        "applied": sum(1 for m in migrations if m["status"] in ["success", "already_applied"])
+    }
+
+
 @router.get("/health/smoke-tests")
 async def run_smoke_tests():
     """
