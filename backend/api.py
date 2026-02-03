@@ -98,21 +98,24 @@ async def get_settings():
                 "description": "Круглый кулон",
                 "icon": "circle",
                 "addition": "Объект вписан в круглую рамку-медальон.",
-                "shape": "круглая форма, объект вписан в круг"
+                "shape": "круглая форма, объект вписан в круг",
+                "gender": "female"
             },
             "oval": {
                 "label": "Жетон",
                 "description": "Мужской жетон",
                 "icon": "rectangle-vertical",
                 "addition": "Форма армейского жетона (dog tag) - вертикальный скруглённый прямоугольник с небольшой выемкой сверху для цепочки.",
-                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain"
+                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain",
+                "gender": "male"
             },
             "contour": {
                 "label": "Контурный кулон",
                 "description": "По контуру рисунка",
                 "icon": "hexagon",
                 "addition": "Форма повторяет контур изображения.",
-                "shape": "по контуру выбранного объекта"
+                "shape": "по контуру выбранного объекта",
+                "gender": "female"
             }
         },
         "sizes": {
@@ -315,28 +318,31 @@ async def reset_settings_to_defaults():
         # Reset model to seedream
         await set_val('generation_model', 'seedream')
 
-        # Reset form factors with correct dog tag shape
+        # Reset form factors with correct dog tag shape and gender for neck visualization
         await set_val('form_factors', {
             "round": {
                 "label": "Круглый кулон",
                 "description": "Круглый кулон",
                 "icon": "circle",
                 "addition": "Объект вписан в круглую рамку-медальон.",
-                "shape": "круглая форма, объект вписан в круг"
+                "shape": "круглая форма, объект вписан в круг",
+                "gender": "female"
             },
             "oval": {
                 "label": "Жетон",
                 "description": "Мужской жетон",
                 "icon": "rectangle-vertical",
                 "addition": "Форма армейского жетона (dog tag) - вертикальный скруглённый прямоугольник с небольшой выемкой сверху для цепочки.",
-                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain"
+                "shape": "military dog tag shape - vertical rounded rectangle with small notch at top for chain",
+                "gender": "male"
             },
             "contour": {
                 "label": "Контурный кулон",
                 "description": "По контуру рисунка",
                 "icon": "hexagon",
                 "addition": "Форма повторяет контур изображения.",
-                "shape": "по контуру выбранного объекта"
+                "shape": "по контуру выбранного объекта",
+                "gender": "female"
             }
         })
 

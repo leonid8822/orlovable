@@ -132,20 +132,13 @@ export function LandingConstructor({ theme, className }: LandingConstructorProps
     localStorage.setItem("sessionId", sessionId);
     localStorage.setItem("appTheme", theme);
 
-    // Default comment based on theme
-    const defaultComment = theme === 'kids'
-      ? 'Детский рисунок'
-      : theme === 'totems'
-        ? 'Тотем в скандинавском стиле'
-        : '';
-
     const { data: newApp, error } = await api.createApplication({
       session_id: sessionId,
       form_factor: selectedForm,
       material: 'silver',
       size: 'pendant',
       input_image_url: imagePreview,
-      user_comment: comment || defaultComment,
+      user_comment: comment || '',
       theme: theme,
     });
 
