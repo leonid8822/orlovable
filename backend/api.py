@@ -389,21 +389,18 @@ CRITICAL REQUIREMENTS:
 
 
 @router.get("/applications")
-async def list_applications(user_id: Optional[str] = None, limit: int = 100):
+async def list_applications(user_id: Optional[str] = None, limit: int = 50):
     """List applications"""
     try:
         # Cap limit at 500 for performance
         limit = min(limit, 500)
         filters = {"user_id": user_id} if user_id else None
 
-        # Exclude heavy base64 fields when listing (input_image_url can be 300KB+ per record!)
-        # PostgREST supports column exclusion with *,-column_name syntax
-        # This gets all columns EXCEPT the specified ones
-        columns = "*,-input_image_url,-back_image_url"
-
+        # Note: input_image_url can be 300KB+ per record (base64 encoded)
+        # With 100 records that's ~35MB, but with 60s timeout it should handle it
+        # Reduce limit if timeouts persist
         apps = await supabase.select(
             "applications",
-            columns=columns,
             filters=filters,
             order="created_at.desc",
             limit=limit
