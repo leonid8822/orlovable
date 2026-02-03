@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { ExamplesTab } from '@/components/admin/ExamplesTab';
 import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { ClientsTab } from '@/components/admin/ClientsTab';
@@ -144,8 +145,8 @@ const Admin = () => {
 
   const fetchGenerations = async () => {
     setLoading(true);
-    // Note: api.getHistory() currently returns recent 20 generations. 
-    // To support full filtering as in the original code, we would need to enhance the backend API 
+    // Note: api.getHistory() currently returns recent 20 generations.
+    // To support full filtering as in the original code, we would need to enhance the backend API
     // to accept query parameters (dateFrom, dateTo, model, cost).
     // For this rewrite MVP, we'll fetch the default history.
 
@@ -158,6 +159,26 @@ const Admin = () => {
       setGenerations(data || []);
     }
     setLoading(false);
+  };
+
+  const handleSelectVariant = async (applicationId: string, imageUrl: string) => {
+    try {
+      const { error } = await api.updateApplication(applicationId, {
+        generated_preview: imageUrl,
+      });
+
+      if (error) {
+        toast.error('Ошибка при обновлении варианта');
+        console.error('Error updating variant:', error);
+      } else {
+        toast.success('Вариант успешно выбран');
+        // Refresh generations to show updated selection
+        await fetchGenerations();
+      }
+    } catch (err) {
+      toast.error('Ошибка при обновлении варианта');
+      console.error('Error updating variant:', err);
+    }
   };
 
   const fetchApplications = async () => {
@@ -762,15 +783,41 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
-                                {gen.output_images?.slice(0, 4).map((url, idx) => (
-                                  <img
-                                    key={idx}
-                                    src={url}
-                                    alt={`Вариант ${idx + 1}`}
-                                    className="w-10 h-10 rounded object-cover cursor-pointer hover:ring-2 ring-primary transition-all"
-                                    onClick={() => setSelectedImage(url)}
-                                  />
-                                ))}
+                                {gen.output_images?.slice(0, 4).map((url, idx) => {
+                                  const isSelected = gen.selected_preview === url;
+                                  return (
+                                    <div key={idx} className="relative group">
+                                      <img
+                                        src={url}
+                                        alt={`Вариант ${idx + 1}`}
+                                        className={cn(
+                                          "w-10 h-10 rounded object-cover cursor-pointer transition-all",
+                                          isSelected
+                                            ? "ring-2 ring-primary"
+                                            : "hover:ring-2 hover:ring-primary/50"
+                                        )}
+                                        onClick={() => setSelectedImage(url)}
+                                        onContextMenu={(e) => {
+                                          e.preventDefault();
+                                          if (gen.application_id) {
+                                            handleSelectVariant(gen.application_id, url);
+                                          }
+                                        }}
+                                      />
+                                      {isSelected && (
+                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </div>
+                                      )}
+                                      {/* Tooltip */}
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                        {isSelected ? 'Текущий вариант' : 'ПКМ - выбрать вариант'}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </TableCell>
                             <TableCell>

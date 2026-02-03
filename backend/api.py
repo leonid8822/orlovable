@@ -573,16 +573,40 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
 
 @router.get("/history")
 async def get_history(limit: int = 100):
-    """Get generation history"""
+    """Get generation history with selected variant info"""
     try:
         # Cap limit at 500 for performance
         limit = min(limit, 500)
-        generations = await supabase.select(
+
+        # Get generations with application's selected preview
+        raw_gens = await supabase.select(
             "pendant_generations",
             order="created_at.desc",
             limit=limit
         )
-        return generations
+
+        # Enrich with application data (selected preview)
+        enriched = []
+        for gen in raw_gens:
+            gen_data = dict(gen)
+
+            # If has application_id, fetch the selected preview
+            if gen_data.get('application_id'):
+                try:
+                    app = await supabase.select_one(
+                        "applications",
+                        filters={"id": gen_data['application_id']}
+                    )
+                    if app:
+                        gen_data['selected_preview'] = app.get('generated_preview')
+                except:
+                    gen_data['selected_preview'] = None
+            else:
+                gen_data['selected_preview'] = None
+
+            enriched.append(gen_data)
+
+        return enriched
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
