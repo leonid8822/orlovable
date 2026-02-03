@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RefreshCw, ChevronRight, ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,16 +35,28 @@ export function StepSelection({
   onBack,
 }: StepSelectionProps) {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
-  const currentIndex = config.selectedVariantIndex ?? 0;
+  const [localSelectedIndex, setLocalSelectedIndex] = useState(config.selectedVariantIndex ?? 0);
   const { config: themeConfig } = useAppTheme();
 
   // Use thumbnails if available, fallback to full images
   const thumbnails = generatedThumbnails?.length ? generatedThumbnails : generatedImages;
 
+  // Sync local index with config when config changes
+  useEffect(() => {
+    setLocalSelectedIndex(config.selectedVariantIndex ?? 0);
+  }, [config.selectedVariantIndex]);
+
+  const handleSelectVariant = (index: number) => {
+    setLocalSelectedIndex(index); // Update UI immediately
+    onSelectVariant(index); // Update parent state
+  };
+
   const handleRegenerate = () => {
     setShowRegenerateConfirm(false);
     onRegenerate();
   };
+
+  const currentIndex = localSelectedIndex;
 
   return (
     <div className="flex flex-col items-center max-w-4xl mx-auto animate-fade-in">
@@ -65,7 +77,7 @@ export function StepSelection({
           {thumbnails.map((thumbImage, index) => (
             <button
               key={index}
-              onClick={() => onSelectVariant(index)}
+              onClick={() => handleSelectVariant(index)}
               className={cn(
                 "relative aspect-square rounded-xl overflow-hidden transition-all duration-200",
                 "border-2 hover:scale-[1.02]",
