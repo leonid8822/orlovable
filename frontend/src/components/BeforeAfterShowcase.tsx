@@ -24,9 +24,52 @@ export function BeforeAfterShowcase({
 }: BeforeAfterShowcaseProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  // Preload all images before showing
+  useEffect(() => {
+    if (isLoading || examples.length === 0) {
+      setImagesLoaded(false);
+      return;
+    }
+
+    setImagesLoaded(false);
+
+    const totalImages = examples.length * 2; // before + after for each example
+    let loaded = 0;
+
+    const checkAllLoaded = () => {
+      loaded++;
+      if (loaded === totalImages) {
+        setImagesLoaded(true);
+      }
+    };
+
+    examples.forEach((example) => {
+      // Preload "before" image
+      if (example.before) {
+        const imgBefore = new Image();
+        imgBefore.onload = checkAllLoaded;
+        imgBefore.onerror = checkAllLoaded;
+        imgBefore.src = example.before;
+      } else {
+        checkAllLoaded();
+      }
+
+      // Preload "after" image
+      if (example.after) {
+        const imgAfter = new Image();
+        imgAfter.onload = checkAllLoaded;
+        imgAfter.onerror = checkAllLoaded;
+        imgAfter.src = example.after;
+      } else {
+        checkAllLoaded();
+      }
+    });
+  }, [examples, isLoading]);
 
   useEffect(() => {
-    if (examples.length <= 1) return;
+    if (examples.length <= 1 || !imagesLoaded) return;
 
     const interval = setInterval(() => {
       setIsTransitioning(true);
@@ -37,7 +80,7 @@ export function BeforeAfterShowcase({
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
-  }, [examples.length, autoPlayInterval]);
+  }, [examples.length, autoPlayInterval, imagesLoaded]);
 
   const handleDotClick = (index: number) => {
     if (index === activeIndex) return;
@@ -101,8 +144,8 @@ export function BeforeAfterShowcase({
 
   const colors = colorConfig[accentColor];
 
-  // Loading skeleton
-  if (isLoading) {
+  // Loading skeleton (show while fetching data or preloading images)
+  if (isLoading || !imagesLoaded) {
     return (
       <div className="space-y-6">
         <div className="relative">

@@ -109,6 +109,11 @@ const Application = () => {
   // Theme config derived from appTheme state
   const themeConfig = themeConfigs[appTheme];
 
+  // Save theme to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("appTheme", appTheme);
+  }, [appTheme]);
+
   // State machine transition function with validation
   const transitionTo = useCallback(
     (nextStep: AppStep) => {
