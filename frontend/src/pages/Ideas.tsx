@@ -126,6 +126,7 @@ export default function Ideas() {
                                 <ImageWithLoading
                                   src={example.before_image_url}
                                   alt="До"
+                                  size="thumbnail"
                                   className="w-full h-full object-cover"
                                   containerClassName="w-full h-full"
                                 />
@@ -162,6 +163,7 @@ export default function Ideas() {
                               <ImageWithLoading
                                 src={example.after_image_url}
                                 alt="После"
+                                size="thumbnail"
                                 className="w-full h-full object-cover"
                                 containerClassName="w-full h-full"
                               />

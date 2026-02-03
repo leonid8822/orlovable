@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { optimizeImageUrl, generateSrcSet, ImageSize } from "@/lib/image-optimizer";
 
 interface ImageWithLoadingProps {
   src: string;
@@ -9,6 +10,8 @@ interface ImageWithLoadingProps {
   containerClassName?: string;
   placeholderClassName?: string;
   showSpinner?: boolean;
+  size?: ImageSize; // Auto-optimize based on size preset
+  disableOptimization?: boolean; // Skip optimization if needed
 }
 
 export function ImageWithLoading({
@@ -18,9 +21,15 @@ export function ImageWithLoading({
   containerClassName,
   placeholderClassName,
   showSpinner = true,
+  size = 'preview',
+  disableOptimization = false,
 }: ImageWithLoadingProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+
+  // Optimize image URL if not disabled
+  const optimizedSrc = disableOptimization ? src : (optimizeImageUrl(src, size) || src);
+  const srcSet = disableOptimization ? undefined : (generateSrcSet(src) || undefined);
 
   return (
     <div className={cn("relative", containerClassName)}>
@@ -52,8 +61,12 @@ export function ImageWithLoading({
 
       {/* Actual image */}
       <img
-        src={src}
+        src={optimizedSrc}
+        srcSet={srcSet}
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
         alt={alt}
+        loading="lazy"
+        decoding="async"
         className={cn(
           "transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100",

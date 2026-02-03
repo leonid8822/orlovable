@@ -282,6 +282,7 @@ export function BeforeAfterShowcase({
                 <ImageWithLoading
                   src={currentExample.before}
                   alt="До"
+                  size="preview"
                   className="w-full h-full object-cover"
                   containerClassName="w-full h-full"
                 />
@@ -328,6 +329,7 @@ export function BeforeAfterShowcase({
               <ImageWithLoading
                 src={currentExample.after}
                 alt="После"
+                size="preview"
                 className="w-full h-full object-cover"
                 containerClassName="w-full h-full"
               />
@@ -365,6 +367,7 @@ export function BeforeAfterShowcase({
                 <ImageWithLoading
                   src={currentExample.before}
                   alt="До"
+                  size="preview"
                   className="w-full h-full object-cover"
                   containerClassName="w-full h-full"
                 />
@@ -411,6 +414,7 @@ export function BeforeAfterShowcase({
               <ImageWithLoading
                 src={currentExample.after}
                 alt="После"
+                size="preview"
                 className="w-full h-full object-cover"
                 containerClassName="w-full h-full"
               />
