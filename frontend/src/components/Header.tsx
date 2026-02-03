@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import { AuthButton } from "./AuthButton";
 import { EagleIcon } from "./icons/EagleIcon";
 import { themeConfigs, AppTheme } from "@/contexts/ThemeContext";
@@ -24,6 +26,7 @@ export function Header({
   userName,
 }: HeaderProps) {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Determine active theme based on current path or override
   const getActiveTheme = (): AppTheme => {
@@ -112,7 +115,7 @@ export function Header({
                   backgroundColor: themeConfig.accentColor,
                 } : undefined}
               >
-                Галерея идей
+                Галерея
               </Link>
             </nav>
           )}
@@ -132,9 +135,73 @@ export function Header({
             </span>
           )}
 
-          {!minimal && <AuthButton />}
+          {/* Mobile menu button - show only when not minimal */}
+          {!minimal && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-card/50 transition-colors"
+              style={{ color: themeConfig.accentColor }}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          )}
+
+          {!minimal && <div className="hidden md:block"><AuthButton /></div>}
         </div>
       </div>
+
+      {/* Mobile menu dropdown */}
+      {!minimal && mobileMenuOpen && (
+        <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
+          <div className="container mx-auto px-4 py-4 space-y-2">
+            {/* Theme links */}
+            {themeLinks.map(({ theme: linkTheme, path, label }) => {
+              const isActive = activeTheme === linkTheme;
+              const linkThemeConfig = themeConfigs[linkTheme];
+              return (
+                <Link
+                  key={linkTheme}
+                  to={path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "block px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    isActive
+                      ? "text-white"
+                      : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                  )}
+                  style={isActive ? {
+                    backgroundColor: linkThemeConfig.accentColor,
+                  } : undefined}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+
+            {/* Gallery link */}
+            <Link
+              to="/ideas"
+              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "block px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                location.pathname === "/ideas"
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+              )}
+              style={location.pathname === "/ideas" ? {
+                backgroundColor: themeConfig.accentColor,
+              } : undefined}
+            >
+              Галерея
+            </Link>
+
+            {/* Auth button */}
+            <div className="pt-2 border-t border-border/50">
+              <AuthButton />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
