@@ -74,28 +74,46 @@ export function Header({
 
           {/* Theme navigation - hidden in minimal mode */}
           {!minimal && (
-            <nav className="hidden md:flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50">
-              {themeLinks.map(({ theme: linkTheme, path, label }) => {
-                const isActive = activeTheme === linkTheme;
-                const linkThemeConfig = themeConfigs[linkTheme];
-                return (
-                  <Link
-                    key={linkTheme}
-                    to={path}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "text-white shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-card"
-                    )}
-                    style={isActive ? {
-                      backgroundColor: linkThemeConfig.accentColor,
-                    } : undefined}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
+            <nav className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50">
+                {themeLinks.map(({ theme: linkTheme, path, label }) => {
+                  const isActive = activeTheme === linkTheme;
+                  const linkThemeConfig = themeConfigs[linkTheme];
+                  return (
+                    <Link
+                      key={linkTheme}
+                      to={path}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "text-white shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-card"
+                      )}
+                      style={isActive ? {
+                        backgroundColor: linkThemeConfig.accentColor,
+                      } : undefined}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Ideas link */}
+              <Link
+                to="/ideas"
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200",
+                  location.pathname === "/ideas"
+                    ? "text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                )}
+                style={location.pathname === "/ideas" ? {
+                  backgroundColor: themeConfig.accentColor,
+                } : undefined}
+              >
+                Галерея идей
+              </Link>
             </nav>
           )}
         </div>

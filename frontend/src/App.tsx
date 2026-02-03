@@ -10,6 +10,7 @@ import TotemsLanding from "./pages/TotemsLanding";
 import CustomLanding from "./pages/CustomLanding";
 import Shop from "./pages/Shop";
 import Index from "./pages/Index";
+import Ideas from "./pages/Ideas";
 import Application from "./pages/Application";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/shop" element={<Shop />} />
           <Route path="/custom" element={<CustomLanding />} />
           <Route path="/create" element={<Index />} />
+          <Route path="/ideas" element={<Ideas />} />
           <Route path="/application/:id" element={<Application />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/auth" element={<Auth />} />
