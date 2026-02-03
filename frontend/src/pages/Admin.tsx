@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard, Users, Package } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ArrowLeft, Settings, Save, History, FileText, ExternalLink, Image, Trash2, Plus, Edit2, Download, CreditCard, Users, Package, Box } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -19,6 +19,7 @@ import { PaymentsTab } from '@/components/admin/PaymentsTab';
 import { ClientsTab } from '@/components/admin/ClientsTab';
 import { GemsTab } from '@/components/admin/GemsTab';
 import { ProductsTab } from '@/components/admin/ProductsTab';
+import { OrdersTab } from '@/components/admin/OrdersTab';
 import { ClientSelector } from '@/components/admin/ClientSelector';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
@@ -374,10 +375,14 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList className="grid w-full max-w-6xl grid-cols-8">
+          <TabsList className="grid w-full max-w-6xl grid-cols-9">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Заявки
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="gap-2">
+              <Box className="h-4 w-4" />
+              Заказы
             </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Users className="h-4 w-4" />
@@ -597,6 +602,11 @@ const Admin = () => {
           {/* Clients Tab */}
           <TabsContent value="clients" className="space-y-6">
             <ClientsTab />
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <OrdersTab />
           </TabsContent>
 
           {/* Generations Tab */}

@@ -2525,6 +2525,199 @@ async def admin_delete_product(product_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== ORDERS MANAGEMENT ENDPOINTS ==============
+
+class OrderCreate(BaseModel):
+    customer_name: str
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_telegram: Optional[str] = None
+    product_type: str = "pendant"
+    material: str = "silver"
+    size: Optional[str] = None
+    form_factor: Optional[str] = None
+    quoted_price: Optional[float] = None
+    currency: str = "RUB"
+    special_requirements: Optional[str] = None
+    internal_notes: Optional[str] = None
+    application_id: Optional[str] = None
+    user_id: Optional[str] = None
+
+class OrderUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_telegram: Optional[str] = None
+    product_type: Optional[str] = None
+    material: Optional[str] = None
+    size: Optional[str] = None
+    form_factor: Optional[str] = None
+    quoted_price: Optional[float] = None
+    final_price: Optional[float] = None
+    currency: Optional[str] = None
+    special_requirements: Optional[str] = None
+    internal_notes: Optional[str] = None
+    gems_config: Optional[List[dict]] = None
+    engraving_text: Optional[str] = None
+    model_3d_url: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_service: Optional[str] = None
+    tracking_number: Optional[str] = None
+
+class OrderStatusUpdate(BaseModel):
+    status: str
+    comment: Optional[str] = None
+    changed_by: Optional[str] = "admin"
+
+@router.get("/admin/orders")
+async def admin_get_orders(
+    status: Optional[str] = None,
+    limit: int = 100
+):
+    """Get all orders with optional status filter"""
+    try:
+        filters = {}
+        if status:
+            filters["status"] = status
+
+        orders = await supabase.select(
+            "orders",
+            filters=filters,
+            order="created_at.desc",
+            limit=limit
+        )
+        return {"success": True, "data": orders}
+    except Exception as e:
+        print(f"Error fetching orders: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/orders")
+async def admin_create_order(req: OrderCreate):
+    """Create a new order"""
+    try:
+        order_data = req.model_dump(exclude_none=True)
+        order_data["status"] = "new"
+        order_data["reference_images"] = []
+        order_data["generated_images"] = []
+        order_data["final_photos"] = []
+        order_data["gems_config"] = []
+
+        new_order = await supabase.insert("orders", order_data)
+
+        # Create initial status history entry
+        await supabase.insert("order_status_history", {
+            "order_id": new_order["id"],
+            "status": "new",
+            "comment": "Order created",
+            "changed_by": "admin"
+        })
+
+        return {"success": True, "data": new_order}
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/admin/orders/{order_id}")
+async def admin_get_order(order_id: str):
+    """Get order details"""
+    try:
+        order = await supabase.select_one("orders", order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return {"success": True, "data": order}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/admin/orders/{order_id}")
+async def admin_update_order(order_id: str, req: OrderUpdate):
+    """Update order details"""
+    try:
+        existing = await supabase.select_one("orders", order_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        update_data = req.model_dump(exclude_none=True)
+        updated = await supabase.update("orders", order_id, update_data)
+
+        return {"success": True, "data": updated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/admin/orders/{order_id}")
+async def admin_delete_order(order_id: str):
+    """Delete an order"""
+    try:
+        existing = await supabase.select_one("orders", order_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        await supabase.delete("orders", order_id)
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/orders/{order_id}/status")
+async def admin_update_order_status(order_id: str, req: OrderStatusUpdate):
+    """Update order status and log to history"""
+    try:
+        existing = await supabase.select_one("orders", order_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # Update order status
+        update_data = {"status": req.status}
+
+        # Update timestamps based on status
+        if req.status == "modeling" and not existing.get("started_at"):
+            update_data["started_at"] = "now()"
+        elif req.status == "ready" and not existing.get("completed_at"):
+            update_data["completed_at"] = "now()"
+        elif req.status == "shipped" and not existing.get("shipped_at"):
+            update_data["shipped_at"] = "now()"
+        elif req.status == "delivered" and not existing.get("delivered_at"):
+            update_data["delivered_at"] = "now()"
+
+        updated = await supabase.update("orders", order_id, update_data)
+
+        # Log status change to history
+        await supabase.insert("order_status_history", {
+            "order_id": order_id,
+            "status": req.status,
+            "comment": req.comment,
+            "changed_by": req.changed_by
+        })
+
+        return {"success": True, "data": updated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating order status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/admin/orders/{order_id}/history")
+async def admin_get_order_history(order_id: str):
+    """Get status change history for an order"""
+    try:
+        history = await supabase.select(
+            "order_status_history",
+            filters={"order_id": order_id},
+            order="created_at.desc"
+        )
+        return {"success": True, "data": history}
+    except Exception as e:
+        print(f"Error fetching order history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== GEM MANAGEMENT ENDPOINTS ==============
 
 class GemShape(str):

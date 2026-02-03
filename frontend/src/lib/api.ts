@@ -700,5 +700,115 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Orders API
+    adminGetOrders: async (params?: { status?: string; limit?: number }) => {
+        try {
+            const query = new URLSearchParams();
+            if (params?.status) query.append('status', params.status);
+            if (params?.limit) query.append('limit', params.limit.toString());
+
+            const response = await fetch(`${API_URL}/admin/orders?${query}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Fetch failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminCreateOrder: async (order: any) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(order)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Create failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminGetOrder: async (orderId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders/${orderId}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Fetch failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminUpdateOrder: async (orderId: string, updates: any) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders/${orderId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Update failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminDeleteOrder: async (orderId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders/${orderId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Delete failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminUpdateOrderStatus: async (orderId: string, statusUpdate: { status: string; comment?: string; changed_by?: string }) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders/${orderId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(statusUpdate)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Status update failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    adminGetOrderHistory: async (orderId: string) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/orders/${orderId}/history`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Fetch failed');
+            }
+            return { data: data.data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };
