@@ -9,9 +9,47 @@
    git checkout main && git merge <feature-branch> && git push origin main
    ```
 
+   **Самопроверка после деплоя бэкенда (ОБЯЗАТЕЛЬНО!):**
+   ```bash
+   # Подождать 2-3 минуты пока Render соберет и задеплоит
+   sleep 120
+
+   # 1. Проверить что API отвечает
+   curl -s "https://olai.onrender.com/" | python3 -m json.tool
+   # Ожидается: {"message": "OLAI.art Jewelry API v2.0 - Supabase Edition"}
+
+   # 2. Проверить здоровье системы
+   curl -s "https://olai.onrender.com/api/health/system" | python3 -m json.tool
+   # Ожидается: overall_status: "healthy"
+
+   # 3. Запустить smoke tests
+   cd backend && python3 scripts/smoke_tests.py --e2e
+   # Ожидается: ✓ ALL TESTS PASSED (7/7)
+   ```
+
 2. **Деплой фронтенда**: Использовать Vercel deploy hook:
    ```bash
    curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_8msyhjERk6BWBdBSdKJDDxHjNJrq/DXSjiKoltz"
+   ```
+
+   **Самопроверка после деплоя фронтенда (ОБЯЗАТЕЛЬНО!):**
+   ```bash
+   # Подождать 1-2 минуты пока Vercel соберет и задеплоит
+   sleep 90
+
+   # 1. Проверить что сайт доступен
+   curl -sI "https://olai.art" | head -1
+   # Ожидается: HTTP/2 200
+
+   # 2. Проверить что статические примеры загрузились
+   curl -s "https://olai.art/examples/main.json" | python3 -c "import sys, json; d=json.load(sys.stdin); print(f'Loaded {len(d)} examples')"
+   # Ожидается: Loaded N examples
+
+   # 3. Открыть в браузере и проверить:
+   # - Главная страница загружается
+   # - Примеры показываются
+   # - Конструктор работает
+   # - Генерация работает (если есть FAL_KEY)
    ```
 
 3. **ОБЯЗАТЕЛЬНО после каждого деплоя**: Проверить версию API и запустить smoke tests:
