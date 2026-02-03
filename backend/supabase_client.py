@@ -84,7 +84,7 @@ class SupabaseClient:
         if limit:
             url += f"&limit={limit}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             return response.json()
@@ -93,7 +93,7 @@ class SupabaseClient:
         """Select record by arbitrary field"""
         url = f"{self._rest_url(table)}?{field}=eq.{value}&select={columns}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             data = response.json()
@@ -103,7 +103,7 @@ class SupabaseClient:
         """Select single record by id"""
         url = f"{self._rest_url(table)}?id=eq.{id}&select={columns}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             data = response.json()
@@ -113,7 +113,7 @@ class SupabaseClient:
         """Insert record into table"""
         url = self._rest_url(table)
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(url, headers=self.headers, json=data)
             response.raise_for_status()
             result = response.json()
@@ -123,7 +123,7 @@ class SupabaseClient:
         """Update record by id"""
         url = f"{self._rest_url(table)}?id=eq.{id}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.patch(url, headers=self.headers, json=data)
             response.raise_for_status()
             result = response.json()
@@ -133,7 +133,7 @@ class SupabaseClient:
         """Delete record by id"""
         url = f"{self._rest_url(table)}?id=eq.{id}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.delete(url, headers=self.headers)
             response.raise_for_status()
             return True
