@@ -92,13 +92,21 @@ export const api = {
             return { data: null, error };
         }
     },
-    getHistory: async (limit: number = 100) => {
+    getHistory: async (params: { limit?: number; offset?: number } = {}) => {
         try {
-            const response = await fetch(`${API_URL}/history?limit=${limit}`);
+            const { limit = 20, offset = 0 } = params;
+            const response = await fetch(`${API_URL}/history?limit=${limit}&offset=${offset}`);
             const data = await response.json();
-            return { data, error: null };
+            return {
+                data: data.data || [],
+                total: data.total || 0,
+                limit: data.limit || limit,
+                offset: data.offset || offset,
+                hasMore: data.has_more || false,
+                error: null
+            };
         } catch (error) {
-            return { data: null, error };
+            return { data: [], total: 0, limit: 20, offset: 0, hasMore: false, error };
         }
     },
     updateApplication: async (id: string, updates: any) => {

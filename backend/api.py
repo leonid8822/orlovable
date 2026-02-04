@@ -496,7 +496,7 @@ async def create_application(app: ApplicationCreate):
 
 @router.get("/applications/{app_id}")
 async def get_application(app_id: str):
-    """Get application by ID with its generations"""
+    """Get application by ID with all its generations"""
     try:
         app = await supabase.select_one("applications", app_id)
         if not app:
@@ -507,18 +507,31 @@ async def get_application(app_id: str):
             "pendant_generations",
             filters={"application_id": app_id},
             order="created_at.desc",
-            limit=10
+            limit=50  # Get more generations
         )
 
-        # Get the latest generation's images
+        # Collect all images from all generations (for backward compatibility)
         all_images = []
-        if generations:
-            latest_gen = generations[0]
-            if latest_gen.get("output_images"):
-                all_images = latest_gen["output_images"]
+        for gen in generations:
+            if gen.get("output_images"):
+                all_images.extend(gen["output_images"])
 
-        # Add generated_images to response
+        # Filter out base64 from input_image_url
+        if app.get('input_image_url') and app['input_image_url'].startswith('data:'):
+            app['input_image_url'] = None
+
+        # Add generated_images (all) and generations list to response
         app["generated_images"] = all_images
+        app["generations"] = [
+            {
+                "id": g["id"],
+                "created_at": g["created_at"],
+                "output_images": g.get("output_images", []),
+                "cost_cents": g.get("cost_cents"),
+                "model_used": g.get("model_used"),
+            }
+            for g in generations
+        ]
 
         return app
     except HTTPException:
@@ -637,11 +650,14 @@ async def submit_order(app_id: str, req: SubmitOrderRequest):
 
 
 @router.get("/history")
-async def get_history(limit: int = 100):
-    """Get generation history with selected variant info"""
+async def get_history(limit: int = 20, offset: int = 0):
+    """Get generation history with pagination and selected variant info"""
     try:
-        # Cap limit at 500 for performance
-        limit = min(limit, 500)
+        # Cap limit at 100 for performance
+        limit = min(limit, 100)
+
+        # Get total count
+        total = await supabase.count("pendant_generations")
 
         # Include input_image_url - we'll filter out base64 data below
         columns = "id,application_id,session_id,user_comment,form_factor,material,size,input_image_url,output_images,prompt_used,cost_cents,model_used,execution_time_ms,created_at"
@@ -651,8 +667,22 @@ async def get_history(limit: int = 100):
             "pendant_generations",
             columns=columns,
             order="created_at.desc",
-            limit=limit
+            limit=limit,
+            offset=offset
         )
+
+        # Batch fetch all related applications to avoid N+1 queries
+        app_ids = list(set(g.get('application_id') for g in raw_gens if g.get('application_id')))
+        apps_map = {}
+        if app_ids:
+            # Fetch all applications in one query
+            all_apps = await supabase.select(
+                "applications",
+                columns="id,generated_preview,input_image_url",
+                order="created_at.desc",
+                limit=len(app_ids) + 10
+            )
+            apps_map = {a['id']: a for a in all_apps if a['id'] in app_ids}
 
         # Enrich with application data (selected preview, input_image_url)
         enriched = []
@@ -664,28 +694,30 @@ async def get_history(limit: int = 100):
             if input_url and input_url.startswith('data:'):
                 gen_data['input_image_url'] = None
 
-            # If has application_id, fetch additional data
+            # If has application_id, get data from cache
             if gen_data.get('application_id'):
-                try:
-                    app = await supabase.select_one(
-                        "applications",
-                        filters={"id": gen_data['application_id']}
-                    )
-                    if app:
-                        gen_data['selected_preview'] = app.get('generated_preview')
-                        # If generation has no input_image_url, try from application
-                        if not gen_data.get('input_image_url'):
-                            app_input = app.get('input_image_url')
-                            if app_input and not app_input.startswith('data:'):
-                                gen_data['input_image_url'] = app_input
-                except:
+                app = apps_map.get(gen_data['application_id'])
+                if app:
+                    gen_data['selected_preview'] = app.get('generated_preview')
+                    # If generation has no input_image_url, try from application
+                    if not gen_data.get('input_image_url'):
+                        app_input = app.get('input_image_url')
+                        if app_input and not app_input.startswith('data:'):
+                            gen_data['input_image_url'] = app_input
+                else:
                     gen_data['selected_preview'] = None
             else:
                 gen_data['selected_preview'] = None
 
             enriched.append(gen_data)
 
-        return enriched
+        return {
+            "data": enriched,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -3256,13 +3288,14 @@ async def create_log(level: str = "info", source: str = "manual", message: str =
 async def check_fal_status():
     """
     Check FAL.ai API status and balance.
-    Returns connection status and any issues detected.
+    Returns connection status, balance and any issues detected.
     """
     fal_key = os.environ.get("FAL_KEY")
 
     result = {
         "fal_configured": bool(fal_key),
         "fal_accessible": False,
+        "balance": None,
         "error": None,
         "timestamp": datetime.now().isoformat()
     }
@@ -3274,6 +3307,28 @@ async def check_fal_status():
     # Test FAL.ai API with a minimal request
     try:
         async with httpx.AsyncClient(timeout=10) as client:
+            # Try to get user info / balance from FAL.ai
+            # FAL.ai uses the /users/me endpoint for account info
+            try:
+                user_response = await client.get(
+                    "https://rest.alpha.fal.ai/users/me",
+                    headers={
+                        "Authorization": f"Key {fal_key}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                if user_response.status_code == 200:
+                    user_data = user_response.json()
+                    # FAL.ai returns balance in the user object
+                    if "balance" in user_data:
+                        result["balance"] = user_data["balance"]
+                    elif "credits" in user_data:
+                        result["balance"] = user_data["credits"]
+                    result["user_info"] = user_data
+            except Exception as e:
+                # Balance fetch failed, continue with status check
+                result["balance_error"] = str(e)
+
             # Try to call FAL.ai with an invalid/minimal request to check auth
             test_response = await client.post(
                 "https://queue.fal.run/fal-ai/bytedance/seedream/v4/edit",

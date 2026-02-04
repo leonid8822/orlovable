@@ -5,7 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Filter, RefreshCw, Edit2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, Edit2, ExternalLink, ChevronLeft, ChevronRight, Download, User, Image } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -16,6 +19,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+interface Generation {
+  id: string;
+  created_at: string;
+  output_images: string[];
+  cost_cents?: number | null;
+  model_used?: string | null;
+}
 
 interface Application {
   id: string;
@@ -32,8 +43,12 @@ interface Application {
   user_comment: string | null;
   generated_preview: string | null;
   generated_images?: string[];
+  generations?: Generation[];
+  input_image_url?: string | null;
   theme?: string | null;
   has_back_engraving?: boolean;
+  back_comment?: string | null;
+  gems?: any[] | null;
   customer_name?: string | null;
   customer_email?: string | null;
   paid_at?: string | null;
@@ -50,6 +65,7 @@ export default function ApplicationsTab() {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [editingApplication, setEditingApplication] = useState<Partial<Application>>({});
   const [savingApplication, setSavingApplication] = useState(false);
+  const [importingToGallery, setImportingToGallery] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,6 +148,25 @@ export default function ApplicationsTab() {
     toast.success('Заявка обновлена');
     setSavingApplication(false);
     setSelectedApplication(null);
+  };
+
+  const importToGallery = async () => {
+    if (!selectedApplication) return;
+
+    setImportingToGallery(true);
+    const { data, error } = await api.importApplicationToExample(
+      selectedApplication.id,
+      selectedApplication.user_comment || `Заявка ${selectedApplication.id.slice(0, 8)}`,
+      undefined,
+      selectedApplication.theme || 'main'
+    );
+
+    if (error) {
+      toast.error('Ошибка импорта в галерею');
+    } else {
+      toast.success('Добавлено в галерею примеров');
+    }
+    setImportingToGallery(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -412,39 +447,291 @@ export default function ApplicationsTab() {
       {/* Application Detail Modal */}
       {selectedApplication && (
         <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
                 Заявка {selectedApplication.id.slice(0, 8)}...
+                {getStatusBadge(selectedApplication.status)}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              {/* Generated images grid */}
-              {selectedApplication.generated_images && selectedApplication.generated_images.length > 0 && (
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedApplication.generated_images.map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt={`Вариант ${idx + 1}`}
-                      className={`rounded-lg cursor-pointer transition-all ${
-                        editingApplication.generated_preview === url
-                          ? 'ring-4 ring-primary'
-                          : 'hover:ring-2 ring-primary/50'
-                      }`}
-                      onClick={() => setEditingApplication(prev => ({ ...prev, generated_preview: url }))}
-                    />
-                  ))}
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">ID:</span>
+                  <div className="font-mono text-xs break-all">{selectedApplication.id}</div>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Создана:</span>
+                  <div>{format(new Date(selectedApplication.created_at), 'dd MMM yyyy HH:mm', { locale: ru })}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Обновлена:</span>
+                  <div>{format(new Date(selectedApplication.updated_at), 'dd MMM yyyy HH:mm', { locale: ru })}</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Шаг:</span>
+                  <div>{selectedApplication.current_step}</div>
+                </div>
+              </div>
+
+              {/* Client Info */}
+              {(selectedApplication.customer_name || selectedApplication.customer_email || selectedApplication.user_id) && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Клиент
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedApplication.customer_name && (
+                      <div>
+                        <span className="text-muted-foreground">Имя:</span>
+                        <div className="font-medium">{selectedApplication.customer_name}</div>
+                      </div>
+                    )}
+                    {selectedApplication.customer_email && (
+                      <div>
+                        <span className="text-muted-foreground">Email:</span>
+                        <div className="font-medium">{selectedApplication.customer_email}</div>
+                      </div>
+                    )}
+                    {selectedApplication.user_id && (
+                      <div>
+                        <span className="text-muted-foreground">User ID:</span>
+                        <div className="font-mono text-xs">{selectedApplication.user_id}</div>
+                      </div>
+                    )}
+                    {selectedApplication.paid_at && (
+                      <div>
+                        <span className="text-muted-foreground">Оплачено:</span>
+                        <div className="text-green-500">{format(new Date(selectedApplication.paid_at), 'dd MMM yyyy HH:mm', { locale: ru })}</div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
 
-              <div className="flex gap-4 justify-end">
-                <Button variant="outline" onClick={() => setSelectedApplication(null)}>
-                  Отмена
+              {/* Source Image and Generated Images */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Source Image */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Image className="h-4 w-4" />
+                      Исходник
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedApplication.input_image_url ? (
+                      <img
+                        src={selectedApplication.input_image_url}
+                        alt="Исходник"
+                        className="w-full rounded-lg cursor-pointer hover:ring-2 ring-primary transition-all"
+                        onClick={() => setSelectedImage(selectedApplication.input_image_url!)}
+                      />
+                    ) : (
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+                        Нет изображения
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* All Generations */}
+                <Card className="md:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">
+                      Все генерации ({selectedApplication.generations?.length || 0})
+                      <span className="text-xs text-muted-foreground ml-2">клик для выбора</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 max-h-96 overflow-y-auto">
+                    {selectedApplication.generations && selectedApplication.generations.length > 0 ? (
+                      selectedApplication.generations.map((gen, genIdx) => (
+                        <div key={gen.id} className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                              Генерация #{selectedApplication.generations!.length - genIdx}{' '}
+                              ({format(new Date(gen.created_at), 'dd MMM HH:mm', { locale: ru })})
+                            </span>
+                            <span>{gen.cost_cents ? `${gen.cost_cents}¢` : ''}</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-2">
+                            {gen.output_images.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`Вариант ${idx + 1}`}
+                                className={`rounded-lg cursor-pointer transition-all aspect-square object-cover ${
+                                  editingApplication.generated_preview === url
+                                    ? 'ring-4 ring-primary'
+                                    : 'hover:ring-2 ring-primary/50'
+                                }`}
+                                onClick={() => setEditingApplication(prev => ({ ...prev, generated_preview: url }))}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    ) : selectedApplication.generated_images && selectedApplication.generated_images.length > 0 ? (
+                      <div className="grid grid-cols-4 gap-2">
+                        {selectedApplication.generated_images.map((url, idx) => (
+                          <img
+                            key={idx}
+                            src={url}
+                            alt={`Вариант ${idx + 1}`}
+                            className={`rounded-lg cursor-pointer transition-all aspect-square object-cover ${
+                              editingApplication.generated_preview === url
+                                ? 'ring-4 ring-primary'
+                                : 'hover:ring-2 ring-primary/50'
+                            }`}
+                            onClick={() => setEditingApplication(prev => ({ ...prev, generated_preview: url }))}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+                        Нет сгенерированных изображений
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Product Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Параметры изделия</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Статус</Label>
+                    <Select
+                      value={editingApplication.status || selectedApplication.status}
+                      onValueChange={(value) => setEditingApplication(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Черновик</SelectItem>
+                        <SelectItem value="generating">Генерация</SelectItem>
+                        <SelectItem value="generated">Готово</SelectItem>
+                        <SelectItem value="submitted">Отправлено</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Форма</Label>
+                    <Select
+                      value={editingApplication.form_factor || selectedApplication.form_factor || ''}
+                      onValueChange={(value) => setEditingApplication(prev => ({ ...prev, form_factor: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Не выбрано" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="round">Круглый</SelectItem>
+                        <SelectItem value="oval">Жетон</SelectItem>
+                        <SelectItem value="contour">Контурный</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Материал</Label>
+                    <Select
+                      value={editingApplication.material || selectedApplication.material || ''}
+                      onValueChange={(value) => setEditingApplication(prev => ({ ...prev, material: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Не выбрано" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="silver">Серебро</SelectItem>
+                        <SelectItem value="gold">Золото</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Тема</Label>
+                    <Select
+                      value={editingApplication.theme || selectedApplication.theme || 'main'}
+                      onValueChange={(value) => setEditingApplication(prev => ({ ...prev, theme: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="main">Основная</SelectItem>
+                        <SelectItem value="kids">Детская</SelectItem>
+                        <SelectItem value="totems">Тотемы</SelectItem>
+                        <SelectItem value="custom">3D объекты</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comment */}
+              {selectedApplication.user_comment && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Комментарий пользователя</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{selectedApplication.user_comment}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Engraving */}
+              {selectedApplication.has_back_engraving && selectedApplication.back_comment && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Гравировка на обороте</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm font-medium">{selectedApplication.back_comment}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Gems */}
+              {selectedApplication.gems && selectedApplication.gems.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Камни ({selectedApplication.gems.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <pre className="text-xs bg-muted p-2 rounded overflow-auto">
+                      {JSON.stringify(selectedApplication.gems, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-4 justify-between border-t pt-4">
+                <Button
+                  variant="outline"
+                  onClick={importToGallery}
+                  disabled={importingToGallery || !selectedApplication.generated_preview}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  {importingToGallery ? 'Импорт...' : 'В галерею примеров'}
                 </Button>
-                <Button onClick={saveApplicationChanges} disabled={savingApplication}>
-                  {savingApplication ? 'Сохранение...' : 'Сохранить'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setSelectedApplication(null)}>
+                    Отмена
+                  </Button>
+                  <Button onClick={saveApplicationChanges} disabled={savingApplication}>
+                    {savingApplication ? 'Сохранение...' : 'Сохранить'}
+                  </Button>
+                </div>
               </div>
             </div>
           </DialogContent>

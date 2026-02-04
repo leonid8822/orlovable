@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Filter, RefreshCw } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -36,6 +36,17 @@ interface Generation {
   selected_preview?: string | null;
 }
 
+const PAGE_SIZE = 20;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+interface FalStatus {
+  fal_configured: boolean;
+  fal_accessible: boolean;
+  balance: number | null;
+  status?: string;
+  error?: string;
+}
+
 export default function GenerationsTab() {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,22 +58,52 @@ export default function GenerationsTab() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
 
-  const fetchGenerations = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+
+  // FAL status
+  const [falStatus, setFalStatus] = useState<FalStatus | null>(null);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const fetchGenerations = async (page: number = 1) => {
     setLoading(true);
-    const { data, error } = await api.getHistory();
+    const offset = (page - 1) * PAGE_SIZE;
+    const { data, total: totalCount, hasMore: more, error } = await api.getHistory({ limit: PAGE_SIZE, offset });
 
     if (error) {
       console.error('Error fetching generations:', error);
       toast.error('Ошибка загрузки генераций');
     } else {
       setGenerations(data || []);
+      setTotal(totalCount);
+      setHasMore(more);
     }
     setLoading(false);
   };
 
+  const fetchFalStatus = async () => {
+    try {
+      const response = await fetch(`${API_URL}/health/fal-status`);
+      const data = await response.json();
+      setFalStatus(data);
+    } catch (error) {
+      console.error('Error fetching FAL status:', error);
+    }
+  };
+
   useEffect(() => {
-    fetchGenerations();
-  }, []);
+    fetchGenerations(currentPage);
+    fetchFalStatus();
+  }, [currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleSelectVariant = async (applicationId: string, imageUrl: string) => {
     try {
@@ -87,11 +128,21 @@ export default function GenerationsTab() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Всего генераций
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              На странице
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -101,35 +152,43 @@ export default function GenerationsTab() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Общая стоимость
+              Текущая страница
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currentPage} / {totalPages || 1}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Стоимость (страница)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(totalCost / 100).toFixed(2)}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={falStatus?.fal_accessible ? '' : 'border-destructive'}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Средняя стоимость
+              FAL.ai Баланс
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${generations.length > 0 ? ((totalCost / generations.length) / 100).toFixed(2) : '0.00'}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Изображений создано
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {generations.reduce((sum, g) => sum + (g.output_images?.length || 0), 0)}
-            </div>
+            {falStatus ? (
+              <div className="text-2xl font-bold">
+                {falStatus.balance !== null ? (
+                  `$${falStatus.balance.toFixed(2)}`
+                ) : falStatus.fal_accessible ? (
+                  <span className="text-green-500">OK</span>
+                ) : (
+                  <span className="text-destructive text-sm">{falStatus.error || 'Ошибка'}</span>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted-foreground">Загрузка...</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -196,7 +255,7 @@ export default function GenerationsTab() {
             </div>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button onClick={fetchGenerations} className="gap-2">
+            <Button onClick={() => { setCurrentPage(1); fetchGenerations(1); }} className="gap-2">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Применить
             </Button>
@@ -208,7 +267,8 @@ export default function GenerationsTab() {
                 setModelFilter('all');
                 setMinCost('');
                 setMaxCost('');
-                fetchGenerations();
+                setCurrentPage(1);
+                fetchGenerations(1);
               }}
             >
               Сбросить
@@ -219,8 +279,30 @@ export default function GenerationsTab() {
 
       {/* Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>История генераций</CardTitle>
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || loading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground px-2">
+              {currentPage} из {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={!hasMore || loading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -336,6 +418,43 @@ export default function GenerationsTab() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Bottom Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Показано {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, total)} из {total}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage <= 1 || loading}
+                >
+                  В начало
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1 || loading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Назад
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!hasMore || loading}
+                >
+                  Вперёд
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
