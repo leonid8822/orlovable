@@ -87,10 +87,23 @@ async def fetch_examples_from_supabase() -> list:
 
 
 async def download_image(url: str) -> Optional[bytes]:
-    """Download image from URL."""
-    if not url or url.startswith("data:"):
+    """Download image from URL or decode base64."""
+    if not url:
         return None
 
+    # Handle base64 data URLs
+    if url.startswith("data:"):
+        try:
+            import base64
+            # Format: data:image/jpeg;base64,/9j/4AAQ...
+            if ";base64," in url:
+                base64_data = url.split(";base64,")[1]
+                return base64.b64decode(base64_data)
+        except Exception as e:
+            print(f"  Warning: Failed to decode base64: {e}")
+            return None
+
+    # Handle regular URLs
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(url)

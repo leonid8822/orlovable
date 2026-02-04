@@ -4,7 +4,7 @@
     "title": "Контурный кулон",
     "description": "Фрося, 4 года, \"Ждём сестрёнку\"",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/019f194f-4ba2-453b-aa03-fdbaee23a18e_before.jpg",
     "after": "/examples/kids/019f194f-4ba2-453b-aa03-fdbaee23a18e_after.jpg",
     "display_order": 9
   },
@@ -13,7 +13,7 @@
     "title": "Жетон",
     "description": "Безумная сова",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/0c672ea8-63ce-4a32-a64f-b364e2db0609_before.jpg",
     "after": "/examples/kids/0c672ea8-63ce-4a32-a64f-b364e2db0609_after.jpg",
     "display_order": 10
   },
@@ -22,7 +22,7 @@
     "title": "Жетон",
     "description": "Аня",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/dfbad07f-2b84-4810-bcf5-0ab6fa6429e2_before.jpg",
     "after": "/examples/kids/dfbad07f-2b84-4810-bcf5-0ab6fa6429e2_after.jpg",
     "display_order": 11
   },
@@ -31,7 +31,7 @@
     "title": "Контурный кулон",
     "description": "Серебро, размер M",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/eb749e4f-b7f6-480f-af0d-dbbbca6008b6_before.jpg",
     "after": "/examples/kids/eb749e4f-b7f6-480f-af0d-dbbbca6008b6_after.jpg",
     "display_order": 12
   },
@@ -40,7 +40,7 @@
     "title": "Контурный кулон",
     "description": "Щелкунчик",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/533f025a-61ab-41b8-9c28-50cc6f0c7fcf_before.jpg",
     "after": "/examples/kids/533f025a-61ab-41b8-9c28-50cc6f0c7fcf_after.jpg",
     "display_order": 13
   },
@@ -49,7 +49,7 @@
     "title": "Круглый кулон",
     "description": "Серебро, размер M",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/91f91fea-494f-41b9-a377-7f52061463d7_before.jpg",
     "after": "/examples/kids/91f91fea-494f-41b9-a377-7f52061463d7_after.jpg",
     "display_order": 14
   },
@@ -58,7 +58,7 @@
     "title": "Жетон",
     "description": "Серебро, размер M",
     "theme": "kids",
-    "before": null,
+    "before": "/examples/kids/db5a57bf-70e0-426b-b216-9071f0b1de30_before.jpg",
     "after": "/examples/kids/db5a57bf-70e0-426b-b216-9071f0b1de30_after.jpg",
     "display_order": 17
   }
