@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import { AuthButton } from "./AuthButton";
 import { EagleIcon } from "./icons/EagleIcon";
 import { themeConfigs, AppTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
+
+interface StoredUser {
+  id?: string;
+  userId?: string;
+  email: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+}
 
 interface HeaderProps {
   applicationId?: string | null;
@@ -27,6 +36,40 @@ export function Header({
 }: HeaderProps) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
+
+  // Load user from localStorage for mobile menu display
+  useEffect(() => {
+    const checkUser = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setCurrentUser(JSON.parse(storedUser));
+        } catch {
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    };
+
+    checkUser();
+
+    // Listen for storage changes (login/logout)
+    const handleStorageChange = () => {
+      checkUser();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Get display name for mobile menu
+  const getMobileDisplayName = () => {
+    if (currentUser?.firstName) return currentUser.firstName;
+    if (currentUser?.name) return currentUser.name;
+    return currentUser?.email?.split('@')[0] || '';
+  };
 
   // Determine active theme based on current path or override
   const getActiveTheme = (): AppTheme => {
@@ -154,6 +197,20 @@ export function Header({
       {!minimal && mobileMenuOpen && (
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
           <div className="container mx-auto px-4 py-4 space-y-2">
+            {/* User info or login prompt */}
+            {currentUser ? (
+              <div className="flex items-center gap-2 px-4 py-2 mb-2 rounded-lg bg-card/30 border border-border/30">
+                <User className="w-4 h-4" style={{ color: themeConfig.accentColor }} />
+                <span className="text-sm font-medium" style={{ color: themeConfig.accentColor }}>
+                  {getMobileDisplayName()}
+                </span>
+              </div>
+            ) : (
+              <div className="px-4 py-2 mb-2 text-sm text-muted-foreground">
+                Войдите, чтобы сохранить заказы
+              </div>
+            )}
+
             {/* Theme links */}
             {themeLinks.map(({ theme: linkTheme, path, label }) => {
               const isActive = activeTheme === linkTheme;

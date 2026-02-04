@@ -234,6 +234,12 @@ export function StepGenerating({
   useEffect(() => {
     if (isGenerating) return;
 
+    // Wait for config.imagePreview to be set before starting generation
+    if (!config.imagePreview) {
+      console.log("Waiting for image preview to be set...");
+      return;
+    }
+
     const runGeneration = async () => {
       setIsGenerating(true);
 
@@ -304,7 +310,7 @@ export function StepGenerating({
     };
 
     runGeneration();
-  }, [applicationId]);
+  }, [applicationId, config.imagePreview]);
 
   // Progress animation
   useEffect(() => {

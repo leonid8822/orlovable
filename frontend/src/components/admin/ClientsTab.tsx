@@ -70,7 +70,7 @@ export function ClientsTab() {
         console.error("Error loading clients:", error);
         return;
       }
-      setClients(data?.clients || []);
+      setClients(data || []);
     } catch (error) {
       console.error("Error loading clients:", error);
     } finally {

@@ -132,15 +132,28 @@ export function LandingConstructor({ theme, className }: LandingConstructorProps
     localStorage.setItem("sessionId", sessionId);
     localStorage.setItem("appTheme", theme);
 
+    // Get user_id from localStorage if user is logged in
+    let userId: string | null = null;
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        userId = user.userId || user.id || null;
+      } catch (e) {
+        console.error('Failed to parse stored user:', e);
+      }
+    }
+
     // Default comment based on theme
     const defaultComment = theme === 'kids'
       ? 'Детский рисунок'
       : theme === 'totems'
-        ? 'Тотем в скандинавском стиле'
+        ? 'Тотем'
         : '';
 
     const { data: newApp, error } = await api.createApplication({
       session_id: sessionId,
+      user_id: userId,
       form_factor: selectedForm,
       material: 'silver',
       size: 'pendant',
