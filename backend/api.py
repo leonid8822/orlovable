@@ -57,6 +57,10 @@ class ApplicationUpdate(BaseModel):
     last_error: Optional[str] = None
     telegram_username: Optional[str] = None
     order_comment: Optional[str] = None
+    # Link to client
+    user_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
     # Gems and engraving
     gems: Optional[list] = None
     back_engraving: Optional[str] = None
@@ -517,8 +521,16 @@ async def get_application(app_id: str):
                 all_images.extend(gen["output_images"])
 
         # Filter out base64 from input_image_url
-        if app.get('input_image_url') and app['input_image_url'].startswith('data:'):
+        input_url = app.get('input_image_url')
+        if input_url and input_url.startswith('data:'):
             app['input_image_url'] = None
+            # Try to get input_image_url from the oldest generation
+            if generations:
+                for gen in reversed(generations):  # Oldest first
+                    gen_input = gen.get('input_image_url')
+                    if gen_input and not gen_input.startswith('data:'):
+                        app['input_image_url'] = gen_input
+                        break
 
         # Add generated_images (all) and generations list to response
         app["generated_images"] = all_images
@@ -527,6 +539,7 @@ async def get_application(app_id: str):
                 "id": g["id"],
                 "created_at": g["created_at"],
                 "output_images": g.get("output_images", []),
+                "input_image_url": g.get("input_image_url") if g.get("input_image_url") and not g.get("input_image_url", "").startswith("data:") else None,
                 "cost_cents": g.get("cost_cents"),
                 "model_used": g.get("model_used"),
             }

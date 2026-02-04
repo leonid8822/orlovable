@@ -57,6 +57,12 @@ interface Application {
 
 const PAGE_SIZE = 20;
 
+interface Client {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
 export default function ApplicationsTab() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +77,9 @@ export default function ApplicationsTab() {
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+
+  // Clients for linking
+  const [clients, setClients] = useState<Client[]>([]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -111,12 +120,20 @@ export default function ApplicationsTab() {
   };
 
   const openApplicationDetail = async (app: Application) => {
-    const { data, error } = await api.getApplication(app.id);
-    if (error) {
+    // Fetch application and clients in parallel
+    const [appResult, clientsResult] = await Promise.all([
+      api.getApplication(app.id),
+      api.listClients()
+    ]);
+
+    if (appResult.error) {
       toast.error('Ошибка загрузки заявки');
       return;
     }
+
+    const data = appResult.data;
     setSelectedApplication(data);
+    setClients(clientsResult.data || []);
     setEditingApplication({
       status: data.status,
       form_factor: data.form_factor,
@@ -124,6 +141,9 @@ export default function ApplicationsTab() {
       size: data.size,
       generated_preview: data.generated_preview,
       theme: data.theme || 'main',
+      user_id: data.user_id,
+      customer_name: data.customer_name,
+      customer_email: data.customer_email,
     });
   };
 
@@ -475,43 +495,71 @@ export default function ApplicationsTab() {
                 </div>
               </div>
 
-              {/* Client Info */}
-              {(selectedApplication.customer_name || selectedApplication.customer_email || selectedApplication.user_id) && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Клиент
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                    {selectedApplication.customer_name && (
-                      <div>
-                        <span className="text-muted-foreground">Имя:</span>
-                        <div className="font-medium">{selectedApplication.customer_name}</div>
-                      </div>
-                    )}
-                    {selectedApplication.customer_email && (
-                      <div>
-                        <span className="text-muted-foreground">Email:</span>
-                        <div className="font-medium">{selectedApplication.customer_email}</div>
-                      </div>
-                    )}
-                    {selectedApplication.user_id && (
-                      <div>
-                        <span className="text-muted-foreground">User ID:</span>
-                        <div className="font-mono text-xs">{selectedApplication.user_id}</div>
-                      </div>
-                    )}
-                    {selectedApplication.paid_at && (
-                      <div>
-                        <span className="text-muted-foreground">Оплачено:</span>
-                        <div className="text-green-500">{format(new Date(selectedApplication.paid_at), 'dd MMM yyyy HH:mm', { locale: ru })}</div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+              {/* Client Info - Editable */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Клиент
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Link to existing client */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Привязать к клиенту</Label>
+                    <Select
+                      value={editingApplication.user_id || ''}
+                      onValueChange={(value) => {
+                        const client = clients.find(c => c.id === value);
+                        setEditingApplication(prev => ({
+                          ...prev,
+                          user_id: value || null,
+                          customer_name: client?.name || prev.customer_name,
+                          customer_email: client?.email || prev.customer_email,
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите клиента" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Не привязан</SelectItem>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name || client.email} ({client.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Manual customer info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Имя</Label>
+                      <Input
+                        value={editingApplication.customer_name || ''}
+                        onChange={(e) => setEditingApplication(prev => ({ ...prev, customer_name: e.target.value }))}
+                        placeholder="Имя клиента"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Email</Label>
+                      <Input
+                        value={editingApplication.customer_email || ''}
+                        onChange={(e) => setEditingApplication(prev => ({ ...prev, customer_email: e.target.value }))}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                  </div>
+                  {/* Current link info */}
+                  {selectedApplication.paid_at && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Оплачено:</span>{' '}
+                      <span className="text-green-500">{format(new Date(selectedApplication.paid_at), 'dd MMM yyyy HH:mm', { locale: ru })}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Source Image and Generated Images */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
