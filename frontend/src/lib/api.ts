@@ -419,9 +419,10 @@ export const api = {
         try {
             const response = await fetch(`${API_URL}/admin/clients`);
             const data = await response.json();
-            return { data, error: null };
+            // API returns { clients: [...], total: N }
+            return { data: data.clients || [], error: null };
         } catch (error) {
-            return { data: null, error };
+            return { data: [], error };
         }
     },
     getClient: async (userId: string) => {
