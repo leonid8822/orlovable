@@ -78,7 +78,7 @@ export default function Ideas() {
           {/* Hero section */}
           <div className="text-center mb-12 animate-fade-in">
             <h1 className="text-4xl md:text-6xl font-display mb-4 bg-gradient-to-r from-gold via-gold-light to-gold bg-clip-text text-transparent">
-              Галерея идей
+              Галерея
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               Вдохновляйтесь примерами превращения рисунков и фотографий в уникальные ювелирные украшения
