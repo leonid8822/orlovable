@@ -5,7 +5,8 @@
     "description": "",
     "theme": "totems",
     "before": "/examples/totems/b8486ae4-d71b-4dca-9e2d-b5001d481235_before.jpg",
-    "after": "/examples/totems/b8486ae4-d71b-4dca-9e2d-b5001d481235_after.jpg"
+    "after": "/examples/totems/b8486ae4-d71b-4dca-9e2d-b5001d481235_after.jpg",
+    "display_order": 4
   },
   {
     "id": "74caf60d-ced9-4a2b-91e6-463e062f5c78",
@@ -13,7 +14,8 @@
     "description": "Серебро, размер M",
     "theme": "totems",
     "before": null,
-    "after": "/examples/totems/74caf60d-ced9-4a2b-91e6-463e062f5c78_after.jpg"
+    "after": "/examples/totems/74caf60d-ced9-4a2b-91e6-463e062f5c78_after.jpg",
+    "display_order": 15
   },
   {
     "id": "3211245a-bf89-4ab8-9c10-64c1aa28b891",
@@ -21,6 +23,7 @@
     "description": "Серебро, размер M",
     "theme": "totems",
     "before": null,
-    "after": "/examples/totems/3211245a-bf89-4ab8-9c10-64c1aa28b891_after.jpg"
+    "after": "/examples/totems/3211245a-bf89-4ab8-9c10-64c1aa28b891_after.jpg",
+    "display_order": 16
   }
 ]

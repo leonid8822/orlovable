@@ -5,7 +5,8 @@
     "description": "Фрося, 4 года, \"Ждём сестрёнку\"",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/019f194f-4ba2-453b-aa03-fdbaee23a18e_after.jpg"
+    "after": "/examples/kids/019f194f-4ba2-453b-aa03-fdbaee23a18e_after.jpg",
+    "display_order": 9
   },
   {
     "id": "0c672ea8-63ce-4a32-a64f-b364e2db0609",
@@ -13,7 +14,8 @@
     "description": "Безумная сова",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/0c672ea8-63ce-4a32-a64f-b364e2db0609_after.jpg"
+    "after": "/examples/kids/0c672ea8-63ce-4a32-a64f-b364e2db0609_after.jpg",
+    "display_order": 10
   },
   {
     "id": "dfbad07f-2b84-4810-bcf5-0ab6fa6429e2",
@@ -21,7 +23,8 @@
     "description": "Аня",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/dfbad07f-2b84-4810-bcf5-0ab6fa6429e2_after.jpg"
+    "after": "/examples/kids/dfbad07f-2b84-4810-bcf5-0ab6fa6429e2_after.jpg",
+    "display_order": 11
   },
   {
     "id": "eb749e4f-b7f6-480f-af0d-dbbbca6008b6",
@@ -29,7 +32,8 @@
     "description": "Серебро, размер M",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/eb749e4f-b7f6-480f-af0d-dbbbca6008b6_after.jpg"
+    "after": "/examples/kids/eb749e4f-b7f6-480f-af0d-dbbbca6008b6_after.jpg",
+    "display_order": 12
   },
   {
     "id": "533f025a-61ab-41b8-9c28-50cc6f0c7fcf",
@@ -37,7 +41,8 @@
     "description": "Щелкунчик",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/533f025a-61ab-41b8-9c28-50cc6f0c7fcf_after.jpg"
+    "after": "/examples/kids/533f025a-61ab-41b8-9c28-50cc6f0c7fcf_after.jpg",
+    "display_order": 13
   },
   {
     "id": "91f91fea-494f-41b9-a377-7f52061463d7",
@@ -45,7 +50,8 @@
     "description": "Серебро, размер M",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/91f91fea-494f-41b9-a377-7f52061463d7_after.jpg"
+    "after": "/examples/kids/91f91fea-494f-41b9-a377-7f52061463d7_after.jpg",
+    "display_order": 14
   },
   {
     "id": "db5a57bf-70e0-426b-b216-9071f0b1de30",
@@ -53,6 +59,7 @@
     "description": "Серебро, размер M",
     "theme": "kids",
     "before": null,
-    "after": "/examples/kids/db5a57bf-70e0-426b-b216-9071f0b1de30_after.jpg"
+    "after": "/examples/kids/db5a57bf-70e0-426b-b216-9071f0b1de30_after.jpg",
+    "display_order": 17
   }
 ]
