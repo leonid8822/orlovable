@@ -114,19 +114,32 @@ export const api = {
             return { data: null, error };
         }
     },
-    listApplications: async (userId?: string, limit: number = 100) => {
+    listApplications: async (params: {
+        userId?: string;
+        limit?: number;
+        offset?: number;
+        status?: string;
+    } = {}) => {
         try {
-            const params = new URLSearchParams();
-            if (userId) params.append('user_id', userId);
-            params.append('limit', limit.toString());
-            const url = `${API_URL}/applications?${params.toString()}`;
+            const searchParams = new URLSearchParams();
+            if (params.userId) searchParams.append('user_id', params.userId);
+            if (params.limit) searchParams.append('limit', params.limit.toString());
+            if (params.offset) searchParams.append('offset', params.offset.toString());
+            if (params.status) searchParams.append('status', params.status);
+            const url = `${API_URL}/applications?${searchParams.toString()}`;
             const response = await fetch(url);
             const data = await response.json();
-            // API returns array directly, ensure we always return array
-            const apps = Array.isArray(data) ? data : (data?.applications || []);
-            return { data: apps, error: null };
+            // API returns { data, total, limit, offset, has_more }
+            return {
+                data: data.data || [],
+                total: data.total || 0,
+                limit: data.limit || 20,
+                offset: data.offset || 0,
+                hasMore: data.has_more || false,
+                error: null
+            };
         } catch (error) {
-            return { data: [], error };
+            return { data: [], total: 0, limit: 20, offset: 0, hasMore: false, error };
         }
     },
     updateSettings: async (settings: any) => {

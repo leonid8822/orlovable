@@ -61,9 +61,9 @@ class SupabaseClient:
                 "error": response.text if response.status_code not in [200, 201] else None
             }
 
-    async def select(self, table: str, columns: str = "*", filters=None, order: str = None, limit: int = None):
+    async def select(self, table: str, columns: str = "*", filters=None, order: str = None, limit: int = None, offset: int = None):
         """
-        Select records from table.
+        Select records from table with pagination support.
 
         filters can be:
         - dict: {"field": "value"} -> adds field=eq.value
@@ -84,10 +84,34 @@ class SupabaseClient:
         if limit:
             url += f"&limit={limit}"
 
+        if offset:
+            url += f"&offset={offset}"
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers)
             response.raise_for_status()
             return response.json()
+
+    async def count(self, table: str, filters=None) -> int:
+        """Count records in table"""
+        url = f"{self._rest_url(table)}?select=count"
+
+        if filters:
+            if isinstance(filters, dict):
+                for key, value in filters.items():
+                    url += f"&{key}=eq.{value}"
+            elif isinstance(filters, str) and filters:
+                url += f"&{filters}"
+
+        headers = {**self.headers, "Prefer": "count=exact"}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.head(url, headers=headers)
+            response.raise_for_status()
+            # PostgREST returns count in Content-Range header
+            content_range = response.headers.get("Content-Range", "*/0")
+            total = content_range.split("/")[-1]
+            return int(total) if total != "*" else 0
 
     async def select_by_field(self, table: str, field: str, value: str, columns: str = "*"):
         """Select record by arbitrary field"""

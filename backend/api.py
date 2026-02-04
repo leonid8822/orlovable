@@ -389,27 +389,50 @@ CRITICAL REQUIREMENTS:
 
 
 @router.get("/applications")
-async def list_applications(user_id: Optional[str] = None, limit: int = 50):
-    """List applications - optimized without heavy base64 fields"""
+async def list_applications(
+    user_id: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    status: Optional[str] = None
+):
+    """List applications with pagination - optimized without heavy base64 fields"""
     try:
-        # Cap limit at 500 for performance
-        limit = min(limit, 500)
-        filters = {"user_id": user_id} if user_id else None
+        # Cap limit at 100 for performance
+        limit = min(limit, 100)
+
+        # Build filters
+        filter_parts = []
+        if user_id:
+            filter_parts.append(f"user_id=eq.{user_id}")
+        if status and status != "all":
+            filter_parts.append(f"status=eq.{status}")
+
+        filters = "&".join(filter_parts) if filter_parts else None
 
         # OPTIMIZATION: Explicitly list columns to exclude heavy base64 fields
         # input_image_url and back_image_url can be 300KB+ per record (base64 data)
-        # Only include lightweight metadata fields for list view
         columns = "id,user_id,session_id,current_step,status,form_factor,material,size,size_option,user_comment,generated_preview,generated_images,theme,has_back_engraving,back_comment,gems,created_at,updated_at,paid_at,submitted_at,customer_name,customer_email"
 
+        # Get total count for pagination
+        total = await supabase.count("applications", filters=filters)
+
+        # Get paginated data
         apps = await supabase.select(
             "applications",
             columns=columns,
             filters=filters,
             order="created_at.desc",
-            limit=limit
+            limit=limit,
+            offset=offset
         )
-        # Return array directly for consistency
-        return apps if apps else []
+
+        return {
+            "data": apps if apps else [],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total
+        }
     except Exception as e:
         # Log the error for debugging
         error_msg = str(e)
@@ -420,6 +443,7 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 50):
             await logger.error("applications_list", f"Failed to list applications: {error_msg}", {
                 "user_id": user_id,
                 "limit": limit,
+                "offset": offset,
                 "traceback": traceback.format_exc()
             })
         except:
