@@ -508,12 +508,13 @@ export default function ApplicationsTab() {
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Привязать к клиенту</Label>
                     <Select
-                      value={editingApplication.user_id || ''}
+                      value={editingApplication.user_id || '__none__'}
                       onValueChange={(value) => {
+                        const actualValue = value === '__none__' ? null : value;
                         const client = clients.find(c => c.id === value);
                         setEditingApplication(prev => ({
                           ...prev,
-                          user_id: value || null,
+                          user_id: actualValue,
                           customer_name: client?.name || prev.customer_name,
                           customer_email: client?.email || prev.customer_email,
                         }));
@@ -523,7 +524,7 @@ export default function ApplicationsTab() {
                         <SelectValue placeholder="Выберите клиента" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Не привязан</SelectItem>
+                        <SelectItem value="__none__">Не привязан</SelectItem>
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name || client.email} ({client.email})
