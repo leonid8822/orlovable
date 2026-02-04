@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Send, MessageCircle, Mail, Phone, User, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,50 @@ export function StepCheckout({
       setActiveImageIndex((prev) => (prev === 0 ? 1 : 0));
     }, 15000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Auto-save profile data to DB with debounce
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const saveProfileToDb = useCallback(async (newName: string, newPhone: string) => {
+    // Get userId from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return;
+
+    try {
+      const user = JSON.parse(storedUser);
+      const userId = user.userId || user.id;
+      if (!userId) return;
+
+      await api.updateUserProfile(userId, {
+        first_name: newName.trim() || undefined,
+        phone: newPhone.trim() || undefined,
+      });
+
+      // Update localStorage with new data
+      const updatedUser = { ...user, name: newName.trim(), phone: newPhone.trim() };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+    }
+  }, []);
+
+  const debouncedSaveProfile = useCallback((newName: string, newPhone: string) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveProfileToDb(newName, newPhone);
+    }, 1000); // Save after 1 second of no typing
+  }, [saveProfileToDb]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Get data from settings context
@@ -352,9 +396,13 @@ export function StepCheckout({
                 );
               })}
             </div>
+            {/* Size explanation */}
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Размер — это высота готового изделия. Посмотрите примерку на фото выше.
+            </p>
             {/* Warning for small size */}
             {config.sizeOption === 's' && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-2 px-4">
+              <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-1 px-4">
                 ⚠️ Маленький размер — мелкие детали могут быть сложны в реализации
               </p>
             )}
@@ -397,7 +445,10 @@ export function StepCheckout({
               type="text"
               placeholder="Как к вам обращаться"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                debouncedSaveProfile(e.target.value, phone);
+              }}
               className="bg-card border-border focus:border-theme"
               required
             />
@@ -413,7 +464,10 @@ export function StepCheckout({
               type="tel"
               placeholder="+7..."
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                debouncedSaveProfile(name, e.target.value);
+              }}
               className="bg-card border-border focus:border-theme"
               required
             />
