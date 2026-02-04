@@ -2076,43 +2076,71 @@ async def check_admin_status(user_id: str):
 
 @router.get("/admin/clients")
 async def admin_list_clients():
-    """List all clients with aggregated order/payment data"""
+    """List all clients with aggregated order/payment data - OPTIMIZED"""
     try:
-        # Get all users
-        users = await supabase.select("users", order="created_at.desc")
+        # OPTIMIZATION: Fetch all data in 3 queries instead of N+1
+        # 1. Get all users
+        users = await supabase.select("users", order="created_at.desc", limit=500)
 
+        # 2. Get all applications (lightweight - no base64 fields)
+        app_columns = "id,user_id,status,form_factor,material,size,generated_preview,created_at,paid_at"
+        all_apps = await supabase.select("applications", columns=app_columns, order="created_at.desc", limit=2000)
+
+        # 3. Get all payments
+        all_payments = await supabase.select("payments", order="created_at.desc", limit=2000)
+
+        # Build lookup dictionaries for O(1) access
+        apps_by_user = {}
+        for app in all_apps:
+            uid = app.get("user_id")
+            if uid:
+                if uid not in apps_by_user:
+                    apps_by_user[uid] = []
+                apps_by_user[uid].append(app)
+
+        payments_by_app = {}
+        for p in all_payments:
+            app_id = p.get("application_id")
+            if app_id:
+                if app_id not in payments_by_app:
+                    payments_by_app[app_id] = []
+                payments_by_app[app_id].append(p)
+
+        # Build client list with aggregated data
         clients = []
         for user in users:
             user_id = user.get("id")
-            email = user.get("email", "")
+            user_apps = apps_by_user.get(user_id, [])
 
-            # Get applications for this user
-            apps = await supabase.select("applications", filters={"user_id": user_id}, order="created_at.desc")
-
-            # Get payments for this user's applications
+            # Calculate totals from payments
             total_spent = 0
             paid_count = 0
-            payments = []
-            for app in apps:
-                app_payments = await supabase.select("payments", filters={"application_id": app["id"]})
+            user_payments = []
+            for app in user_apps:
+                app_payments = payments_by_app.get(app["id"], [])
                 for p in app_payments:
-                    payments.append(p)
+                    user_payments.append(p)
                     if p.get("status") in ("CONFIRMED", "AUTHORIZED"):
                         total_spent += p.get("amount", 0)
                         paid_count += 1
 
+            # Skip users with no orders and no name
+            if len(user_apps) == 0 and not user.get("name"):
+                continue
+
             clients.append({
                 "id": user_id,
-                "email": email,
+                "email": user.get("email", ""),
                 "name": user.get("name", ""),
                 "first_name": user.get("first_name", ""),
                 "last_name": user.get("last_name", ""),
                 "telegram_username": user.get("telegram_username", ""),
                 "created_at": user.get("created_at"),
                 "is_admin": user.get("is_admin", False),
-                "orders_count": len(apps),
+                "orders_count": len(user_apps),
                 "paid_count": paid_count,
                 "total_spent": total_spent,
+                # Lightweight app data - NO input_image_url (can be base64)
                 "applications": [{
                     "id": a["id"],
                     "status": a.get("status"),
@@ -2120,24 +2148,17 @@ async def admin_list_clients():
                     "material": a.get("material"),
                     "size": a.get("size"),
                     "generated_preview": a.get("generated_preview"),
-                    "input_image_url": a.get("input_image_url"),
                     "created_at": a.get("created_at"),
                     "paid_at": a.get("paid_at"),
-                    "order_comment": a.get("order_comment"),
-                    "user_comment": a.get("user_comment"),
-                } for a in apps],
+                } for a in user_apps[:10]],  # Limit to 10 apps per client in list
                 "payments": [{
                     "id": p["id"],
                     "order_id": p.get("order_id"),
                     "amount": p.get("amount", 0),
                     "status": p.get("status"),
                     "created_at": p.get("created_at"),
-                    "customer_email": p.get("customer_email"),
-                } for p in payments],
+                } for p in user_payments[:10]],  # Limit to 10 payments
             })
-
-        # Filter out users with no applications (unless they have a name)
-        clients = [c for c in clients if c["orders_count"] > 0 or c.get("name")]
 
         return {"clients": clients, "total": len(clients)}
 
@@ -2194,16 +2215,17 @@ async def admin_get_client(user_id: str):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Get applications
-        apps = await supabase.select("applications", filters={"user_id": user_id}, order="created_at.desc")
+        # Get applications - lightweight columns only
+        app_columns = "id,status,form_factor,material,size,generated_preview,created_at,paid_at,order_comment,user_comment"
+        apps = await supabase.select("applications", columns=app_columns, filters={"user_id": user_id}, order="created_at.desc")
 
-        # Get all payments
+        # Get all payments for user's apps in one batch
         all_payments = []
-        for app in apps:
-            app_payments = await supabase.select("payments", filters={"application_id": app["id"]})
-            for p in app_payments:
-                p["application_id"] = app["id"]
-                all_payments.append(p)
+        if apps:
+            app_ids = [a["id"] for a in apps]
+            # Get payments for all apps at once
+            payments = await supabase.select("payments", order="created_at.desc", limit=500)
+            all_payments = [p for p in payments if p.get("application_id") in app_ids]
 
         total_spent = sum(p.get("amount", 0) for p in all_payments if p.get("status") in ("CONFIRMED", "AUTHORIZED"))
 
@@ -2217,6 +2239,7 @@ async def admin_get_client(user_id: str):
             "created_at": user.get("created_at"),
             "orders_count": len(apps),
             "total_spent": total_spent,
+            # NO input_image_url - can contain base64
             "applications": [{
                 "id": a["id"],
                 "status": a.get("status"),
@@ -2224,7 +2247,6 @@ async def admin_get_client(user_id: str):
                 "material": a.get("material"),
                 "size": a.get("size"),
                 "generated_preview": a.get("generated_preview"),
-                "input_image_url": a.get("input_image_url"),
                 "created_at": a.get("created_at"),
                 "paid_at": a.get("paid_at"),
                 "order_comment": a.get("order_comment"),
