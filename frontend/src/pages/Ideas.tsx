@@ -40,7 +40,8 @@ export default function Ideas() {
 
   const loadExamples = async () => {
     try {
-      const { data, error } = await api.getExamples();
+      // Load all active examples from all themes (no theme filter)
+      const { data, error } = await api.listExamples(undefined, true);
       if (!error && data) {
         // Group and sort by theme and display_order
         const sorted = data.sort((a, b) => {
