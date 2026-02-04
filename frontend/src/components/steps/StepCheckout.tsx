@@ -11,6 +11,7 @@ import type { PendantConfig, Material, Size } from "@/types/pendant";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useSettings, useVisualization } from "@/contexts/SettingsContext";
 import { getSizeConfigByMaterial } from "@/types/pendant";
+import { PendantWithGems } from "@/components/PendantWithGems";
 
 interface StepCheckoutProps {
   config: PendantConfig;
@@ -205,10 +206,11 @@ export function StepCheckout({
               {activeImageIndex === 0 ? (
                 <div className="w-full h-full bg-gradient-to-br from-background via-card to-background flex items-center justify-center">
                   {config.generatedPreview ? (
-                    <img
-                      src={config.generatedPreview}
-                      alt="Pendant preview"
-                      className="w-full h-full object-contain animate-fade-in"
+                    <PendantWithGems
+                      imageUrl={config.generatedPreview}
+                      gems={config.gems}
+                      sizeOption={config.sizeOption}
+                      className="w-full h-full animate-fade-in"
                       style={{
                         filter: config.material === "gold"
                           ? "sepia(0.5) saturate(1.5) brightness(1.1) hue-rotate(-10deg)"
@@ -236,10 +238,11 @@ export function StepCheckout({
                         transform: 'translate(-50%, -10%)',
                       }}
                     >
-                      <img
-                        src={config.generatedPreview}
-                        alt="Pendant on neck"
-                        className="w-full h-full object-contain"
+                      <PendantWithGems
+                        imageUrl={config.generatedPreview}
+                        gems={config.gems}
+                        sizeOption={config.sizeOption}
+                        className="w-full h-full"
                         style={{ filter: pendantFilter }}
                       />
                     </div>
