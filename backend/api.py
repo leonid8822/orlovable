@@ -397,9 +397,9 @@ async def list_applications(user_id: Optional[str] = None, limit: int = 50):
         filters = {"user_id": user_id} if user_id else None
 
         # OPTIMIZATION: Explicitly list columns to exclude heavy base64 fields
-        # input_image_url can be 300KB+ per record (base64 data)
+        # input_image_url and back_image_url can be 300KB+ per record (base64 data)
         # Only include lightweight metadata fields for list view
-        columns = "id,user_id,session_id,current_step,status,form_factor,material,size,user_comment,generated_preview,theme,allow_gallery_use,gems,back_engraving,created_at,updated_at"
+        columns = "id,user_id,session_id,current_step,status,form_factor,material,size,size_option,user_comment,generated_preview,generated_images,theme,has_back_engraving,back_comment,gems,created_at,updated_at,paid_at,submitted_at,customer_name,customer_email"
 
         apps = await supabase.select(
             "applications",
