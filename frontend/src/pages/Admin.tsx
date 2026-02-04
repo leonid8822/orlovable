@@ -23,6 +23,7 @@ import { OrdersTab } from '@/components/admin/OrdersTab';
 import { ClientSelector } from '@/components/admin/ClientSelector';
 import { useSettings } from '@/contexts/SettingsContext';
 import { AdminAuth } from '@/components/AdminAuth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface Generation {
   id: string;
@@ -145,6 +146,21 @@ const Admin = () => {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // FAL.ai status state
+  const [falStatus, setFalStatus] = useState<{
+    fal_configured: boolean;
+    fal_accessible: boolean;
+    balance: number | null;
+    error: string | null;
+  } | null>(null);
+
+  const fetchFalStatus = async () => {
+    const { data } = await api.getFalStatus();
+    if (data) {
+      setFalStatus(data);
+    }
+  };
+
   const fetchGenerations = async () => {
     setLoading(true);
     // Note: api.getHistory() currently returns recent 20 generations.
@@ -233,6 +249,7 @@ const Admin = () => {
     fetchGenerations();
     fetchApplications();
     fetchSettings();
+    fetchFalStatus();
   }, []);
 
   // Open application detail with full data
@@ -373,6 +390,44 @@ const Admin = () => {
               </p>
             </div>
           </div>
+
+          {/* FAL.ai Balance */}
+          {falStatus && (
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2",
+                  falStatus.fal_accessible
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-red-500/10 text-red-600 dark:text-red-400"
+                )}
+              >
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    falStatus.fal_accessible ? "bg-emerald-500" : "bg-red-500"
+                  )}
+                />
+                <span>FAL.ai</span>
+                {falStatus.balance !== null && (
+                  <span className="font-mono">
+                    ${typeof falStatus.balance === 'number'
+                      ? falStatus.balance.toFixed(2)
+                      : falStatus.balance}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={fetchFalStatus}
+                className="h-8 w-8"
+                title="Обновить статус FAL.ai"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="applications" className="space-y-6">
@@ -610,12 +665,16 @@ const Admin = () => {
 
           {/* Clients Tab */}
           <TabsContent value="clients" className="space-y-6">
-            <ClientsTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки клиентов">
+              <ClientsTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <OrdersTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки заказов">
+              <OrdersTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Generations Tab */}
@@ -879,22 +938,30 @@ const Admin = () => {
 
           {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-6">
-            <PaymentsTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки платежей">
+              <PaymentsTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Gems Tab */}
           <TabsContent value="gems" className="space-y-6">
-            <GemsTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки камней">
+              <GemsTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-6">
-            <ProductsTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки товаров">
+              <ProductsTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Examples Tab */}
           <TabsContent value="examples" className="space-y-6">
-            <ExamplesTab />
+            <ErrorBoundary fallbackMessage="Ошибка загрузки галереи">
+              <ExamplesTab />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Settings Tab */}

@@ -699,9 +699,14 @@ export const api = {
     adminGetProducts: async () => {
         try {
             const response = await fetch(`${API_URL}/admin/products`);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+            }
             const data = await response.json();
             return { data, error: null };
         } catch (error) {
+            console.error('adminGetProducts error:', error);
             return { data: null, error };
         }
     },
@@ -871,6 +876,37 @@ export const api = {
             }
             return { data: data.data, error: null };
         } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    // Health & Status
+    getFalStatus: async () => {
+        try {
+            const response = await fetch(`${API_URL}/health/fal-status`);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+            }
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            console.error('getFalStatus error:', error);
+            return { data: null, error };
+        }
+    },
+
+    getSystemHealth: async () => {
+        try {
+            const response = await fetch(`${API_URL}/health/system`);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+            }
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            console.error('getSystemHealth error:', error);
             return { data: null, error };
         }
     }
