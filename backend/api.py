@@ -643,9 +643,8 @@ async def get_history(limit: int = 100):
         # Cap limit at 500 for performance
         limit = min(limit, 500)
 
-        # OPTIMIZATION: Exclude heavy base64 input_image_url from list
-        # Only get URL fields that are actual URLs, not base64 data
-        columns = "id,application_id,session_id,user_comment,form_factor,material,size,output_images,prompt_used,cost_cents,model_used,execution_time_ms,created_at"
+        # Include input_image_url - we'll filter out base64 data below
+        columns = "id,application_id,session_id,user_comment,form_factor,material,size,input_image_url,output_images,prompt_used,cost_cents,model_used,execution_time_ms,created_at"
 
         # Get generations with application's selected preview
         raw_gens = await supabase.select(
@@ -655,12 +654,17 @@ async def get_history(limit: int = 100):
             limit=limit
         )
 
-        # Enrich with application data (selected preview)
+        # Enrich with application data (selected preview, input_image_url)
         enriched = []
         for gen in raw_gens:
             gen_data = dict(gen)
 
-            # If has application_id, fetch the selected preview
+            # Filter out base64 input_image_url (only keep actual URLs)
+            input_url = gen_data.get('input_image_url')
+            if input_url and input_url.startswith('data:'):
+                gen_data['input_image_url'] = None
+
+            # If has application_id, fetch additional data
             if gen_data.get('application_id'):
                 try:
                     app = await supabase.select_one(
@@ -669,6 +673,11 @@ async def get_history(limit: int = 100):
                     )
                     if app:
                         gen_data['selected_preview'] = app.get('generated_preview')
+                        # If generation has no input_image_url, try from application
+                        if not gen_data.get('input_image_url'):
+                            app_input = app.get('input_image_url')
+                            if app_input and not app_input.startswith('data:'):
+                                gen_data['input_image_url'] = app_input
                 except:
                     gen_data['selected_preview'] = None
             else:
