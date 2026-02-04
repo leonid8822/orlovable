@@ -390,23 +390,26 @@ CRITICAL REQUIREMENTS:
 
 @router.get("/applications")
 async def list_applications(user_id: Optional[str] = None, limit: int = 50):
-    """List applications"""
+    """List applications - optimized without heavy base64 fields"""
     try:
         # Cap limit at 500 for performance
         limit = min(limit, 500)
         filters = {"user_id": user_id} if user_id else None
 
-        # Note: input_image_url can be 300KB+ per record (base64 encoded)
-        # With 100 records that's ~35MB, but with 60s timeout it should handle it
-        # Reduce limit if timeouts persist
+        # OPTIMIZATION: Explicitly list columns to exclude heavy base64 fields
+        # input_image_url can be 300KB+ per record (base64 data)
+        # Only include lightweight metadata fields for list view
+        columns = "id,user_id,session_id,current_step,status,form_factor,material,size,user_comment,generated_preview,theme,allow_gallery_use,gems,back_engraving,created_at,updated_at"
+
         apps = await supabase.select(
             "applications",
+            columns=columns,
             filters=filters,
             order="created_at.desc",
             limit=limit
         )
-        # Return consistent format with other endpoints
-        return {"applications": apps if apps else []}
+        # Return array directly for consistency
+        return apps if apps else []
     except Exception as e:
         # Log the error for debugging
         error_msg = str(e)
@@ -436,10 +439,10 @@ async def list_orders(limit: int = 100):
                 order="created_at.desc",
                 limit=limit
             )
-            return {"orders": orders}
+            return orders if orders else []
         except Exception:
             # If orders table doesn't exist yet, return empty list
-            return {"orders": []}
+            return []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -616,9 +619,14 @@ async def get_history(limit: int = 100):
         # Cap limit at 500 for performance
         limit = min(limit, 500)
 
+        # OPTIMIZATION: Exclude heavy base64 input_image_url from list
+        # Only get URL fields that are actual URLs, not base64 data
+        columns = "id,application_id,session_id,user_comment,form_factor,material,size,output_images,prompt_used,cost_cents,model_used,execution_time_ms,created_at"
+
         # Get generations with application's selected preview
         raw_gens = await supabase.select(
             "pendant_generations",
+            columns=columns,
             order="created_at.desc",
             limit=limit
         )
@@ -2723,8 +2731,12 @@ async def admin_get_orders(
             order="created_at.desc",
             limit=limit
         )
-        return {"success": True, "data": orders}
+        return {"success": True, "data": orders if orders else []}
     except Exception as e:
+        error_str = str(e).lower()
+        # If table doesn't exist, return empty list instead of error
+        if "404" in error_str or "does not exist" in error_str:
+            return {"success": True, "data": [], "note": "Orders table not initialized. Call POST /orders/init first."}
         print(f"Error fetching orders: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -3378,6 +3390,158 @@ async def init_logs_table():
     }
 
 
+@router.post("/orders/init")
+async def init_orders_table():
+    """
+    Initialize the orders table in Supabase.
+    Call this once to create the orders infrastructure.
+    """
+    create_table_sql = """
+    -- Orders table for production workflow management
+    CREATE TABLE IF NOT EXISTS orders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_number VARCHAR(50) UNIQUE,
+        status VARCHAR(50) NOT NULL DEFAULT 'new',
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255),
+        customer_phone VARCHAR(50),
+        customer_telegram VARCHAR(255),
+        product_type VARCHAR(100) NOT NULL DEFAULT 'pendant',
+        material VARCHAR(50) NOT NULL DEFAULT 'silver',
+        size VARCHAR(50),
+        form_factor VARCHAR(50),
+        reference_images JSONB DEFAULT '[]'::jsonb,
+        generated_images JSONB DEFAULT '[]'::jsonb,
+        model_3d_url TEXT,
+        final_photos JSONB DEFAULT '[]'::jsonb,
+        quoted_price DECIMAL(10,2),
+        final_price DECIMAL(10,2),
+        currency VARCHAR(10) DEFAULT 'RUB',
+        gems_config JSONB DEFAULT '[]'::jsonb,
+        engraving_text TEXT,
+        special_requirements TEXT,
+        internal_notes TEXT,
+        application_id UUID,
+        user_id UUID,
+        delivery_address TEXT,
+        delivery_service VARCHAR(100),
+        tracking_number VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        shipped_at TIMESTAMPTZ,
+        delivered_at TIMESTAMPTZ
+    );
+
+    -- Order status history table
+    CREATE TABLE IF NOT EXISTS order_status_history (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        status VARCHAR(50) NOT NULL,
+        comment TEXT,
+        changed_by VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+    CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON orders(customer_email);
+    CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON order_status_history(order_id);
+    """
+
+    # Method 1: Try direct insert to check if table exists
+    try:
+        orders = await supabase.select("orders", limit=1)
+        return {
+            "success": True,
+            "message": "Orders table already exists",
+            "method": "table_exists"
+        }
+    except Exception as e:
+        error_str = str(e).lower()
+        if "does not exist" not in error_str and "404" not in error_str:
+            return {"success": False, "error": str(e)}
+
+    # Method 2: Try SQL execution via RPC
+    try:
+        result = await supabase.execute_sql(create_table_sql)
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Orders table created via SQL execution",
+                "method": "execute_sql"
+            }
+    except Exception as e:
+        pass
+
+    # If all methods failed, return instructions
+    return {
+        "success": False,
+        "message": "Could not auto-create table. Please run SQL manually in Supabase.",
+        "sql_to_run": create_table_sql,
+        "instructions": "Go to Supabase Dashboard → SQL Editor → New Query → Paste the SQL above → Run"
+    }
+
+
+@router.post("/admin/db/add-indexes")
+async def add_performance_indexes():
+    """
+    Add performance indexes to all tables for fast admin queries.
+    Safe to run multiple times (uses IF NOT EXISTS).
+    """
+    indexes_sql = """
+    -- Applications indexes
+    CREATE INDEX IF NOT EXISTS idx_applications_created_at ON applications(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+    CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_applications_status_created ON applications(status, created_at DESC);
+
+    -- Pendant generations indexes
+    CREATE INDEX IF NOT EXISTS idx_pendant_generations_created_at ON pendant_generations(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_pendant_generations_application_id ON pendant_generations(application_id);
+
+    -- Users indexes
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
+
+    -- Payments indexes
+    CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+
+    -- Examples indexes
+    CREATE INDEX IF NOT EXISTS idx_examples_active_theme ON examples(is_active, theme, display_order);
+
+    -- Gems indexes
+    CREATE INDEX IF NOT EXISTS idx_gems_is_active ON gems(is_active);
+
+    -- Products indexes
+    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+    CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available);
+
+    -- App logs indexes
+    CREATE INDEX IF NOT EXISTS idx_app_logs_level_source ON app_logs(level, source, created_at DESC);
+    """
+
+    try:
+        result = await supabase.execute_sql(indexes_sql)
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Performance indexes added successfully"
+            }
+    except Exception as e:
+        pass
+
+    return {
+        "success": False,
+        "message": "Could not add indexes via API. Please run SQL manually in Supabase.",
+        "sql_to_run": indexes_sql,
+        "sql_editor_url": "https://supabase.com/dashboard/project/vofigcbihwkmocrsfowt/sql/new"
+    }
+
+
 @router.post("/applications/migrate-gems")
 async def migrate_applications_gems():
     """
@@ -3854,3 +4018,116 @@ async def run_smoke_tests():
         pass  # Don't fail if logging fails
 
     return test_results
+
+
+# ============== EXAMPLES EXPORT ENDPOINT ==============
+
+@router.get("/admin/examples/export")
+async def export_examples_for_static():
+    """
+    Export all active examples in a format ready for static files.
+    Returns JSON grouped by theme with optimized URLs.
+
+    Use this to generate static JSON files for the frontend.
+    """
+    try:
+        # Fetch all active examples
+        examples = await supabase.select(
+            "examples",
+            filters="is_active=eq.true",
+            order="display_order.asc,created_at.desc"
+        )
+
+        if not examples:
+            return {
+                "success": True,
+                "data": {"main": [], "kids": [], "totems": [], "custom": []},
+                "total": 0
+            }
+
+        # Group by theme
+        themes = {"main": [], "kids": [], "totems": [], "custom": []}
+
+        for ex in examples:
+            theme = ex.get("theme", "main")
+            if theme not in themes:
+                theme = "main"
+
+            # Format for static export
+            formatted = {
+                "id": ex.get("id"),
+                "title": ex.get("title", ""),
+                "description": ex.get("description", ""),
+                "theme": theme,
+                "before_image_url": ex.get("before_image_url"),
+                "after_image_url": ex.get("after_image_url"),
+                "model_3d_url": ex.get("model_3d_url"),
+                "display_order": ex.get("display_order", 0)
+            }
+            themes[theme].append(formatted)
+
+        # Sort each theme by display_order
+        for theme in themes:
+            themes[theme].sort(key=lambda x: x.get("display_order", 0))
+
+        total = sum(len(items) for items in themes.values())
+
+        return {
+            "success": True,
+            "data": themes,
+            "total": total,
+            "instructions": "Use sync_examples_to_static.py script to download and optimize images"
+        }
+
+    except Exception as e:
+        print(f"Error exporting examples: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/examples/sync-static")
+async def trigger_examples_sync():
+    """
+    Trigger synchronization of examples to static files.
+    Note: This only works in development mode where the script can write to frontend/public.
+    On production Render, use the script locally and deploy via git.
+    """
+    try:
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        script_path = Path(__file__).parent / "scripts" / "sync_examples_to_static.py"
+
+        if not script_path.exists():
+            return {
+                "success": False,
+                "error": "Sync script not found",
+                "path": str(script_path)
+            }
+
+        # Run the sync script
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+
+        return {
+            "success": result.returncode == 0,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "return_code": result.returncode
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "error": "Sync script timed out (5 minutes)"
+        }
+    except Exception as e:
+        print(f"Error running sync script: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }

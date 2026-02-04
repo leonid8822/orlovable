@@ -122,9 +122,11 @@ export const api = {
             const url = `${API_URL}/applications?${params.toString()}`;
             const response = await fetch(url);
             const data = await response.json();
-            return { data, error: null };
+            // API returns array directly, ensure we always return array
+            const apps = Array.isArray(data) ? data : (data?.applications || []);
+            return { data: apps, error: null };
         } catch (error) {
-            return { data: null, error };
+            return { data: [], error };
         }
     },
     updateSettings: async (settings: any) => {

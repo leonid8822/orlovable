@@ -146,6 +146,22 @@
 - **Проверять логи самостоятельно** - при ошибках смотреть логи через API
 - **Создавать таблицы через API** - не просить пользователя запускать SQL
 
+### КРИТИЧЕСКИ ВАЖНО - Хранение изображений:
+- **НИКОГДА НЕ ХРАНИТЬ base64 в БД** - все изображения должны храниться в Supabase Storage
+- **В БД только URL** - в полях типа `input_image_url`, `generated_preview` и т.д. должны быть только URL на Supabase Storage
+- **При загрузке** - сначала загрузить в Storage, получить public URL, сохранить URL в БД
+- **При отдаче списков** - исключать поля с потенциальными base64 данными (input_image_url)
+- **Оптимизация запросов** - в list endpoints указывать только нужные колонки, не `*`
+
+```python
+# ПЛОХО - тяжелые данные в БД
+app_data = {"input_image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA..."}
+
+# ХОРОШО - только URL из Storage
+url = await supabase.upload_file("pendants", "uploads/image.webp", image_bytes)
+app_data = {"input_image_url": url}  # "https://...supabase.co/storage/v1/object/public/..."
+```
+
 ---
 
 ## Project Overview
