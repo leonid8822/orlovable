@@ -82,15 +82,15 @@ export interface FormConfig {
 
 export const FORM_CONFIG: Record<FormFactor, FormConfig> = {
   round: {
-    label: 'Женская',
+    label: 'Круглая',
     description: 'Круглый кулон',
-    gender: 'женский',
+    gender: 'универсальный',
     icon: '○'
   },
   oval: {
-    label: 'Мужская',
+    label: 'Жетон',
     description: 'Вертикальный жетон',
-    gender: 'мужской',
+    gender: 'универсальный',
     icon: '⬭'
   },
   contour: {
@@ -165,7 +165,7 @@ export const SIZE_CONFIG: Record<SizeOption, SizeConfig & { formFactor: FormFact
     dimensions: '13мм',
     dimensionsMm: 13,
     formFactor: 'round',
-    gender: 'женский',
+    gender: 'универсальный',
     description: 'Круглый кулон',
     apiSize: 'bracelet'
   },
@@ -174,7 +174,7 @@ export const SIZE_CONFIG: Record<SizeOption, SizeConfig & { formFactor: FormFact
     dimensions: '19мм',
     dimensionsMm: 19,
     formFactor: 'oval',
-    gender: 'мужской',
+    gender: 'универсальный',
     description: 'Жетон',
     apiSize: 'pendant'
   },

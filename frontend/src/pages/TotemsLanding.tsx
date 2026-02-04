@@ -132,7 +132,7 @@ const TotemsLanding = () => {
                 </div>
                 <h3 className="text-xl font-display mb-3">Символы и знаки</h3>
                 <p className="text-muted-foreground">
-                  Руны Старшего Футарка, Вегвизир, узлы и орнаменты
+                  Руны, сакральные символы, узлы, орнаменты любых традиций
                 </p>
               </div>
 
@@ -142,7 +142,7 @@ const TotemsLanding = () => {
                 </div>
                 <h3 className="text-xl font-display mb-3">Мифологические образы</h3>
                 <p className="text-muted-foreground">
-                  Молот Тора, Иггдрасиль, драконы и змеи Мидгарда
+                  Божества, древние символы, драконы и мифические существа
                 </p>
               </div>
             </div>

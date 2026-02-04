@@ -15,8 +15,8 @@ interface HeaderProps {
 
 const themeLinks: { theme: AppTheme; path: string; label: string }[] = [
   { theme: "main", path: "/", label: "Главная" },
-  { theme: "kids", path: "/kids", label: "Kids" },
   { theme: "totems", path: "/totems", label: "Тотемы" },
+  { theme: "kids", path: "/kids", label: "Kids" },
 ];
 
 export function Header({
@@ -78,7 +78,7 @@ export function Header({
           {/* Theme navigation - hidden in minimal mode */}
           {!minimal && (
             <nav className="hidden md:flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50">
+              <div className="flex items-center gap-1 bg-card/50 rounded-lg p-1 border border-border/50 min-w-[220px]">
                 {themeLinks.map(({ theme: linkTheme, path, label }) => {
                   const isActive = activeTheme === linkTheme;
                   const linkThemeConfig = themeConfigs[linkTheme];

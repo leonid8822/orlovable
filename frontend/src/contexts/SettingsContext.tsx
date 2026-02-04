@@ -53,16 +53,16 @@ const defaultSettings: AppSettings = {
   form_factors: {
     round: {
       label: "Круглый кулон",
-      description: "Женский круглый кулон",
+      description: "Круглая форма",
       icon: "circle",
-      addition: "Объект вписан в круглую рамку-медальон, изящный женственный дизайн.",
+      addition: "Объект вписан в круглую рамку-медальон, изящный дизайн.",
       shape: "круглая форма, объект вписан в круг"
     },
     oval: {
       label: "Жетон",
-      description: "Мужской жетон",
+      description: "Форма жетона",
       icon: "rectangle-vertical",
-      addition: "Вертикальный жетон, строгий мужской дизайн.",
+      addition: "Вертикальный жетон, строгий дизайн.",
       shape: "вертикальный овал (жетон)"
     },
     contour: {

@@ -56,7 +56,7 @@ async def send_verification_email(to_email: str, name: str, code: str) -> bool:
         <hr style="border: none; border-top: 1px solid #333; margin: 32px 0;">
 
         <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
-            © 2024 OLAI.art. Все права защищены.
+            © 2025-2026 OLAI.art. Все права защищены.
         </p>
     </div>
 </body>

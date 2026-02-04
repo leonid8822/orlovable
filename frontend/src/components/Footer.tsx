@@ -57,13 +57,15 @@ export function Footer() {
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
-                Telegram
+                Связаться в Telegram
               </a>
               <a
                 href="mailto:help@olai.art"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
-                help@olai.art
+                Написать на help@olai.art
               </a>
             </nav>
 

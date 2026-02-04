@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterShowcase } from "@/components/BeforeAfterShowcase";
 import { LandingConstructor } from "@/components/LandingConstructor";
-import { GemsPromoBlock } from "@/components/GemsPromoBlock";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
@@ -197,7 +196,7 @@ const KidsLanding = () => {
                   <Camera className="w-10 h-10 mb-4" style={{ color: tiffanyColor }} />
                   <h3 className="text-lg font-display mb-2">Сфотографируйте рисунок</h3>
                   <p className="text-sm text-muted-foreground">
-                    Подойдёт любой рисунок — карандашом, красками, фломастерами
+                    Подойдёт любой рисунок — карандашом, красками, фломастерами, а также поделки
                   </p>
                 </div>
               </div>
@@ -210,7 +209,7 @@ const KidsLanding = () => {
                   <Sparkles className="w-10 h-10 mb-4" style={{ color: tiffanyColor }} />
                   <h3 className="text-lg font-display mb-2">Выберите форму и материал</h3>
                   <p className="text-sm text-muted-foreground">
-                    Круглый кулон или по контуру рисунка, серебро или позолота
+                    Круглый кулон или по контуру рисунка, серебро или золото
                   </p>
                 </div>
               </div>
@@ -249,9 +248,9 @@ const KidsLanding = () => {
               </div>
 
               <div className="p-6 rounded-2xl bg-gradient-card border border-border/50 hover:transition-all" style={{ borderColor: 'hsl(174, 58%, 38%, 0.2)' }}>
-                <h3 className="text-lg font-display mb-2">Для папы</h3>
+                <h3 className="text-lg font-display mb-2">Для родителей</h3>
                 <p className="text-sm text-muted-foreground">
-                  Брелок или кулон с первым рисунком ребёнка — на память навсегда
+                  Брелок или кулон с первым рисунком ребёнка — память навсегда
                 </p>
               </div>
 
@@ -271,12 +270,6 @@ const KidsLanding = () => {
             </div>
           </div>
         </section>
-
-        {/* Gems Promo Block */}
-        <GemsPromoBlock
-          accentColor="hsl(174, 58%, 38%)"
-          accentColorLight="hsl(174, 58%, 50%)"
-        />
 
         {/* Constructor Section */}
         <LandingConstructor theme="kids" />
