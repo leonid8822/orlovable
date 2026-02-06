@@ -2844,12 +2844,19 @@ async def admin_get_orders(
 async def admin_create_order(req: OrderCreate):
     """Create a new order"""
     try:
+        import random
+
         order_data = req.model_dump(exclude_none=True)
         order_data["status"] = "new"
         order_data["reference_images"] = []
         order_data["generated_images"] = []
         order_data["final_photos"] = []
         order_data["gems_config"] = []
+
+        # Generate order number (ORD-YYYYMMDD-XXXX format)
+        date_part = datetime.now().strftime("%Y%m%d")
+        random_part = str(random.randint(1000, 9999))
+        order_data["order_number"] = f"ORD-{date_part}-{random_part}"
 
         new_order = await supabase.insert("orders", order_data)
 

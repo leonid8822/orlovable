@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Order info
-    order_number VARCHAR(50) UNIQUE NOT NULL,
+    order_number VARCHAR(50) UNIQUE,
     status VARCHAR(50) NOT NULL DEFAULT 'new',
 
     -- Customer info
