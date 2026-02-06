@@ -11,7 +11,14 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, RefreshCw, Package, Search, Factory, ExternalLink, Eye } from 'lucide-react';
+import { Plus, RefreshCw, Package, Search, Factory, ExternalLink, Eye, UserPlus, Users } from 'lucide-react';
+
+interface Client {
+  id: string;
+  email: string;
+  name: string | null;
+  telegram_username?: string | null;
+}
 
 interface Order {
   id: string;
@@ -77,6 +84,9 @@ export function OrdersTab() {
   // Create order dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [clientMode, setClientMode] = useState<'existing' | 'new'>('new');
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_email: '',
@@ -104,6 +114,28 @@ export function OrdersTab() {
     loadOrders();
   }, [loadOrders]);
 
+  const openCreateDialog = async () => {
+    setCreateDialogOpen(true);
+    // Load clients for the selector
+    const { data } = await api.listClients();
+    if (data) {
+      setClients(data);
+    }
+  };
+
+  const handleSelectClient = (clientId: string) => {
+    setSelectedClientId(clientId);
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      setNewOrder(prev => ({
+        ...prev,
+        customer_name: client.name || '',
+        customer_email: client.email || '',
+        customer_telegram: client.telegram_username || '',
+      }));
+    }
+  };
+
   const handleCreateOrder = async () => {
     if (!newOrder.customer_name.trim()) {
       toast.error('Введите имя клиента');
@@ -117,6 +149,8 @@ export function OrdersTab() {
 
       toast.success('Заказ создан');
       setCreateDialogOpen(false);
+      setClientMode('new');
+      setSelectedClientId('');
       setNewOrder({
         customer_name: '',
         customer_email: '',
@@ -170,7 +204,7 @@ export function OrdersTab() {
           <Button variant="outline" size="icon" onClick={loadOrders}>
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+          <Button onClick={openCreateDialog} className="gap-2">
             <Plus className="w-4 h-4" />
             Новый заказ
           </Button>
@@ -315,47 +349,101 @@ export function OrdersTab() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer_name">Имя клиента *</Label>
-              <Input
-                id="customer_name"
-                value={newOrder.customer_name}
-                onChange={(e) => setNewOrder({ ...newOrder, customer_name: e.target.value })}
-                placeholder="Иван Иванов"
-              />
+            {/* Client mode toggle */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={clientMode === 'existing' ? 'default' : 'outline'}
+                size="sm"
+                className="gap-2 flex-1"
+                onClick={() => setClientMode('existing')}
+              >
+                <Users className="w-4 h-4" />
+                Из базы
+              </Button>
+              <Button
+                type="button"
+                variant={clientMode === 'new' ? 'default' : 'outline'}
+                size="sm"
+                className="gap-2 flex-1"
+                onClick={() => {
+                  setClientMode('new');
+                  setSelectedClientId('');
+                }}
+              >
+                <UserPlus className="w-4 h-4" />
+                Новый
+              </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {clientMode === 'existing' ? (
               <div className="space-y-2">
-                <Label htmlFor="customer_email">Email</Label>
-                <Input
-                  id="customer_email"
-                  type="email"
-                  value={newOrder.customer_email}
-                  onChange={(e) => setNewOrder({ ...newOrder, customer_email: e.target.value })}
-                  placeholder="email@example.com"
-                />
+                <Label>Выберите клиента</Label>
+                <Select value={selectedClientId} onValueChange={handleSelectClient}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите клиента..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name || client.email} — {client.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedClientId && (
+                  <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+                    {newOrder.customer_name && <div>Имя: {newOrder.customer_name}</div>}
+                    {newOrder.customer_email && <div>Email: {newOrder.customer_email}</div>}
+                    {newOrder.customer_telegram && <div>Telegram: {newOrder.customer_telegram}</div>}
+                  </div>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer_phone">Телефон</Label>
-                <Input
-                  id="customer_phone"
-                  value={newOrder.customer_phone}
-                  onChange={(e) => setNewOrder({ ...newOrder, customer_phone: e.target.value })}
-                  placeholder="+7 999 123 45 67"
-                />
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_name">Имя клиента *</Label>
+                  <Input
+                    id="customer_name"
+                    value={newOrder.customer_name}
+                    onChange={(e) => setNewOrder({ ...newOrder, customer_name: e.target.value })}
+                    placeholder="Иван Иванов"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="customer_telegram">Telegram</Label>
-              <Input
-                id="customer_telegram"
-                value={newOrder.customer_telegram}
-                onChange={(e) => setNewOrder({ ...newOrder, customer_telegram: e.target.value })}
-                placeholder="@username"
-              />
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_email">Email</Label>
+                    <Input
+                      id="customer_email"
+                      type="email"
+                      value={newOrder.customer_email}
+                      onChange={(e) => setNewOrder({ ...newOrder, customer_email: e.target.value })}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_phone">Телефон</Label>
+                    <Input
+                      id="customer_phone"
+                      value={newOrder.customer_phone}
+                      onChange={(e) => setNewOrder({ ...newOrder, customer_phone: e.target.value })}
+                      placeholder="+7 999 123 45 67"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer_telegram">Telegram</Label>
+                  <Input
+                    id="customer_telegram"
+                    value={newOrder.customer_telegram}
+                    onChange={(e) => setNewOrder({ ...newOrder, customer_telegram: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

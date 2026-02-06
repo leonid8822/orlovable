@@ -336,10 +336,10 @@ export default function ApplicationsTab() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Дата</TableHead>
+                    <TableHead>Клиент</TableHead>
                     <TableHead>Превью</TableHead>
                     <TableHead>Статус</TableHead>
                     <TableHead>Форма</TableHead>
-                    <TableHead>Клиент</TableHead>
                     <TableHead>Действия</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -354,6 +354,22 @@ export default function ApplicationsTab() {
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           {format(new Date(app.created_at), 'dd MMM HH:mm', { locale: ru })}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {app.customer_email ? (
+                          <div>
+                            <div className="font-medium text-sm">{app.customer_email}</div>
+                            {app.customer_name && (
+                              <div className="text-xs text-muted-foreground">{app.customer_name}</div>
+                            )}
+                          </div>
+                        ) : app.customer_name ? (
+                          <div className="text-sm">{app.customer_name}</div>
+                        ) : app.user_id ? (
+                          <Badge className="bg-green-500/20 text-green-500 text-xs">Зарег.</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Гость</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {app.generated_preview ? (
@@ -376,18 +392,6 @@ export default function ApplicationsTab() {
                             {app.form_factor === 'round' ? 'Круглый' : app.form_factor === 'oval' ? 'Жетон' : 'Контурный'}
                           </Badge>
                         ) : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {app.customer_email || app.customer_name ? (
-                          <div className="text-xs">
-                            <div className="font-medium">{app.customer_name || '—'}</div>
-                            <div className="text-muted-foreground">{app.customer_email || '—'}</div>
-                          </div>
-                        ) : app.user_id ? (
-                          <Badge className="bg-green-500/20 text-green-500">Зарег.</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Гость</span>
-                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

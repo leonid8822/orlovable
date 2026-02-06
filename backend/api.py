@@ -430,6 +430,26 @@ async def list_applications(
             offset=offset
         )
 
+        # Enrich with user emails from users table for registered users
+        if apps:
+            user_ids = list(set(a.get("user_id") for a in apps if a.get("user_id") and not a.get("customer_email")))
+            if user_ids:
+                try:
+                    users = await supabase.select(
+                        "users",
+                        columns="id,email,name",
+                        filters=f"id=in.({','.join(user_ids)})"
+                    )
+                    user_map = {u["id"]: u for u in (users or [])}
+                    for app in apps:
+                        uid = app.get("user_id")
+                        if uid and uid in user_map and not app.get("customer_email"):
+                            app["customer_email"] = user_map[uid].get("email")
+                            if not app.get("customer_name"):
+                                app["customer_name"] = user_map[uid].get("name")
+                except Exception as e:
+                    print(f"Warning: failed to enrich user emails: {e}")
+
         return {
             "data": apps if apps else [],
             "total": total,
