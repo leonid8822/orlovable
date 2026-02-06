@@ -553,13 +553,35 @@ export function StepCheckout({
             </Button>
           </div>
 
-          {/* Note about extras */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-theme/5 border border-theme/20 text-sm">
-            <Gem className="w-4 h-4 text-theme mt-0.5 flex-shrink-0" />
-            <p className="text-muted-foreground">
-              После оформления заказа вы сможете добавить камни, надпись на обратной стороне и другие пожелания.
-            </p>
-          </div>
+          {/* Add gems before checkout */}
+          {onAddGems && (
+            <div
+              className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed cursor-pointer hover:border-theme/50 transition-colors"
+              style={{ borderColor: `${themeConfig.accentColor}30` }}
+              onClick={onAddGems}
+            >
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${themeConfig.accentColor}15` }}
+              >
+                <Gem className="w-5 h-5" style={{ color: themeConfig.accentColor }} />
+              </div>
+              <div className="flex-1">
+                <span className="font-medium text-sm">Добавить камни</span>
+                <p className="text-xs text-muted-foreground">
+                  Украсьте изделие натуральными камнями
+                </p>
+              </div>
+              {config.gems.length > 0 && (
+                <span
+                  className="px-2 py-1 rounded-full text-xs text-white"
+                  style={{ backgroundColor: themeConfig.accentColor }}
+                >
+                  {config.gems.length}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

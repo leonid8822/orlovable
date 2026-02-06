@@ -29,8 +29,8 @@ const VALID_TRANSITIONS: Record<AppStep, AppStep[]> = {
   [AppStep.UPLOAD]: [AppStep.GENERATING],
   [AppStep.GENERATING]: [AppStep.SELECTION, AppStep.UPLOAD], // UPLOAD on error
   [AppStep.SELECTION]: [AppStep.UPLOAD, AppStep.GENERATING, AppStep.CHECKOUT],
-  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.CONFIRMATION],
-  [AppStep.GEMS]: [AppStep.CONFIRMATION], // After gems, go back to confirmation
+  [AppStep.CHECKOUT]: [AppStep.SELECTION, AppStep.GEMS, AppStep.CONFIRMATION], // Can add gems before checkout
+  [AppStep.GEMS]: [AppStep.CHECKOUT, AppStep.CONFIRMATION], // Can return to checkout or confirmation
   [AppStep.ENGRAVING]: [AppStep.CHECKOUT], // Legacy: redirect to checkout
   [AppStep.CONFIRMATION]: [AppStep.GEMS], // Can add gems from confirmation
 };
@@ -50,6 +50,7 @@ const Application = () => {
   const [paymentInfo, setPaymentInfo] = useState<{ amount: number; orderId: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{ email?: string; name?: string; phone?: string }>({});
+  const [gemsReturnStep, setGemsReturnStep] = useState<AppStep>(AppStep.CONFIRMATION); // Where to return after GEMS
 
   // Check if user is admin and load user info from server (users is source of truth)
   useEffect(() => {
@@ -511,13 +512,13 @@ const Application = () => {
                 config={config}
                 onConfigChange={handleConfigChange}
                 onNext={() => {
-                  // After adding gems, go back to confirmation
-                  transitionTo(AppStep.CONFIRMATION);
+                  // Return to where we came from
+                  transitionTo(gemsReturnStep);
                 }}
-                onBack={() => transitionTo(AppStep.CONFIRMATION)}
+                onBack={() => transitionTo(gemsReturnStep)}
                 onSkip={() => {
-                  // Skip gems and go back to confirmation
-                  transitionTo(AppStep.CONFIRMATION);
+                  // Skip gems and return to where we came from
+                  transitionTo(gemsReturnStep);
                 }}
               />
             )}
@@ -541,12 +542,13 @@ const Application = () => {
                   transitionTo(AppStep.SELECTION);
                 }}
                 onOrderSuccess={() => {
-                  // New flow: after checkout, offer gems as upsell (optional)
-                  // For now, go directly to confirmation
-                  // TODO: Add gems upsell option in StepCheckout
+                  // After order success, go to confirmation
                   transitionTo(AppStep.CONFIRMATION);
                 }}
-                onAddGems={() => transitionTo(AppStep.GEMS)}
+                onAddGems={() => {
+                  setGemsReturnStep(AppStep.CHECKOUT);
+                  transitionTo(AppStep.GEMS);
+                }}
                 applicationId={applicationId || undefined}
                 userEmail={customerInfo.email}
                 userName={customerInfo.name}
@@ -565,7 +567,10 @@ const Application = () => {
                 userEmail={customerInfo.email}
                 userName={customerInfo.name}
                 onConfigChange={handleConfigChange}
-                onAddGems={() => transitionTo(AppStep.GEMS)}
+                onAddGems={() => {
+                  setGemsReturnStep(AppStep.CONFIRMATION);
+                  transitionTo(AppStep.GEMS);
+                }}
               />
             )}
           </div>
