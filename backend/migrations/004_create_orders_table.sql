@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
     generated_images JSONB DEFAULT '[]'::jsonb,
     model_3d_url TEXT,
     final_photos JSONB DEFAULT '[]'::jsonb,
+    production_artifacts JSONB DEFAULT '[]'::jsonb,
 
     -- Pricing
     quoted_price DECIMAL(10,2),

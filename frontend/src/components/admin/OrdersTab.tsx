@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, RefreshCw, Package, Trash2, Eye, Edit2, Clock, CheckCircle2, Truck, Box } from 'lucide-react';
+import { Plus, RefreshCw, Package, Trash2, Eye, Edit2, Clock, CheckCircle2, Truck, Box, Upload, X, Image, Cube, Camera, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Order {
   id: string;
@@ -36,6 +37,7 @@ interface Order {
   generated_images?: string[];
   model_3d_url?: string;
   final_photos?: string[];
+  production_artifacts?: string[];
   gems_config?: any[];
   engraving_text?: string;
   delivery_address?: string;
@@ -78,6 +80,13 @@ export function OrdersTab() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  // File input refs
+  const referenceInputRef = useRef<HTMLInputElement>(null);
+  const model3dInputRef = useRef<HTMLInputElement>(null);
+  const artifactInputRef = useRef<HTMLInputElement>(null);
+  const finalPhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Form state for new order
   const [formData, setFormData] = useState({
@@ -93,6 +102,7 @@ export function OrdersTab() {
     special_requirements: '',
     internal_notes: '',
   });
+  const [newOrderImages, setNewOrderImages] = useState<File[]>([]);
 
   useEffect(() => {
     loadOrders();
@@ -130,11 +140,44 @@ export function OrdersTab() {
     }
   };
 
+  const uploadFileToStorage = async (file: File, folder: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('pendants')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('pendants')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Upload error:', err);
+      return null;
+    }
+  };
+
   const handleCreateOrder = async () => {
     try {
+      // Upload reference images first
+      let referenceUrls: string[] = [];
+      if (newOrderImages.length > 0) {
+        setUploading('reference');
+        for (const file of newOrderImages) {
+          const url = await uploadFileToStorage(file, 'orders/reference');
+          if (url) referenceUrls.push(url);
+        }
+      }
+
       const orderData = {
         ...formData,
         quoted_price: formData.quoted_price ? parseFloat(formData.quoted_price) : undefined,
+        reference_images: referenceUrls,
       };
 
       const { data, error } = await api.adminCreateOrder(orderData);
@@ -150,6 +193,91 @@ export function OrdersTab() {
     } catch (err) {
       toast.error('Ошибка создания заказа');
       console.error(err);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleUploadFile = async (orderId: string, type: 'reference' | '3d' | 'artifact' | 'final', files: FileList) => {
+    if (!files.length) return;
+
+    setUploading(type);
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        const folder = `orders/${type}`;
+        const url = await uploadFileToStorage(file, folder);
+        if (url) urls.push(url);
+      }
+
+      if (urls.length === 0) {
+        toast.error('Ошибка загрузки файлов');
+        return;
+      }
+
+      // Update order with new files
+      let updateData: Record<string, any> = {};
+
+      if (type === 'reference') {
+        updateData.reference_images = [...(selectedOrder?.reference_images || []), ...urls];
+      } else if (type === '3d') {
+        updateData.model_3d_url = urls[0];
+      } else if (type === 'artifact') {
+        updateData.production_artifacts = [...(selectedOrder?.production_artifacts || []), ...urls];
+      } else if (type === 'final') {
+        updateData.final_photos = [...(selectedOrder?.final_photos || []), ...urls];
+      }
+
+      const { error } = await api.adminUpdateOrder(orderId, updateData);
+      if (error) {
+        toast.error('Ошибка обновления заказа');
+        console.error(error);
+      } else {
+        toast.success('Файлы загружены');
+        // Refresh order data
+        const { data: refreshedOrder } = await api.adminGetOrder(orderId);
+        if (refreshedOrder) {
+          setSelectedOrder(refreshedOrder);
+        }
+      }
+    } catch (err) {
+      toast.error('Ошибка загрузки');
+      console.error(err);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleRemoveFile = async (orderId: string, type: 'reference' | 'artifact' | 'final' | '3d', url: string) => {
+    if (!confirm('Удалить файл?')) return;
+
+    try {
+      let updateData: Record<string, any> = {};
+
+      if (type === 'reference') {
+        updateData.reference_images = (selectedOrder?.reference_images || []).filter(u => u !== url);
+      } else if (type === 'artifact') {
+        updateData.production_artifacts = (selectedOrder?.production_artifacts || []).filter(u => u !== url);
+      } else if (type === 'final') {
+        updateData.final_photos = (selectedOrder?.final_photos || []).filter(u => u !== url);
+      } else if (type === '3d') {
+        updateData.model_3d_url = null;
+      }
+
+      const { error } = await api.adminUpdateOrder(orderId, updateData);
+      if (error) {
+        toast.error('Ошибка удаления');
+        console.error(error);
+      } else {
+        toast.success('Файл удалён');
+        const { data: refreshedOrder } = await api.adminGetOrder(orderId);
+        if (refreshedOrder) {
+          setSelectedOrder(refreshedOrder);
+        }
+      }
+    } catch (err) {
+      toast.error('Ошибка удаления');
+      console.error(err);
     }
   };
 
@@ -164,6 +292,9 @@ export function OrdersTab() {
         loadOrders();
         if (selectedOrder) {
           await loadOrderHistory(orderId);
+          // Refresh order
+          const { data } = await api.adminGetOrder(orderId);
+          if (data) setSelectedOrder(data);
         }
       }
     } catch (err) {
@@ -192,7 +323,9 @@ export function OrdersTab() {
   };
 
   const openOrderDetail = async (order: Order) => {
-    setSelectedOrder(order);
+    // Fetch full order data
+    const { data } = await api.adminGetOrder(order.id);
+    setSelectedOrder(data || order);
     await loadOrderHistory(order.id);
     setShowDetailDialog(true);
   };
@@ -211,6 +344,7 @@ export function OrdersTab() {
       special_requirements: '',
       internal_notes: '',
     });
+    setNewOrderImages([]);
   };
 
   const getStatusBadge = (status: string) => {
@@ -226,8 +360,101 @@ export function OrdersTab() {
     );
   };
 
+  const ImageGallery = ({ images, type, orderId, title, icon: Icon }: {
+    images: string[];
+    type: 'reference' | 'artifact' | 'final';
+    orderId: string;
+    title: string;
+    icon: React.ElementType;
+  }) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium flex items-center gap-2">
+          <Icon className="w-4 h-4" />
+          {title}
+        </h4>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (type === 'reference') referenceInputRef.current?.click();
+            else if (type === 'artifact') artifactInputRef.current?.click();
+            else if (type === 'final') finalPhotoInputRef.current?.click();
+          }}
+          disabled={uploading === type}
+        >
+          {uploading === type ? (
+            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4 mr-2" />
+          )}
+          Добавить
+        </Button>
+      </div>
+      {images.length > 0 ? (
+        <div className="grid grid-cols-4 gap-2">
+          {images.map((url, idx) => (
+            <div key={idx} className="relative group aspect-square">
+              <img
+                src={url}
+                alt={`${title} ${idx + 1}`}
+                className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
+                onClick={() => window.open(url, '_blank')}
+              />
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition"
+                onClick={() => handleRemoveFile(orderId, type, url)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-4 text-center">
+          Нет файлов
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
+      {/* Hidden file inputs */}
+      <input
+        ref={referenceInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'reference', e.target.files)}
+      />
+      <input
+        ref={model3dInputRef}
+        type="file"
+        accept=".stl,.obj,.glb,.gltf,.3mf"
+        className="hidden"
+        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, '3d', e.target.files)}
+      />
+      <input
+        ref={artifactInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'artifact', e.target.files)}
+      />
+      <input
+        ref={finalPhotoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'final', e.target.files)}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -331,6 +558,59 @@ export function OrdersTab() {
                   </div>
                 </div>
 
+                {/* Reference Images Upload */}
+                <div className="space-y-2">
+                  <Label>Исходные изображения</Label>
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition hover:border-primary/50",
+                      newOrderImages.length > 0 && "border-primary/30 bg-primary/5"
+                    )}
+                    onClick={() => document.getElementById('new-order-images')?.click()}
+                  >
+                    <input
+                      id="new-order-images"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          setNewOrderImages([...newOrderImages, ...Array.from(e.target.files)]);
+                        }
+                      }}
+                    />
+                    <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Нажмите или перетащите фото от клиента
+                    </p>
+                  </div>
+                  {newOrderImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {newOrderImages.map((file, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${idx}`}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-1 -right-1 h-5 w-5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNewOrderImages(newOrderImages.filter((_, i) => i !== idx));
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Озвученная цена (₽)</Label>
                   <Input
@@ -363,8 +643,15 @@ export function OrdersTab() {
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                   Отмена
                 </Button>
-                <Button onClick={handleCreateOrder} disabled={!formData.customer_name}>
-                  Создать
+                <Button onClick={handleCreateOrder} disabled={!formData.customer_name || uploading === 'reference'}>
+                  {uploading === 'reference' ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Загрузка...
+                    </>
+                  ) : (
+                    'Создать'
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -477,7 +764,7 @@ export function OrdersTab() {
 
       {/* Order Detail Dialog */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           {selectedOrder && (
             <>
               <DialogHeader>
@@ -523,6 +810,93 @@ export function OrdersTab() {
                   </div>
                 </div>
 
+                {/* Files Section */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                  <h3 className="font-semibold text-lg">Файлы заказа</h3>
+
+                  {/* Reference Images */}
+                  <ImageGallery
+                    images={selectedOrder.reference_images || []}
+                    type="reference"
+                    orderId={selectedOrder.id}
+                    title="Исходники от клиента"
+                    icon={Image}
+                  />
+
+                  {/* 3D Model */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Cube className="w-4 h-4" />
+                        3D Модель
+                      </h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => model3dInputRef.current?.click()}
+                        disabled={uploading === '3d'}
+                      >
+                        {uploading === '3d' ? (
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {selectedOrder.model_3d_url ? 'Заменить' : 'Загрузить'}
+                      </Button>
+                    </div>
+                    {selectedOrder.model_3d_url ? (
+                      <div className="flex items-center gap-4 p-3 border rounded-lg bg-background">
+                        <Cube className="w-10 h-10 text-primary" />
+                        <div className="flex-1">
+                          <p className="font-medium">3D модель загружена</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {selectedOrder.model_3d_url.split('/').pop()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(selectedOrder.model_3d_url!, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Открыть
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveFile(selectedOrder.id, '3d', selectedOrder.model_3d_url!)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-4 text-center">
+                        3D модель не загружена (.stl, .obj, .glb, .gltf, .3mf)
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Production Artifacts */}
+                  <ImageGallery
+                    images={selectedOrder.production_artifacts || []}
+                    type="artifact"
+                    orderId={selectedOrder.id}
+                    title="Артефакты производства"
+                    icon={Camera}
+                  />
+
+                  {/* Final Photos */}
+                  <ImageGallery
+                    images={selectedOrder.final_photos || []}
+                    type="final"
+                    orderId={selectedOrder.id}
+                    title="Финальные фото"
+                    icon={CheckCircle2}
+                  />
+                </div>
+
                 {/* Pricing */}
                 <div className="space-y-2">
                   <h3 className="font-semibold">Стоимость</h3>
@@ -540,7 +914,7 @@ export function OrdersTab() {
                 <div className="space-y-2">
                   <h3 className="font-semibold">История статусов</h3>
                   <div className="space-y-2">
-                    {orderHistory.map((entry) => (
+                    {orderHistory.length > 0 ? orderHistory.map((entry) => (
                       <div key={entry.id} className="flex items-start gap-3 text-sm border-l-2 border-primary/20 pl-3">
                         <div className="flex-1">
                           <div className="font-medium">{ORDER_STATUSES.find(s => s.value === entry.status)?.label || entry.status}</div>
@@ -550,7 +924,9 @@ export function OrdersTab() {
                           {format(new Date(entry.created_at), 'dd MMM HH:mm', { locale: ru })}
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-sm text-muted-foreground">Нет истории</p>
+                    )}
                   </div>
                 </div>
 

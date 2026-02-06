@@ -2785,6 +2785,7 @@ class OrderCreate(BaseModel):
     currency: str = "RUB"
     special_requirements: Optional[str] = None
     internal_notes: Optional[str] = None
+    reference_images: Optional[List[str]] = None
     application_id: Optional[str] = None
     user_id: Optional[str] = None
 
@@ -2805,6 +2806,9 @@ class OrderUpdate(BaseModel):
     gems_config: Optional[List[dict]] = None
     engraving_text: Optional[str] = None
     model_3d_url: Optional[str] = None
+    reference_images: Optional[List[str]] = None
+    final_photos: Optional[List[str]] = None
+    production_artifacts: Optional[List[str]] = None
     delivery_address: Optional[str] = None
     delivery_service: Optional[str] = None
     tracking_number: Optional[str] = None
@@ -2848,9 +2852,12 @@ async def admin_create_order(req: OrderCreate):
 
         order_data = req.model_dump(exclude_none=True)
         order_data["status"] = "new"
-        order_data["reference_images"] = []
+        # Keep reference_images if provided, otherwise empty array
+        if "reference_images" not in order_data:
+            order_data["reference_images"] = []
         order_data["generated_images"] = []
         order_data["final_photos"] = []
+        order_data["production_artifacts"] = []
         order_data["gems_config"] = []
 
         # Generate order number (ORD-YYYYMMDD-XXXX format)
