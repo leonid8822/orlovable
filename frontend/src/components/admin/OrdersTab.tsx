@@ -1,20 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Plus, RefreshCw, Package, Trash2, Eye, Edit2, Clock, CheckCircle2, Truck, Box, Upload, X, Image, Cube, Camera, ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, RefreshCw, Package, Search, Factory, ExternalLink, Eye } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -28,68 +25,59 @@ interface Order {
   material: string;
   size?: string;
   form_factor?: string;
+  total_cost?: number;
   quoted_price?: number;
   final_price?: number;
   currency: string;
-  special_requirements?: string;
-  internal_notes?: string;
-  reference_images?: string[];
-  generated_images?: string[];
-  model_3d_url?: string;
-  final_photos?: string[];
-  production_artifacts?: string[];
-  gems_config?: any[];
-  engraving_text?: string;
-  delivery_address?: string;
-  delivery_service?: string;
-  tracking_number?: string;
-  application_id?: string;
-  user_id?: string;
   created_at: string;
   updated_at: string;
-  started_at?: string;
-  completed_at?: string;
-  shipped_at?: string;
-  delivered_at?: string;
-}
-
-interface OrderHistory {
-  id: string;
-  status: string;
-  comment?: string;
-  changed_by: string;
-  created_at: string;
 }
 
 const ORDER_STATUSES = [
-  { value: 'new', label: 'Новый', color: 'bg-blue-500', icon: Package },
-  { value: 'design', label: 'Дизайн', color: 'bg-purple-500', icon: Edit2 },
-  { value: 'modeling', label: '3D моделирование', color: 'bg-indigo-500', icon: Box },
-  { value: 'production', label: 'Производство', color: 'bg-orange-500', icon: Clock },
-  { value: 'ready', label: 'Готово', color: 'bg-green-500', icon: CheckCircle2 },
-  { value: 'shipped', label: 'Отгружено', color: 'bg-cyan-500', icon: Truck },
-  { value: 'delivered', label: 'Доставлено', color: 'bg-emerald-500', icon: CheckCircle2 },
-  { value: 'cancelled', label: 'Отменён', color: 'bg-gray-500', icon: Trash2 },
+  { value: 'new', label: 'Новый', color: 'bg-blue-500' },
+  { value: 'design', label: 'Дизайн', color: 'bg-purple-500' },
+  { value: 'modeling', label: '3D Модель', color: 'bg-indigo-500' },
+  { value: 'printing', label: '3D Печать', color: 'bg-cyan-500' },
+  { value: 'casting', label: 'Литьё', color: 'bg-orange-500' },
+  { value: 'polishing', label: 'Полировка', color: 'bg-yellow-500' },
+  { value: 'assembly', label: 'Сборка', color: 'bg-pink-500' },
+  { value: 'ready', label: 'Готов', color: 'bg-green-500' },
+  { value: 'shipped', label: 'Отправлен', color: 'bg-teal-500' },
+  { value: 'delivered', label: 'Доставлен', color: 'bg-emerald-500' },
+  { value: 'cancelled', label: 'Отменён', color: 'bg-red-500' },
 ];
+
+const PRODUCT_TYPES = [
+  { value: 'pendant', label: 'Кулон' },
+  { value: 'bracelet', label: 'Браслет' },
+  { value: 'ring', label: 'Кольцо' },
+  { value: 'earrings', label: 'Серьги' },
+  { value: 'brooch', label: 'Брошь' },
+  { value: 'other', label: 'Другое' },
+];
+
+const MATERIALS = [
+  { value: 'silver', label: 'Серебро 925' },
+  { value: 'gold', label: 'Золото 585' },
+  { value: 'gold_white', label: 'Белое золото' },
+  { value: 'platinum', label: 'Платина' },
+];
+
+function formatPrice(price: number | null | undefined): string {
+  if (price === null || price === undefined) return '—';
+  return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+}
 
 export function OrdersTab() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showDetailDialog, setShowDetailDialog] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [uploading, setUploading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // File input refs
-  const referenceInputRef = useRef<HTMLInputElement>(null);
-  const model3dInputRef = useRef<HTMLInputElement>(null);
-  const artifactInputRef = useRef<HTMLInputElement>(null);
-  const finalPhotoInputRef = useRef<HTMLInputElement>(null);
-
-  // Form state for new order
-  const [formData, setFormData] = useState({
+  // Create order dialog
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_email: '',
     customer_phone: '',
@@ -97,892 +85,343 @@ export function OrdersTab() {
     product_type: 'pendant',
     material: 'silver',
     size: 'm',
-    form_factor: 'round',
-    quoted_price: '',
     special_requirements: '',
-    internal_notes: '',
   });
-  const [newOrderImages, setNewOrderImages] = useState<File[]>([]);
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await api.adminGetOrders();
+    if (error) {
+      console.error('Failed to load orders:', error);
+      toast.error('Ошибка загрузки заказов');
+    } else {
+      setOrders(data || []);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     loadOrders();
-  }, [filterStatus]);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      const params = filterStatus !== 'all' ? { status: filterStatus } : {};
-      const { data, error } = await api.adminGetOrders(params);
-      if (error) {
-        toast.error('Ошибка загрузки заказов');
-        console.error(error);
-      } else {
-        setOrders(data || []);
-      }
-    } catch (err) {
-      toast.error('Ошибка загрузки заказов');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadOrderHistory = async (orderId: string) => {
-    try {
-      const { data, error } = await api.adminGetOrderHistory(orderId);
-      if (error) {
-        console.error(error);
-      } else {
-        setOrderHistory(data || []);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const uploadFileToStorage = async (file: File, folder: string): Promise<string | null> => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      const { data, error } = await supabase.storage
-        .from('pendants')
-        .upload(fileName, file);
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('pendants')
-        .getPublicUrl(fileName);
-
-      return urlData.publicUrl;
-    } catch (err) {
-      console.error('Upload error:', err);
-      return null;
-    }
-  };
+  }, [loadOrders]);
 
   const handleCreateOrder = async () => {
+    if (!newOrder.customer_name.trim()) {
+      toast.error('Введите имя клиента');
+      return;
+    }
+
+    setCreating(true);
     try {
-      // Upload reference images first
-      let referenceUrls: string[] = [];
-      if (newOrderImages.length > 0) {
-        setUploading('reference');
-        for (const file of newOrderImages) {
-          const url = await uploadFileToStorage(file, 'orders/reference');
-          if (url) referenceUrls.push(url);
-        }
-      }
+      const { data, error } = await api.adminCreateOrder(newOrder);
+      if (error) throw error;
 
-      const orderData = {
-        ...formData,
-        quoted_price: formData.quoted_price ? parseFloat(formData.quoted_price) : undefined,
-        reference_images: referenceUrls,
-      };
-
-      const { data, error } = await api.adminCreateOrder(orderData);
-      if (error) {
-        toast.error('Ошибка создания заказа');
-        console.error(error);
-      } else {
-        toast.success('Заказ создан');
-        setShowCreateDialog(false);
-        resetForm();
-        loadOrders();
-      }
-    } catch (err) {
+      toast.success('Заказ создан');
+      setCreateDialogOpen(false);
+      setNewOrder({
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
+        customer_telegram: '',
+        product_type: 'pendant',
+        material: 'silver',
+        size: 'm',
+        special_requirements: '',
+      });
+      loadOrders();
+    } catch (e) {
       toast.error('Ошибка создания заказа');
-      console.error(err);
-    } finally {
-      setUploading(null);
     }
+    setCreating(false);
   };
 
-  const handleUploadFile = async (orderId: string, type: 'reference' | '3d' | 'artifact' | 'final', files: FileList) => {
-    if (!files.length) return;
+  // Filter orders
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = !searchQuery ||
+      order.order_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer_email?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    setUploading(type);
-    try {
-      const urls: string[] = [];
-      for (const file of Array.from(files)) {
-        const folder = `orders/${type}`;
-        const url = await uploadFileToStorage(file, folder);
-        if (url) urls.push(url);
-      }
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
 
-      if (urls.length === 0) {
-        toast.error('Ошибка загрузки файлов');
-        return;
-      }
+    return matchesSearch && matchesStatus;
+  });
 
-      // Update order with new files
-      let updateData: Record<string, any> = {};
-
-      if (type === 'reference') {
-        updateData.reference_images = [...(selectedOrder?.reference_images || []), ...urls];
-      } else if (type === '3d') {
-        updateData.model_3d_url = urls[0];
-      } else if (type === 'artifact') {
-        updateData.production_artifacts = [...(selectedOrder?.production_artifacts || []), ...urls];
-      } else if (type === 'final') {
-        updateData.final_photos = [...(selectedOrder?.final_photos || []), ...urls];
-      }
-
-      const { error } = await api.adminUpdateOrder(orderId, updateData);
-      if (error) {
-        toast.error('Ошибка обновления заказа');
-        console.error(error);
-      } else {
-        toast.success('Файлы загружены');
-        // Refresh order data
-        const { data: refreshedOrder } = await api.adminGetOrder(orderId);
-        if (refreshedOrder) {
-          setSelectedOrder(refreshedOrder);
-        }
-      }
-    } catch (err) {
-      toast.error('Ошибка загрузки');
-      console.error(err);
-    } finally {
-      setUploading(null);
-    }
+  const getStatusInfo = (status: string) => {
+    return ORDER_STATUSES.find(s => s.value === status) || { label: status, color: 'bg-gray-500' };
   };
-
-  const handleRemoveFile = async (orderId: string, type: 'reference' | 'artifact' | 'final' | '3d', url: string) => {
-    if (!confirm('Удалить файл?')) return;
-
-    try {
-      let updateData: Record<string, any> = {};
-
-      if (type === 'reference') {
-        updateData.reference_images = (selectedOrder?.reference_images || []).filter(u => u !== url);
-      } else if (type === 'artifact') {
-        updateData.production_artifacts = (selectedOrder?.production_artifacts || []).filter(u => u !== url);
-      } else if (type === 'final') {
-        updateData.final_photos = (selectedOrder?.final_photos || []).filter(u => u !== url);
-      } else if (type === '3d') {
-        updateData.model_3d_url = null;
-      }
-
-      const { error } = await api.adminUpdateOrder(orderId, updateData);
-      if (error) {
-        toast.error('Ошибка удаления');
-        console.error(error);
-      } else {
-        toast.success('Файл удалён');
-        const { data: refreshedOrder } = await api.adminGetOrder(orderId);
-        if (refreshedOrder) {
-          setSelectedOrder(refreshedOrder);
-        }
-      }
-    } catch (err) {
-      toast.error('Ошибка удаления');
-      console.error(err);
-    }
-  };
-
-  const handleUpdateStatus = async (orderId: string, status: string, comment?: string) => {
-    try {
-      const { error } = await api.adminUpdateOrderStatus(orderId, { status, comment });
-      if (error) {
-        toast.error('Ошибка обновления статуса');
-        console.error(error);
-      } else {
-        toast.success('Статус обновлён');
-        loadOrders();
-        if (selectedOrder) {
-          await loadOrderHistory(orderId);
-          // Refresh order
-          const { data } = await api.adminGetOrder(orderId);
-          if (data) setSelectedOrder(data);
-        }
-      }
-    } catch (err) {
-      toast.error('Ошибка обновления статуса');
-      console.error(err);
-    }
-  };
-
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm('Удалить заказ?')) return;
-
-    try {
-      const { error } = await api.adminDeleteOrder(orderId);
-      if (error) {
-        toast.error('Ошибка удаления заказа');
-        console.error(error);
-      } else {
-        toast.success('Заказ удалён');
-        loadOrders();
-        setShowDetailDialog(false);
-      }
-    } catch (err) {
-      toast.error('Ошибка удаления заказа');
-      console.error(err);
-    }
-  };
-
-  const openOrderDetail = async (order: Order) => {
-    // Fetch full order data
-    const { data } = await api.adminGetOrder(order.id);
-    setSelectedOrder(data || order);
-    await loadOrderHistory(order.id);
-    setShowDetailDialog(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      customer_name: '',
-      customer_email: '',
-      customer_phone: '',
-      customer_telegram: '',
-      product_type: 'pendant',
-      material: 'silver',
-      size: 'm',
-      form_factor: 'round',
-      quoted_price: '',
-      special_requirements: '',
-      internal_notes: '',
-    });
-    setNewOrderImages([]);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = ORDER_STATUSES.find(s => s.value === status);
-    if (!statusConfig) return <Badge variant="outline">{status}</Badge>;
-
-    const Icon = statusConfig.icon;
-    return (
-      <Badge className={cn('text-white', statusConfig.color)}>
-        <Icon className="w-3 h-3 mr-1" />
-        {statusConfig.label}
-      </Badge>
-    );
-  };
-
-  const ImageGallery = ({ images, type, orderId, title, icon: Icon }: {
-    images: string[];
-    type: 'reference' | 'artifact' | 'final';
-    orderId: string;
-    title: string;
-    icon: React.ElementType;
-  }) => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium flex items-center gap-2">
-          <Icon className="w-4 h-4" />
-          {title}
-        </h4>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (type === 'reference') referenceInputRef.current?.click();
-            else if (type === 'artifact') artifactInputRef.current?.click();
-            else if (type === 'final') finalPhotoInputRef.current?.click();
-          }}
-          disabled={uploading === type}
-        >
-          {uploading === type ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Upload className="w-4 h-4 mr-2" />
-          )}
-          Добавить
-        </Button>
-      </div>
-      {images.length > 0 ? (
-        <div className="grid grid-cols-4 gap-2">
-          {images.map((url, idx) => (
-            <div key={idx} className="relative group aspect-square">
-              <img
-                src={url}
-                alt={`${title} ${idx + 1}`}
-                className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
-                onClick={() => window.open(url, '_blank')}
-              />
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition"
-                onClick={() => handleRemoveFile(orderId, type, url)}
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-4 text-center">
-          Нет файлов
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-6">
-      {/* Hidden file inputs */}
-      <input
-        ref={referenceInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'reference', e.target.files)}
-      />
-      <input
-        ref={model3dInputRef}
-        type="file"
-        accept=".stl,.obj,.glb,.gltf,.3mf"
-        className="hidden"
-        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, '3d', e.target.files)}
-      />
-      <input
-        ref={artifactInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'artifact', e.target.files)}
-      />
-      <input
-        ref={finalPhotoInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => selectedOrder && e.target.files && handleUploadFile(selectedOrder.id, 'final', e.target.files)}
-      />
-
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Заказы</h2>
-          <p className="text-muted-foreground">Управление производственными заказами</p>
+        <div className="flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          <h2 className="text-xl font-semibold">Заказы</h2>
+          <Badge variant="outline">{orders.length}</Badge>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadOrders} disabled={loading}>
-            <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
-            Обновить
+        <div className="flex items-center gap-2">
+          <Link to="/production">
+            <Button variant="outline" className="gap-2">
+              <Factory className="w-4 h-4" />
+              Production Workspace
+              <ExternalLink className="w-3 h-3" />
+            </Button>
+          </Link>
+          <Button variant="outline" size="icon" onClick={loadOrders}>
+            <RefreshCw className="w-4 h-4" />
           </Button>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Создать заказ
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Новый заказ</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Имя заказчика *</Label>
-                    <Input
-                      value={formData.customer_name}
-                      onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                      placeholder="Иван Иванов"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={formData.customer_email}
-                      onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Телефон</Label>
-                    <Input
-                      value={formData.customer_phone}
-                      onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
-                      placeholder="+7 900 000 00 00"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Telegram</Label>
-                    <Input
-                      value={formData.customer_telegram}
-                      onChange={(e) => setFormData({ ...formData, customer_telegram: e.target.value })}
-                      placeholder="@username"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Материал</Label>
-                    <Select value={formData.material} onValueChange={(v) => setFormData({ ...formData, material: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="silver">Серебро 925</SelectItem>
-                        <SelectItem value="gold">Золото 585</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Размер</Label>
-                    <Select value={formData.size} onValueChange={(v) => setFormData({ ...formData, size: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="s">S (13mm / 10mm)</SelectItem>
-                        <SelectItem value="m">M (19mm / 13mm)</SelectItem>
-                        <SelectItem value="l">L (25mm / 19mm)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Форма</Label>
-                    <Select value={formData.form_factor} onValueChange={(v) => setFormData({ ...formData, form_factor: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="round">Круглый</SelectItem>
-                        <SelectItem value="oval">Жетон</SelectItem>
-                        <SelectItem value="contour">Контурный</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Reference Images Upload */}
-                <div className="space-y-2">
-                  <Label>Исходные изображения</Label>
-                  <div
-                    className={cn(
-                      "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition hover:border-primary/50",
-                      newOrderImages.length > 0 && "border-primary/30 bg-primary/5"
-                    )}
-                    onClick={() => document.getElementById('new-order-images')?.click()}
-                  >
-                    <input
-                      id="new-order-images"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          setNewOrderImages([...newOrderImages, ...Array.from(e.target.files)]);
-                        }
-                      }}
-                    />
-                    <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Нажмите или перетащите фото от клиента
-                    </p>
-                  </div>
-                  {newOrderImages.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {newOrderImages.map((file, idx) => (
-                        <div key={idx} className="relative">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Preview ${idx}`}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -top-1 -right-1 h-5 w-5"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNewOrderImages(newOrderImages.filter((_, i) => i !== idx));
-                            }}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Озвученная цена (₽)</Label>
-                  <Input
-                    type="number"
-                    value={formData.quoted_price}
-                    onChange={(e) => setFormData({ ...formData, quoted_price: e.target.value })}
-                    placeholder="5000"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Особые требования</Label>
-                  <Textarea
-                    value={formData.special_requirements}
-                    onChange={(e) => setFormData({ ...formData, special_requirements: e.target.value })}
-                    placeholder="Пожелания клиента..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Внутренние заметки</Label>
-                  <Textarea
-                    value={formData.internal_notes}
-                    onChange={(e) => setFormData({ ...formData, internal_notes: e.target.value })}
-                    placeholder="Заметки для производства..."
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Отмена
-                </Button>
-                <Button onClick={handleCreateOrder} disabled={!formData.customer_name || uploading === 'reference'}>
-                  {uploading === 'reference' ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Загрузка...
-                    </>
-                  ) : (
-                    'Создать'
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Новый заказ
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Label>Статус:</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все</SelectItem>
-                {ORDER_STATUSES.map(status => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="flex flex-wrap gap-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Поиск по номеру, имени, email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Статус" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все статусы</SelectItem>
+            {ORDER_STATUSES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-lg border bg-card">
+          <div className="text-2xl font-bold">
+            {orders.filter(o => o.status === 'new').length}
           </div>
-        </CardContent>
-      </Card>
+          <div className="text-sm text-muted-foreground">Новых</div>
+        </div>
+        <div className="p-4 rounded-lg border bg-card">
+          <div className="text-2xl font-bold">
+            {orders.filter(o => ['design', 'modeling', 'printing', 'casting', 'polishing', 'assembly'].includes(o.status)).length}
+          </div>
+          <div className="text-sm text-muted-foreground">В работе</div>
+        </div>
+        <div className="p-4 rounded-lg border bg-card">
+          <div className="text-2xl font-bold">
+            {orders.filter(o => o.status === 'ready').length}
+          </div>
+          <div className="text-sm text-muted-foreground">Готовых</div>
+        </div>
+        <div className="p-4 rounded-lg border bg-card">
+          <div className="text-2xl font-bold">
+            {formatPrice(orders.reduce((sum, o) => sum + (o.final_price || o.quoted_price || 0), 0))}
+          </div>
+          <div className="text-sm text-muted-foreground">Сумма</div>
+        </div>
+      </div>
 
-      {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Список заказов ({orders.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Заказов не найдено
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Номер</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Заказчик</TableHead>
-                    <TableHead>Изделие</TableHead>
-                    <TableHead>Цена</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Действия</TableHead>
+      {/* Orders table */}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          Загрузка...
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Заказов не найдено</p>
+          <p className="text-sm mt-2">Создайте первый заказ или перейдите в Production Workspace</p>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Заказ</TableHead>
+                <TableHead>Клиент</TableHead>
+                <TableHead>Изделие</TableHead>
+                <TableHead>Статус</TableHead>
+                <TableHead className="text-right">Цена</TableHead>
+                <TableHead>Дата</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order) => {
+                const statusInfo = getStatusInfo(order.status);
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      <div className="font-medium">
+                        {order.order_number || order.id.slice(0, 8)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{order.customer_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {order.customer_email || order.customer_telegram || order.customer_phone}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        {PRODUCT_TYPES.find(t => t.value === order.product_type)?.label || order.product_type}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {MATERIALS.find(m => m.value === order.material)?.label || order.material}
+                        {order.size && `, ${order.size.toUpperCase()}`}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusInfo.color}>
+                        {statusInfo.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPrice(order.final_price || order.quoted_price)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {format(new Date(order.created_at), 'd MMM', { locale: ru })}
+                    </TableCell>
+                    <TableCell>
+                      <Link to="/production">
+                        <Button variant="ghost" size="sm" className="gap-1">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-mono text-sm">
-                        {order.order_number}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(order.created_at), 'dd MMM yyyy', { locale: ru })}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{order.customer_name}</div>
-                          {order.customer_phone && (
-                            <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div>{order.material === 'silver' ? 'Серебро' : 'Золото'}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {order.size?.toUpperCase()} • {order.form_factor}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {order.final_price ? (
-                          <span className="font-medium">{order.final_price.toLocaleString()} ₽</span>
-                        ) : order.quoted_price ? (
-                          <span className="text-muted-foreground">{order.quoted_price.toLocaleString()} ₽</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(order.status)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openOrderDetail(order)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Create Order Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Новый заказ</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">Имя клиента *</Label>
+              <Input
+                id="customer_name"
+                value={newOrder.customer_name}
+                onChange={(e) => setNewOrder({ ...newOrder, customer_name: e.target.value })}
+                placeholder="Иван Иванов"
+              />
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Order Detail Dialog */}
-      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          {selectedOrder && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
-                  <span>Заказ {selectedOrder.order_number}</span>
-                  {getStatusBadge(selectedOrder.status)}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="grid gap-6 py-4">
-                {/* Customer Info */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Заказчик</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Имя:</span> {selectedOrder.customer_name}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Email:</span> {selectedOrder.customer_email || '—'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Телефон:</span> {selectedOrder.customer_phone || '—'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Telegram:</span> {selectedOrder.customer_telegram || '—'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product Info */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Изделие</h3>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Материал:</span> {selectedOrder.material === 'silver' ? 'Серебро 925' : 'Золото 585'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Размер:</span> {selectedOrder.size?.toUpperCase() || '—'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Форма:</span> {selectedOrder.form_factor || '—'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Files Section */}
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                  <h3 className="font-semibold text-lg">Файлы заказа</h3>
-
-                  {/* Reference Images */}
-                  <ImageGallery
-                    images={selectedOrder.reference_images || []}
-                    type="reference"
-                    orderId={selectedOrder.id}
-                    title="Исходники от клиента"
-                    icon={Image}
-                  />
-
-                  {/* 3D Model */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Cube className="w-4 h-4" />
-                        3D Модель
-                      </h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => model3dInputRef.current?.click()}
-                        disabled={uploading === '3d'}
-                      >
-                        {uploading === '3d' ? (
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {selectedOrder.model_3d_url ? 'Заменить' : 'Загрузить'}
-                      </Button>
-                    </div>
-                    {selectedOrder.model_3d_url ? (
-                      <div className="flex items-center gap-4 p-3 border rounded-lg bg-background">
-                        <Cube className="w-10 h-10 text-primary" />
-                        <div className="flex-1">
-                          <p className="font-medium">3D модель загружена</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {selectedOrder.model_3d_url.split('/').pop()}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(selectedOrder.model_3d_url!, '_blank')}
-                          >
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            Открыть
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleRemoveFile(selectedOrder.id, '3d', selectedOrder.model_3d_url!)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground border border-dashed rounded-lg p-4 text-center">
-                        3D модель не загружена (.stl, .obj, .glb, .gltf, .3mf)
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Production Artifacts */}
-                  <ImageGallery
-                    images={selectedOrder.production_artifacts || []}
-                    type="artifact"
-                    orderId={selectedOrder.id}
-                    title="Артефакты производства"
-                    icon={Camera}
-                  />
-
-                  {/* Final Photos */}
-                  <ImageGallery
-                    images={selectedOrder.final_photos || []}
-                    type="final"
-                    orderId={selectedOrder.id}
-                    title="Финальные фото"
-                    icon={CheckCircle2}
-                  />
-                </div>
-
-                {/* Pricing */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Стоимость</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Озвученная:</span> {selectedOrder.quoted_price ? `${selectedOrder.quoted_price.toLocaleString()} ₽` : '—'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Финальная:</span> {selectedOrder.final_price ? `${selectedOrder.final_price.toLocaleString()} ₽` : '—'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status History */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold">История статусов</h3>
-                  <div className="space-y-2">
-                    {orderHistory.length > 0 ? orderHistory.map((entry) => (
-                      <div key={entry.id} className="flex items-start gap-3 text-sm border-l-2 border-primary/20 pl-3">
-                        <div className="flex-1">
-                          <div className="font-medium">{ORDER_STATUSES.find(s => s.value === entry.status)?.label || entry.status}</div>
-                          {entry.comment && <div className="text-muted-foreground">{entry.comment}</div>}
-                        </div>
-                        <div className="text-xs text-muted-foreground whitespace-nowrap">
-                          {format(new Date(entry.created_at), 'dd MMM HH:mm', { locale: ru })}
-                        </div>
-                      </div>
-                    )) : (
-                      <p className="text-sm text-muted-foreground">Нет истории</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Status Actions */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Изменить статус</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {ORDER_STATUSES.filter(s => s.value !== selectedOrder.status).map((status) => {
-                      const Icon = status.icon;
-                      return (
-                        <Button
-                          key={status.value}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(selectedOrder.id, status.value)}
-                          className="gap-2"
-                        >
-                          <Icon className="h-4 w-4" />
-                          {status.label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {(selectedOrder.special_requirements || selectedOrder.internal_notes) && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Заметки</h3>
-                    {selectedOrder.special_requirements && (
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Требования:</span>
-                        <p className="mt-1">{selectedOrder.special_requirements}</p>
-                      </div>
-                    )}
-                    {selectedOrder.internal_notes && (
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Внутренние:</span>
-                        <p className="mt-1">{selectedOrder.internal_notes}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer_email">Email</Label>
+                <Input
+                  id="customer_email"
+                  type="email"
+                  value={newOrder.customer_email}
+                  onChange={(e) => setNewOrder({ ...newOrder, customer_email: e.target.value })}
+                  placeholder="email@example.com"
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer_phone">Телефон</Label>
+                <Input
+                  id="customer_phone"
+                  value={newOrder.customer_phone}
+                  onChange={(e) => setNewOrder({ ...newOrder, customer_phone: e.target.value })}
+                  placeholder="+7 999 123 45 67"
+                />
+              </div>
+            </div>
 
-              <DialogFooter>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDeleteOrder(selectedOrder.id)}
+            <div className="space-y-2">
+              <Label htmlFor="customer_telegram">Telegram</Label>
+              <Input
+                id="customer_telegram"
+                value={newOrder.customer_telegram}
+                onChange={(e) => setNewOrder({ ...newOrder, customer_telegram: e.target.value })}
+                placeholder="@username"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Тип изделия</Label>
+                <Select
+                  value={newOrder.product_type}
+                  onValueChange={(v) => setNewOrder({ ...newOrder, product_type: v })}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Удалить заказ
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Материал</Label>
+                <Select
+                  value={newOrder.material}
+                  onValueChange={(v) => setNewOrder({ ...newOrder, material: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MATERIALS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Размер</Label>
+              <Select
+                value={newOrder.size}
+                onValueChange={(v) => setNewOrder({ ...newOrder, size: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="s">S</SelectItem>
+                  <SelectItem value="m">M</SelectItem>
+                  <SelectItem value="l">L</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleCreateOrder} disabled={creating}>
+              {creating ? 'Создание...' : 'Создать'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

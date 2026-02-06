@@ -909,5 +909,53 @@ export const api = {
             console.error('getSystemHealth error:', error);
             return { data: null, error };
         }
+    },
+
+    // Production Workspace Auth
+    productionRequestCode: async (email: string) => {
+        try {
+            const response = await fetch(`${API_URL}/production/request-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Request failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionVerifyCode: async (email: string, code: string) => {
+        try {
+            const response = await fetch(`${API_URL}/production/verify-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, code })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Verification failed');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionVerifySession: async () => {
+        try {
+            const response = await fetch(`${API_URL}/production/verify-session`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

@@ -2103,6 +2103,193 @@ async def admin_logout(request: Request):
         return {"success": True}  # Always return success for logout
 
 
+# ============================================
+# Production Workspace Auth
+# ============================================
+
+# Production staff emails (can also check is_production flag in DB)
+PRODUCTION_EMAILS = os.getenv("PRODUCTION_EMAILS", "").split(",")
+PRODUCTION_EMAILS = [e.strip().lower() for e in PRODUCTION_EMAILS if e.strip()]
+
+
+class ProductionAuthRequest(BaseModel):
+    email: str
+
+
+class ProductionVerifyRequest(BaseModel):
+    email: str
+    code: str
+
+
+@router.post("/production/request-code")
+async def production_request_code(req: ProductionAuthRequest):
+    """Request verification code for production workspace"""
+    try:
+        email = req.email.lower().strip()
+
+        # Check if email has production access (whitelist or DB flag)
+        user = await supabase.select_by_field("users", "email", email)
+
+        # User must exist and have is_production=True, or be in PRODUCTION_EMAILS whitelist
+        has_access = False
+        if user and user.get("is_production"):
+            has_access = True
+        if email in PRODUCTION_EMAILS:
+            has_access = True
+        # Also allow admins to access production
+        if email in ADMIN_EMAILS or (user and user.get("is_admin")):
+            has_access = True
+
+        if not has_access:
+            # Don't reveal if email exists or not
+            return {
+                "success": True,
+                "message": "If this email has production access, a code has been sent"
+            }
+
+        # Generate verification code
+        code = str(random.randint(100000, 999999))
+        expires_at = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+
+        if user:
+            await supabase.update("users", user["id"], {
+                "verification_code": code,
+                "verification_code_expires_at": expires_at
+            })
+        else:
+            # Create new user with production access
+            user_id = str(uuid.uuid4())
+            await supabase.insert("users", {
+                "id": user_id,
+                "email": email,
+                "name": "Production Staff",
+                "email_verified": True,
+                "is_production": True,
+                "verification_code": code,
+                "verification_code_expires_at": expires_at
+            })
+
+        # Send email with code
+        email_sent = await send_verification_email(email, "Production Staff", code)
+
+        if not email_sent:
+            print(f"Warning: Production email not sent to {email}, code: {code}")
+
+        return {
+            "success": True,
+            "message": "If this email has production access, a code has been sent"
+        }
+
+    except Exception as e:
+        print(f"Error in production login: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/production/verify-code")
+async def production_verify_code(req: ProductionVerifyRequest):
+    """Verify production code and return session token"""
+    try:
+        email = req.email.lower().strip()
+
+        # Get user by email
+        user = await supabase.select_by_field("users", "email", email)
+
+        if not user:
+            return {"success": False, "error": "Access denied"}
+
+        # Check production access
+        has_access = (
+            user.get("is_production") or
+            user.get("is_admin") or
+            email in PRODUCTION_EMAILS or
+            email in ADMIN_EMAILS
+        )
+
+        if not has_access:
+            return {"success": False, "error": "Access denied"}
+
+        # Check if code matches
+        if user.get("verification_code") != req.code:
+            return {"success": False, "error": "Invalid code"}
+
+        # Check if code is expired
+        expires_at = user.get("verification_code_expires_at")
+        if expires_at:
+            try:
+                expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                    return {"success": False, "error": "Code expired"}
+            except:
+                pass
+
+        # Generate session token
+        session_token = str(uuid.uuid4())
+        session_expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+
+        # Update user with production session
+        await supabase.update("users", user["id"], {
+            "verification_code": None,
+            "verification_code_expires_at": None,
+            "production_session_token": session_token,
+            "production_session_expires_at": session_expires
+        })
+
+        return {
+            "success": True,
+            "token": session_token,
+            "email": email,
+            "expires_at": session_expires
+        }
+
+    except Exception as e:
+        print(f"Error verifying production code: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/production/verify-session")
+async def production_verify_session(request: Request):
+    """Verify production session from cookie or header"""
+    try:
+        # Try to get token from cookie first, then from Authorization header
+        token = request.cookies.get("production_session")
+
+        if not token:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+
+        if not token:
+            return {"is_production": False}
+
+        # Find user with this session token
+        # We need to search by token - this is a bit inefficient but works for now
+        users = await supabase.select("users", limit=1000)
+
+        for user in users:
+            if user.get("production_session_token") == token:
+                # Check if session is expired
+                expires_at = user.get("production_session_expires_at")
+                if expires_at:
+                    try:
+                        expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                        if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+                            return {"is_production": False}
+                    except:
+                        return {"is_production": False}
+
+                return {
+                    "is_production": True,
+                    "email": user.get("email"),
+                    "name": user.get("name")
+                }
+
+        return {"is_production": False}
+
+    except Exception as e:
+        print(f"Error verifying production session: {e}")
+        return {"is_production": False}
+
+
 @router.get("/admin/check/{user_id}")
 async def check_admin_status(user_id: str):
     """Check if user is an admin by user_id"""
@@ -2790,28 +2977,92 @@ class OrderCreate(BaseModel):
     user_id: Optional[str] = None
 
 class OrderUpdate(BaseModel):
+    # Customer info
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None
     customer_telegram: Optional[str] = None
+
+    # Product info
     product_type: Optional[str] = None
     material: Optional[str] = None
     size: Optional[str] = None
     form_factor: Optional[str] = None
-    quoted_price: Optional[float] = None
-    final_price: Optional[float] = None
-    currency: Optional[str] = None
-    special_requirements: Optional[str] = None
-    internal_notes: Optional[str] = None
-    gems_config: Optional[List[dict]] = None
-    engraving_text: Optional[str] = None
+
+    # Files
     model_3d_url: Optional[str] = None
     reference_images: Optional[List[str]] = None
     final_photos: Optional[List[str]] = None
     production_artifacts: Optional[List[str]] = None
+
+    # ==========================================
+    # PRODUCTION WORKSPACE - Manufacturing Data
+    # ==========================================
+
+    # 3D Printing
+    printing_cost: Optional[float] = None
+    printing_weight_g: Optional[float] = None
+    printing_notes: Optional[str] = None
+
+    # Metal casting
+    metal_weight_g: Optional[float] = None
+    metal_price_per_g: Optional[float] = None
+    metal_cost: Optional[float] = None
+    casting_cost: Optional[float] = None
+    casting_notes: Optional[str] = None
+
+    # Finishing
+    polishing_cost: Optional[float] = None
+    plating_cost: Optional[float] = None
+    plating_type: Optional[str] = None
+
+    # Gems
+    gems_cost: Optional[float] = None
+    gems_setting_cost: Optional[float] = None
+    gems_details: Optional[List[dict]] = None
+    gems_config: Optional[List[dict]] = None
+
+    # Chain
+    chain_type: Optional[str] = None
+    chain_length_cm: Optional[float] = None
+    chain_cost: Optional[float] = None
+
+    # Packaging & extras
+    packaging_cost: Optional[float] = None
+    engraving_cost: Optional[float] = None
+    other_costs: Optional[float] = None
+    other_costs_notes: Optional[str] = None
+
+    # Labor
+    labor_hours: Optional[float] = None
+    labor_rate_per_hour: Optional[float] = None
+    labor_cost: Optional[float] = None
+
+    # Cost summary
+    total_cost: Optional[float] = None
+    margin_percent: Optional[float] = None
+    calculated_price: Optional[float] = None
+
+    # ==========================================
+    # END PRODUCTION WORKSPACE
+    # ==========================================
+
+    # Pricing
+    quoted_price: Optional[float] = None
+    deposit_amount: Optional[float] = None
+    final_price: Optional[float] = None
+    currency: Optional[str] = None
+
+    # Other
+    engraving_text: Optional[str] = None
+    special_requirements: Optional[str] = None
+    internal_notes: Optional[str] = None
+
+    # Delivery
     delivery_address: Optional[str] = None
     delivery_service: Optional[str] = None
     tracking_number: Optional[str] = None
+    delivery_cost: Optional[float] = None
 
 class OrderStatusUpdate(BaseModel):
     status: str

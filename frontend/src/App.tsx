@@ -15,6 +15,7 @@ import Index from "./pages/Index";
 import Ideas from "./pages/Ideas";
 import Diagnostic from "./pages/Diagnostic";
 import Application from "./pages/Application";
+import Production from "./pages/Production";
 // Admin component removed - using lazy loaded admin routes instead
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/diagnostic" element={<Diagnostic />} />
           <Route path="/application/:id" element={<Application />} />
+          <Route path="/production" element={<Production />} />
           {/* Admin routes with lazy loading */}
           <Route path="/admin" element={
             <Suspense fallback={<AdminLoading />}>
