@@ -2242,9 +2242,9 @@ async def production_verify_code(req: ProductionVerifyRequest):
             except:
                 pass
 
-        # Generate session token
+        # Generate session token (valid for 7 days)
         session_token = str(uuid.uuid4())
-        session_expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        session_expires = (datetime.utcnow() + timedelta(days=7)).isoformat()
 
         # Update user with production session
         await supabase.update("users", user["id"], {
@@ -3077,6 +3077,9 @@ class OrderUpdate(BaseModel):
     engraving_text: Optional[str] = None
     special_requirements: Optional[str] = None
     internal_notes: Optional[str] = None
+
+    # Per-stage notes/agreements
+    stage_notes: Optional[dict] = None
 
     # Delivery
     delivery_address: Optional[str] = None
@@ -4793,7 +4796,8 @@ async def production_upload_stage_photo(order_id: str, req: StagePhotoRequest, r
         filename = f"stage_{req.stage}_{uuid.uuid4().hex[:8]}.webp"
         file_path = f"orders/{order_id}/{filename}"
 
-        url = await supabase.upload_file("pendants", file_path, image_bytes, content_type="image/webp")
+        await supabase.upload_file("pendants", file_path, image_bytes, content_type="image/webp")
+        url = await supabase.get_public_url("pendants", file_path)
 
         if not url:
             raise HTTPException(status_code=500, detail="Failed to upload image")
@@ -4816,6 +4820,99 @@ async def production_upload_stage_photo(order_id: str, req: StagePhotoRequest, r
         raise
     except Exception as e:
         print(f"Error uploading stage photo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ProductionOrderUpdate(BaseModel):
+    """Fields that production staff can update"""
+    # Customer info
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_telegram: Optional[str] = None
+
+    # Product info
+    special_requirements: Optional[str] = None
+    internal_notes: Optional[str] = None
+    engraving_text: Optional[str] = None
+
+    # Per-stage notes (JSONB merge)
+    stage_notes: Optional[dict] = None
+
+    # 3D Printing
+    printing_cost: Optional[float] = None
+    printing_weight_g: Optional[float] = None
+    printing_notes: Optional[str] = None
+
+    # Metal casting
+    metal_weight_g: Optional[float] = None
+    metal_price_per_g: Optional[float] = None
+    metal_cost: Optional[float] = None
+    casting_cost: Optional[float] = None
+    casting_notes: Optional[str] = None
+
+    # Finishing
+    polishing_cost: Optional[float] = None
+    plating_cost: Optional[float] = None
+    plating_type: Optional[str] = None
+
+    # Gems
+    gems_cost: Optional[float] = None
+    gems_setting_cost: Optional[float] = None
+
+    # Chain
+    chain_type: Optional[str] = None
+    chain_length_cm: Optional[float] = None
+    chain_cost: Optional[float] = None
+
+    # Packaging & extras
+    packaging_cost: Optional[float] = None
+    engraving_cost: Optional[float] = None
+    other_costs: Optional[float] = None
+    other_costs_notes: Optional[str] = None
+
+    # Labor
+    labor_hours: Optional[float] = None
+    labor_rate_per_hour: Optional[float] = None
+    labor_cost: Optional[float] = None
+
+    # Cost summary
+    total_cost: Optional[float] = None
+    quoted_price: Optional[float] = None
+    final_price: Optional[float] = None
+
+    # Link to existing user
+    user_id: Optional[str] = None
+
+
+@router.patch("/production/orders/{order_id}")
+async def production_update_order(order_id: str, req: ProductionOrderUpdate, request: Request):
+    """Update order details from production workspace"""
+    try:
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        existing = await supabase.select_one("orders", order_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        update_data = req.model_dump(exclude_none=True)
+
+        # For stage_notes, merge with existing rather than replace
+        if "stage_notes" in update_data:
+            existing_notes = existing.get("stage_notes", {}) or {}
+            existing_notes.update(update_data["stage_notes"])
+            update_data["stage_notes"] = existing_notes
+
+        if update_data:
+            updated = await supabase.update("orders", order_id, update_data)
+            return {"success": True, "data": updated}
+
+        return {"success": True, "data": existing}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating production order: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

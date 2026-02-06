@@ -1053,5 +1053,27 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    productionUpdateOrder: async (orderId: string, updates: Record<string, any>) => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/orders/${orderId}`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify(updates)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to update order');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { Clock, User, Package, Image, History, CreditCard, Phone, Mail, MessageSquare, Plus, X } from 'lucide-react';
+import { Clock, User, Package, Image, History, CreditCard, Phone, Mail, MessageSquare, Plus, Save, Loader2 } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -27,18 +27,33 @@ interface Order {
   generated_images?: string[];
   final_photos?: string[];
   stage_photos?: Record<string, string[]>;
+  stage_notes?: Record<string, string>;
   final_price?: number;
   quoted_price?: number;
   total_cost?: number;
   printing_cost?: number;
+  printing_weight_g?: number;
+  printing_notes?: string;
   metal_cost?: number;
+  metal_weight_g?: number;
+  metal_price_per_g?: number;
   casting_cost?: number;
+  casting_notes?: string;
   polishing_cost?: number;
+  plating_cost?: number;
+  plating_type?: string;
   gems_cost?: number;
+  gems_setting_cost?: number;
   chain_cost?: number;
+  chain_type?: string;
+  chain_length_cm?: number;
   labor_cost?: number;
+  labor_hours?: number;
+  labor_rate_per_hour?: number;
   packaging_cost?: number;
+  engraving_cost?: number;
   other_costs?: number;
+  other_costs_notes?: string;
   engraving_text?: string;
   special_requirements?: string;
   internal_notes?: string;
@@ -89,6 +104,8 @@ const MATERIALS: Record<string, string> = {
   platinum: 'Платина',
 };
 
+const PRODUCTION_STAGES = ['design', 'modeling', 'printing', 'casting', 'polishing', 'assembly'];
+
 function formatDuration(seconds: number): string {
   if (!seconds) return '—';
   if (seconds < 60) return `${seconds}с`;
@@ -130,36 +147,83 @@ export function OrderDetailModal({
   onRefresh,
 }: OrderDetailModalProps) {
   const [history, setHistory] = useState<StatusHistory[]>([]);
+  const [fullOrder, setFullOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(order?.status || 'new');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  const loadHistory = useCallback(async () => {
+  // Editable state
+  const [editedInfo, setEditedInfo] = useState<Record<string, string>>({});
+  const [editedNotes, setEditedNotes] = useState<Record<string, string>>({});
+  const [editedCosts, setEditedCosts] = useState<Record<string, any>>({});
+
+  const initEditableState = (data: any) => {
+    if (!data) return;
+    setEditedInfo({
+      special_requirements: data.special_requirements || '',
+      internal_notes: data.internal_notes || '',
+    });
+    setEditedNotes(data.stage_notes || {});
+    setEditedCosts({
+      printing_cost: data.printing_cost ?? '',
+      printing_weight_g: data.printing_weight_g ?? '',
+      printing_notes: data.printing_notes || '',
+      casting_cost: data.casting_cost ?? '',
+      casting_notes: data.casting_notes || '',
+      metal_weight_g: data.metal_weight_g ?? '',
+      metal_price_per_g: data.metal_price_per_g ?? '',
+      metal_cost: data.metal_cost ?? '',
+      polishing_cost: data.polishing_cost ?? '',
+      plating_cost: data.plating_cost ?? '',
+      plating_type: data.plating_type || '',
+      gems_cost: data.gems_cost ?? '',
+      gems_setting_cost: data.gems_setting_cost ?? '',
+      chain_type: data.chain_type || '',
+      chain_length_cm: data.chain_length_cm ?? '',
+      chain_cost: data.chain_cost ?? '',
+      labor_hours: data.labor_hours ?? '',
+      labor_rate_per_hour: data.labor_rate_per_hour ?? '',
+      labor_cost: data.labor_cost ?? '',
+      packaging_cost: data.packaging_cost ?? '',
+      engraving_cost: data.engraving_cost ?? '',
+      other_costs: data.other_costs ?? '',
+      other_costs_notes: data.other_costs_notes || '',
+      quoted_price: data.quoted_price ?? '',
+      final_price: data.final_price ?? '',
+    });
+    setDirty(false);
+  };
+
+  const loadFullOrder = useCallback(async () => {
     if (!order) return;
     try {
       const { data, error } = await api.productionGetOrder(order.id);
       if (error) throw error;
+      const orderData = data?.order || data;
+      setFullOrder(orderData);
       setHistory(data?.history || []);
+      initEditableState(orderData);
     } catch (e) {
-      console.error('Failed to load history:', e);
+      console.error('Failed to load order:', e);
     }
   }, [order]);
 
   useEffect(() => {
     if (open && order) {
       setSelectedStatus(order.status);
-      loadHistory();
+      loadFullOrder();
     }
-  }, [open, order, loadHistory]);
+  }, [open, order, loadFullOrder]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!order || newStatus === order.status) return;
-
     setLoading(true);
     try {
       await onStatusChange(order.id, newStatus);
       setSelectedStatus(newStatus);
-      loadHistory();
+      loadFullOrder();
       toast.success('Статус обновлён');
     } catch (e) {
       toast.error('Ошибка обновления статуса');
@@ -169,10 +233,8 @@ export function OrderDetailModal({
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, stage: string) => {
     if (!order || !e.target.files?.[0]) return;
-
     const file = e.target.files[0];
     const reader = new FileReader();
-
     reader.onload = async () => {
       setUploadingPhoto(true);
       try {
@@ -180,24 +242,119 @@ export function OrderDetailModal({
         if (error) throw error;
         toast.success('Фото загружено');
         onRefresh();
+        loadFullOrder();
       } catch (e) {
         toast.error('Ошибка загрузки фото');
       }
       setUploadingPhoto(false);
     };
-
     reader.readAsDataURL(file);
     e.target.value = '';
   };
 
+  const handleSave = async () => {
+    if (!order) return;
+    setSaving(true);
+    try {
+      const updates: Record<string, any> = {};
+
+      // Info fields
+      if (editedInfo.special_requirements !== undefined) updates.special_requirements = editedInfo.special_requirements;
+      if (editedInfo.internal_notes !== undefined) updates.internal_notes = editedInfo.internal_notes;
+
+      // Stage notes
+      if (Object.keys(editedNotes).length > 0) {
+        updates.stage_notes = editedNotes;
+      }
+
+      // Cost fields - parse numbers
+      const numericFields = [
+        'printing_cost', 'printing_weight_g', 'casting_cost', 'metal_weight_g',
+        'metal_price_per_g', 'metal_cost', 'polishing_cost', 'plating_cost',
+        'gems_cost', 'gems_setting_cost', 'chain_length_cm', 'chain_cost',
+        'labor_hours', 'labor_rate_per_hour', 'labor_cost', 'packaging_cost',
+        'engraving_cost', 'other_costs', 'quoted_price', 'final_price',
+      ];
+      for (const field of numericFields) {
+        const val = editedCosts[field];
+        if (val !== '' && val !== null && val !== undefined) {
+          updates[field] = parseFloat(val) || 0;
+        }
+      }
+
+      // String cost fields
+      const stringFields = ['printing_notes', 'casting_notes', 'plating_type', 'chain_type', 'other_costs_notes'];
+      for (const field of stringFields) {
+        if (editedCosts[field] !== undefined) {
+          updates[field] = editedCosts[field];
+        }
+      }
+
+      // Auto-calculate total_cost
+      const tc = (parseFloat(editedCosts.printing_cost) || 0) +
+        (parseFloat(editedCosts.metal_cost) || 0) +
+        (parseFloat(editedCosts.casting_cost) || 0) +
+        (parseFloat(editedCosts.polishing_cost) || 0) +
+        (parseFloat(editedCosts.plating_cost) || 0) +
+        (parseFloat(editedCosts.gems_cost) || 0) +
+        (parseFloat(editedCosts.gems_setting_cost) || 0) +
+        (parseFloat(editedCosts.chain_cost) || 0) +
+        (parseFloat(editedCosts.labor_cost) || 0) +
+        (parseFloat(editedCosts.packaging_cost) || 0) +
+        (parseFloat(editedCosts.engraving_cost) || 0) +
+        (parseFloat(editedCosts.other_costs) || 0);
+      if (tc > 0) updates.total_cost = tc;
+
+      const { error } = await api.productionUpdateOrder(order.id, updates);
+      if (error) throw error;
+      toast.success('Сохранено');
+      setDirty(false);
+      onRefresh();
+    } catch (e) {
+      toast.error('Ошибка сохранения');
+    }
+    setSaving(false);
+  };
+
   if (!order) return null;
 
-  const currentStatus = statuses.find(s => s.value === order.status);
-  const totalCost = (order.printing_cost || 0) + (order.metal_cost || 0) +
-    (order.casting_cost || 0) + (order.polishing_cost || 0) +
-    (order.gems_cost || 0) + (order.chain_cost || 0) +
-    (order.labor_cost || 0) + (order.packaging_cost || 0) +
-    (order.other_costs || 0);
+  const displayOrder = fullOrder || order;
+  const currentStatus = statuses.find(s => s.value === displayOrder.status);
+
+  // Calculate total from editable costs
+  const calculatedTotal = (parseFloat(editedCosts.printing_cost) || 0) +
+    (parseFloat(editedCosts.metal_cost) || 0) +
+    (parseFloat(editedCosts.casting_cost) || 0) +
+    (parseFloat(editedCosts.polishing_cost) || 0) +
+    (parseFloat(editedCosts.plating_cost) || 0) +
+    (parseFloat(editedCosts.gems_cost) || 0) +
+    (parseFloat(editedCosts.gems_setting_cost) || 0) +
+    (parseFloat(editedCosts.chain_cost) || 0) +
+    (parseFloat(editedCosts.labor_cost) || 0) +
+    (parseFloat(editedCosts.packaging_cost) || 0) +
+    (parseFloat(editedCosts.engraving_cost) || 0) +
+    (parseFloat(editedCosts.other_costs) || 0);
+
+  const finalPrice = parseFloat(editedCosts.final_price) || 0;
+  const margin = finalPrice > 0 && calculatedTotal > 0
+    ? finalPrice - calculatedTotal
+    : 0;
+  const marginPercent = finalPrice > 0 ? Math.round((margin / finalPrice) * 100) : 0;
+
+  const updateCost = (field: string, value: string) => {
+    setEditedCosts(prev => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const updateInfo = (field: string, value: string) => {
+    setEditedInfo(prev => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const updateNote = (stage: string, value: string) => {
+    setEditedNotes(prev => ({ ...prev, [stage]: value }));
+    setDirty(true);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -206,7 +363,7 @@ export function OrderDetailModal({
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="font-mono">
-                {order.order_number || order.id.slice(0, 8)}
+                {displayOrder.order_number || displayOrder.id.slice(0, 8)}
               </span>
               {currentStatus && (
                 <Badge className={currentStatus.color}>
@@ -216,7 +373,7 @@ export function OrderDetailModal({
             </div>
             <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>В статусе: {formatDuration(order.time_in_status_seconds || 0)}</span>
+              <span>В статусе: {formatDuration(displayOrder.time_in_status_seconds || 0)}</span>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -257,9 +414,9 @@ export function OrderDetailModal({
             </TabsTrigger>
           </TabsList>
 
-          {/* Info Tab */}
+          {/* ==================== INFO TAB ==================== */}
           <TabsContent value="info" className="space-y-4 mt-4">
-            {/* Customer */}
+            {/* Customer (read-only) */}
             <div className="p-4 border rounded-lg space-y-3">
               <h4 className="font-medium flex items-center gap-2">
                 <User className="w-4 h-4" /> Клиент
@@ -267,36 +424,36 @@ export function OrderDetailModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Имя</Label>
-                  <div className="font-medium">{order.customer_name}</div>
+                  <div className="font-medium">{displayOrder.customer_name}</div>
                 </div>
-                {order.customer_email && (
+                {displayOrder.customer_email && (
                   <div>
                     <Label className="text-muted-foreground flex items-center gap-1">
                       <Mail className="w-3 h-3" /> Email
                     </Label>
-                    <div>{order.customer_email}</div>
+                    <div>{displayOrder.customer_email}</div>
                   </div>
                 )}
-                {order.customer_phone && (
+                {displayOrder.customer_phone && (
                   <div>
                     <Label className="text-muted-foreground flex items-center gap-1">
                       <Phone className="w-3 h-3" /> Телефон
                     </Label>
-                    <div>{order.customer_phone}</div>
+                    <div>{displayOrder.customer_phone}</div>
                   </div>
                 )}
-                {order.customer_telegram && (
+                {displayOrder.customer_telegram && (
                   <div>
                     <Label className="text-muted-foreground flex items-center gap-1">
                       <MessageSquare className="w-3 h-3" /> Telegram
                     </Label>
-                    <div>{order.customer_telegram}</div>
+                    <div>{displayOrder.customer_telegram}</div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Product */}
+            {/* Product (read-only) */}
             <div className="p-4 border rounded-lg space-y-3">
               <h4 className="font-medium flex items-center gap-2">
                 <Package className="w-4 h-4" /> Изделие
@@ -304,56 +461,92 @@ export function OrderDetailModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Тип</Label>
-                  <div>{PRODUCT_TYPES[order.product_type] || order.product_type}</div>
+                  <div>{PRODUCT_TYPES[displayOrder.product_type] || displayOrder.product_type}</div>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Материал</Label>
-                  <div>{MATERIALS[order.material] || order.material}</div>
+                  <div>{MATERIALS[displayOrder.material] || displayOrder.material}</div>
                 </div>
-                {order.size && (
+                {displayOrder.size && (
                   <div>
                     <Label className="text-muted-foreground">Размер</Label>
-                    <div>{order.size.toUpperCase()}</div>
+                    <div>{displayOrder.size.toUpperCase()}</div>
                   </div>
                 )}
-                {order.form_factor && (
+                {displayOrder.form_factor && (
                   <div>
                     <Label className="text-muted-foreground">Форм-фактор</Label>
-                    <div>{order.form_factor}</div>
+                    <div>{displayOrder.form_factor}</div>
                   </div>
                 )}
               </div>
-              {order.special_requirements && (
-                <div>
-                  <Label className="text-muted-foreground">Особые требования</Label>
-                  <div className="text-sm">{order.special_requirements}</div>
-                </div>
-              )}
-              {order.engraving_text && (
+              {displayOrder.engraving_text && (
                 <div>
                   <Label className="text-muted-foreground">Гравировка</Label>
-                  <div className="text-sm italic">"{order.engraving_text}"</div>
+                  <div className="text-sm italic">"{displayOrder.engraving_text}"</div>
                 </div>
               )}
             </div>
 
-            {/* Notes */}
-            {order.internal_notes && (
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Внутренние заметки</Label>
-                <div className="text-sm mt-1">{order.internal_notes}</div>
+            {/* Agreements / Requirements (editable) */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium">Договорённости и описание</h4>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Особые требования / описание от клиента</Label>
+                <Textarea
+                  value={editedInfo.special_requirements || ''}
+                  onChange={(e) => updateInfo('special_requirements', e.target.value)}
+                  rows={3}
+                  placeholder="Описание пожеланий клиента, договорённости по изделию..."
+                />
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Внутренние заметки</Label>
+                <Textarea
+                  value={editedInfo.internal_notes || ''}
+                  onChange={(e) => updateInfo('internal_notes', e.target.value)}
+                  rows={2}
+                  placeholder="Заметки для команды..."
+                />
+              </div>
+            </div>
+
+            {/* Per-stage notes (editable) */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium">Заметки по этапам</h4>
+              {statuses.filter(s => PRODUCTION_STAGES.includes(s.value)).map((status) => (
+                <div key={status.value} className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${status.color}`} />
+                    {status.label}
+                  </Label>
+                  <Textarea
+                    value={editedNotes[status.value] || ''}
+                    onChange={(e) => updateNote(status.value, e.target.value)}
+                    rows={2}
+                    placeholder={`Договорённости / заметки для этапа "${status.label}"...`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Save button */}
+            {dirty && (
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Сохранить
+              </Button>
             )}
           </TabsContent>
 
-          {/* Files Tab */}
+          {/* ==================== FILES TAB ==================== */}
           <TabsContent value="files" className="space-y-4 mt-4">
             {/* Reference images */}
-            {order.reference_images && order.reference_images.length > 0 && (
+            {displayOrder.reference_images && displayOrder.reference_images.length > 0 && (
               <div>
                 <Label className="text-muted-foreground mb-2 block">Референсы клиента</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {order.reference_images.map((url, i) => (
+                  {displayOrder.reference_images.map((url, i) => (
                     <a key={i} href={url} target="_blank" rel="noopener noreferrer">
                       <img src={url} alt={`Ref ${i + 1}`} className="rounded border aspect-square object-cover" />
                     </a>
@@ -363,11 +556,11 @@ export function OrderDetailModal({
             )}
 
             {/* Generated images */}
-            {order.generated_images && order.generated_images.length > 0 && (
+            {displayOrder.generated_images && displayOrder.generated_images.length > 0 && (
               <div>
                 <Label className="text-muted-foreground mb-2 block">Сгенерированные варианты</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {order.generated_images.map((url, i) => (
+                  {displayOrder.generated_images.map((url, i) => (
                     <a key={i} href={url} target="_blank" rel="noopener noreferrer">
                       <img src={url} alt={`Gen ${i + 1}`} className="rounded border aspect-square object-cover" />
                     </a>
@@ -380,8 +573,8 @@ export function OrderDetailModal({
             <div>
               <Label className="text-muted-foreground mb-2 block">Фото по этапам</Label>
               <div className="space-y-3">
-                {statuses.filter(s => !['new', 'ready', 'shipped', 'delivered', 'cancelled'].includes(s.value)).map((status) => {
-                  const photos = order.stage_photos?.[status.value] || [];
+                {statuses.filter(s => PRODUCTION_STAGES.includes(s.value)).map((status) => {
+                  const photos = displayOrder.stage_photos?.[status.value] || [];
                   return (
                     <div key={status.value} className="p-3 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
@@ -422,11 +615,11 @@ export function OrderDetailModal({
             </div>
 
             {/* Final photos */}
-            {order.final_photos && order.final_photos.length > 0 && (
+            {displayOrder.final_photos && displayOrder.final_photos.length > 0 && (
               <div>
                 <Label className="text-muted-foreground mb-2 block">Финальные фото</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {order.final_photos.map((url, i) => (
+                  {displayOrder.final_photos.map((url, i) => (
                     <a key={i} href={url} target="_blank" rel="noopener noreferrer">
                       <img src={url} alt={`Final ${i + 1}`} className="rounded border aspect-square object-cover" />
                     </a>
@@ -436,78 +629,195 @@ export function OrderDetailModal({
             )}
           </TabsContent>
 
-          {/* Costs Tab */}
+          {/* ==================== COSTS TAB (EDITABLE) ==================== */}
           <TabsContent value="costs" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">3D Печать</Label>
-                <div className="text-lg font-medium">{formatPrice(order.printing_cost)}</div>
+            {/* 3D Printing */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">3D Печать</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стоимость (₽)</Label>
+                  <Input type="number" value={editedCosts.printing_cost ?? ''} onChange={(e) => updateCost('printing_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Вес модели (г)</Label>
+                  <Input type="number" step="0.1" value={editedCosts.printing_weight_g ?? ''} onChange={(e) => updateCost('printing_weight_g', e.target.value)} placeholder="0" />
+                </div>
+                <div className="col-span-1" />
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Металл</Label>
-                <div className="text-lg font-medium">{formatPrice(order.metal_cost)}</div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Заметки</Label>
+                <Textarea value={editedCosts.printing_notes || ''} onChange={(e) => updateCost('printing_notes', e.target.value)} rows={2} placeholder="Параметры печати..." />
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Литьё</Label>
-                <div className="text-lg font-medium">{formatPrice(order.casting_cost)}</div>
+            </div>
+
+            {/* Casting */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Литьё</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стоимость литья (₽)</Label>
+                  <Input type="number" value={editedCosts.casting_cost ?? ''} onChange={(e) => updateCost('casting_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стоимость металла (₽)</Label>
+                  <Input type="number" value={editedCosts.metal_cost ?? ''} onChange={(e) => updateCost('metal_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Вес металла (г)</Label>
+                  <Input type="number" step="0.1" value={editedCosts.metal_weight_g ?? ''} onChange={(e) => updateCost('metal_weight_g', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Цена за грамм (₽/г)</Label>
+                  <Input type="number" step="0.01" value={editedCosts.metal_price_per_g ?? ''} onChange={(e) => updateCost('metal_price_per_g', e.target.value)} placeholder="0" />
+                </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Полировка</Label>
-                <div className="text-lg font-medium">{formatPrice(order.polishing_cost)}</div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Заметки</Label>
+                <Textarea value={editedCosts.casting_notes || ''} onChange={(e) => updateCost('casting_notes', e.target.value)} rows={2} placeholder="Тип металла, объём, особенности..." />
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Камни</Label>
-                <div className="text-lg font-medium">{formatPrice(order.gems_cost)}</div>
+            </div>
+
+            {/* Polishing */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Полировка и покрытие</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Полировка (₽)</Label>
+                  <Input type="number" value={editedCosts.polishing_cost ?? ''} onChange={(e) => updateCost('polishing_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Покрытие (₽)</Label>
+                  <Input type="number" value={editedCosts.plating_cost ?? ''} onChange={(e) => updateCost('plating_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Тип покрытия</Label>
+                  <Input value={editedCosts.plating_type || ''} onChange={(e) => updateCost('plating_type', e.target.value)} placeholder="Родий, позолота..." />
+                </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Цепочка</Label>
-                <div className="text-lg font-medium">{formatPrice(order.chain_cost)}</div>
+            </div>
+
+            {/* Gems */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Камни</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стоимость камней (₽)</Label>
+                  <Input type="number" value={editedCosts.gems_cost ?? ''} onChange={(e) => updateCost('gems_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Закрепка (₽)</Label>
+                  <Input type="number" value={editedCosts.gems_setting_cost ?? ''} onChange={(e) => updateCost('gems_setting_cost', e.target.value)} placeholder="0" />
+                </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Работа</Label>
-                <div className="text-lg font-medium">{formatPrice(order.labor_cost)}</div>
+            </div>
+
+            {/* Chain */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Цепочка</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Тип</Label>
+                  <Input value={editedCosts.chain_type || ''} onChange={(e) => updateCost('chain_type', e.target.value)} placeholder="Якорная, снейк..." />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Длина (см)</Label>
+                  <Input type="number" value={editedCosts.chain_length_cm ?? ''} onChange={(e) => updateCost('chain_length_cm', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стоимость (₽)</Label>
+                  <Input type="number" value={editedCosts.chain_cost ?? ''} onChange={(e) => updateCost('chain_cost', e.target.value)} placeholder="0" />
+                </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <Label className="text-muted-foreground">Упаковка</Label>
-                <div className="text-lg font-medium">{formatPrice(order.packaging_cost)}</div>
+            </div>
+
+            {/* Labor */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Работа</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Часы</Label>
+                  <Input type="number" step="0.5" value={editedCosts.labor_hours ?? ''} onChange={(e) => updateCost('labor_hours', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ставка (₽/час)</Label>
+                  <Input type="number" value={editedCosts.labor_rate_per_hour ?? ''} onChange={(e) => updateCost('labor_rate_per_hour', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Итого работа (₽)</Label>
+                  <Input type="number" value={editedCosts.labor_cost ?? ''} onChange={(e) => updateCost('labor_cost', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+            </div>
+
+            {/* Packaging & Other */}
+            <div className="p-4 border rounded-lg space-y-3">
+              <h4 className="font-medium text-sm">Прочее</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Упаковка (₽)</Label>
+                  <Input type="number" value={editedCosts.packaging_cost ?? ''} onChange={(e) => updateCost('packaging_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Гравировка (₽)</Label>
+                  <Input type="number" value={editedCosts.engraving_cost ?? ''} onChange={(e) => updateCost('engraving_cost', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Другие расходы (₽)</Label>
+                  <Input type="number" value={editedCosts.other_costs ?? ''} onChange={(e) => updateCost('other_costs', e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Описание прочих расходов</Label>
+                <Textarea value={editedCosts.other_costs_notes || ''} onChange={(e) => updateCost('other_costs_notes', e.target.value)} rows={2} placeholder="Доставка, расходные материалы..." />
               </div>
             </div>
 
             {/* Totals */}
-            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-              <div className="flex justify-between">
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Себестоимость:</span>
-                <span className="font-medium">{formatPrice(totalCost || order.total_cost)}</span>
+                <span className="font-bold text-lg">{formatPrice(calculatedTotal || 0)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Цена для клиента:</span>
-                <span className="font-medium">{formatPrice(order.quoted_price)}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Цена для клиента (₽)</Label>
+                  <Input type="number" value={editedCosts.quoted_price ?? ''} onChange={(e) => updateCost('quoted_price', e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Финальная цена (₽)</Label>
+                  <Input type="number" value={editedCosts.final_price ?? ''} onChange={(e) => updateCost('final_price', e.target.value)} placeholder="0" />
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Финальная цена:</span>
-                <span className="font-bold text-lg">{formatPrice(order.final_price)}</span>
-              </div>
-              {order.final_price && totalCost > 0 && (
-                <div className="flex justify-between border-t pt-2 mt-2">
+              {margin !== 0 && (
+                <div className="flex justify-between border-t pt-2">
                   <span className="text-muted-foreground">Маржа:</span>
-                  <span className="font-medium text-green-600">
-                    {formatPrice(order.final_price - totalCost)} ({Math.round(((order.final_price - totalCost) / order.final_price) * 100)}%)
+                  <span className={`font-medium ${margin > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {formatPrice(margin)} ({marginPercent}%)
                   </span>
                 </div>
               )}
             </div>
+
+            {/* Save button */}
+            {dirty && (
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Сохранить расчёт
+              </Button>
+            )}
           </TabsContent>
 
-          {/* History Tab */}
+          {/* ==================== HISTORY TAB ==================== */}
           <TabsContent value="history" className="space-y-4 mt-4">
             {/* Time in each status */}
-            {order.status_durations && Object.keys(order.status_durations).length > 0 && (
+            {displayOrder.status_durations && Object.keys(displayOrder.status_durations).length > 0 && (
               <div className="p-4 border rounded-lg">
                 <Label className="text-muted-foreground mb-3 block">Время в статусах</Label>
                 <div className="space-y-2">
                   {statuses.map((status) => {
-                    const duration = order.status_durations?.[status.value] || 0;
-                    if (duration === 0 && status.value !== order.status) return null;
+                    const duration = displayOrder.status_durations?.[status.value] || 0;
+                    if (duration === 0 && status.value !== displayOrder.status) return null;
                     return (
                       <div key={status.value} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -515,8 +825,8 @@ export function OrderDetailModal({
                           <span className="text-sm">{status.label}</span>
                         </div>
                         <span className="text-sm font-mono">
-                          {status.value === order.status
-                            ? formatDuration(order.time_in_status_seconds || 0) + ' (сейчас)'
+                          {status.value === displayOrder.status
+                            ? formatDuration(displayOrder.time_in_status_seconds || 0) + ' (сейчас)'
                             : formatDuration(duration)}
                         </span>
                       </div>
@@ -563,7 +873,7 @@ export function OrderDetailModal({
 
             {/* Created at */}
             <div className="text-sm text-muted-foreground text-center">
-              Заказ создан: {formatDate(order.created_at)}
+              Заказ создан: {formatDate(displayOrder.created_at)}
             </div>
           </TabsContent>
         </Tabs>
