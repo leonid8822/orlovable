@@ -957,5 +957,101 @@ export const api = {
         } catch (error) {
             return { data: null, error };
         }
+    },
+
+    // Production Kanban API
+    productionGetKanban: async () => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/kanban`, {
+                credentials: 'include',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to load kanban');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionGetOrder: async (orderId: string) => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/orders/${orderId}`, {
+                credentials: 'include',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to load order');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionMoveOrder: async (orderId: string, newStatus: string, comment?: string) => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/orders/${orderId}/move`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ new_status: newStatus, comment })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to move order');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionUploadStagePhoto: async (orderId: string, stage: string, imageBase64: string) => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/orders/${orderId}/photo`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ stage, image_base64: imageBase64 })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to upload photo');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    productionGetMetrics: async () => {
+        try {
+            const token = localStorage.getItem('production_session');
+            const response = await fetch(`${API_URL}/production/metrics`, {
+                credentials: 'include',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to load metrics');
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };

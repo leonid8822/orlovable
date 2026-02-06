@@ -4519,3 +4519,366 @@ async def trigger_examples_sync():
             "success": False,
             "error": str(e)
         }
+
+
+# ============================================
+# Production Kanban API
+# ============================================
+
+ORDER_STATUSES = [
+    {"value": "new", "label": "Новый", "color": "bg-blue-500"},
+    {"value": "design", "label": "Дизайн", "color": "bg-purple-500"},
+    {"value": "modeling", "label": "3D Модель", "color": "bg-indigo-500"},
+    {"value": "printing", "label": "3D Печать", "color": "bg-cyan-500"},
+    {"value": "casting", "label": "Литьё", "color": "bg-orange-500"},
+    {"value": "polishing", "label": "Полировка", "color": "bg-yellow-500"},
+    {"value": "assembly", "label": "Сборка", "color": "bg-pink-500"},
+    {"value": "ready", "label": "Готов", "color": "bg-green-500"},
+    {"value": "shipped", "label": "Отправлен", "color": "bg-teal-500"},
+    {"value": "delivered", "label": "Доставлен", "color": "bg-emerald-500"},
+    {"value": "cancelled", "label": "Отменён", "color": "bg-red-500"},
+]
+
+
+class MoveOrderRequest(BaseModel):
+    new_status: str
+    comment: Optional[str] = None
+
+
+class StagePhotoRequest(BaseModel):
+    stage: str
+    image_base64: str
+
+
+@router.get("/production/kanban")
+async def production_kanban(request: Request):
+    """Get orders grouped by status for Kanban board"""
+    try:
+        # Verify production access
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        # Get all orders
+        orders = await supabase.select("orders", order="created_at.desc", limit=500)
+
+        # Group by status
+        kanban = {}
+        for status in ORDER_STATUSES:
+            kanban[status["value"]] = []
+
+        for order in orders:
+            status = order.get("status", "new")
+            if status not in kanban:
+                kanban[status] = []
+
+            # Calculate time in current status
+            status_entered_at = order.get("status_entered_at")
+            time_in_status_seconds = 0
+            if status_entered_at:
+                try:
+                    entered = datetime.fromisoformat(status_entered_at.replace("Z", "+00:00"))
+                    now = datetime.utcnow().replace(tzinfo=entered.tzinfo)
+                    time_in_status_seconds = int((now - entered).total_seconds())
+                except:
+                    pass
+
+            kanban[status].append({
+                "id": order["id"],
+                "order_number": order.get("order_number"),
+                "status": status,
+                "customer_name": order.get("customer_name"),
+                "customer_email": order.get("customer_email"),
+                "customer_phone": order.get("customer_phone"),
+                "customer_telegram": order.get("customer_telegram"),
+                "product_type": order.get("product_type"),
+                "material": order.get("material"),
+                "size": order.get("size"),
+                "form_factor": order.get("form_factor"),
+                "reference_images": order.get("reference_images", []),
+                "generated_images": order.get("generated_images", []),
+                "final_price": order.get("final_price"),
+                "quoted_price": order.get("quoted_price"),
+                "total_cost": order.get("total_cost"),
+                "created_at": order.get("created_at"),
+                "status_entered_at": status_entered_at,
+                "time_in_status_seconds": time_in_status_seconds,
+                "status_durations": order.get("status_durations", {}),
+            })
+
+        return {
+            "kanban": kanban,
+            "statuses": ORDER_STATUSES,
+            "total_orders": len(orders)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in production kanban: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/production/orders/{order_id}")
+async def production_get_order(order_id: str, request: Request):
+    """Get full order details with history"""
+    try:
+        # Verify production access
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        # Get order
+        order = await supabase.select_one("orders", order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # Get status history
+        history = await supabase.select(
+            "order_status_history",
+            filters={"order_id": order_id},
+            order="created_at.desc",
+            limit=100
+        )
+
+        # Calculate time in current status
+        status_entered_at = order.get("status_entered_at")
+        time_in_status_seconds = 0
+        if status_entered_at:
+            try:
+                entered = datetime.fromisoformat(status_entered_at.replace("Z", "+00:00"))
+                now = datetime.utcnow().replace(tzinfo=entered.tzinfo)
+                time_in_status_seconds = int((now - entered).total_seconds())
+            except:
+                pass
+
+        return {
+            "order": {
+                **order,
+                "time_in_status_seconds": time_in_status_seconds,
+            },
+            "history": history,
+            "statuses": ORDER_STATUSES
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting production order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/production/orders/{order_id}/move")
+async def production_move_order(order_id: str, req: MoveOrderRequest, request: Request):
+    """Move order to new status with time tracking"""
+    try:
+        # Verify production access
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        # Get current order
+        order = await supabase.select_one("orders", order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        old_status = order.get("status", "new")
+        new_status = req.new_status
+
+        # Calculate time spent in old status
+        status_entered_at = order.get("status_entered_at")
+        duration_seconds = 0
+        if status_entered_at:
+            try:
+                entered = datetime.fromisoformat(status_entered_at.replace("Z", "+00:00"))
+                now = datetime.utcnow().replace(tzinfo=entered.tzinfo)
+                duration_seconds = int((now - entered).total_seconds())
+            except:
+                pass
+
+        # Update status_durations
+        status_durations = order.get("status_durations", {}) or {}
+        if old_status in status_durations:
+            status_durations[old_status] += duration_seconds
+        else:
+            status_durations[old_status] = duration_seconds
+
+        # Update order
+        now_iso = datetime.utcnow().isoformat()
+        update_data = {
+            "status": new_status,
+            "status_entered_at": now_iso,
+            "status_durations": status_durations,
+        }
+
+        # Set timestamps for specific statuses
+        if new_status == "ready":
+            update_data["completed_at"] = now_iso
+        elif new_status == "shipped":
+            update_data["shipped_at"] = now_iso
+        elif new_status == "delivered":
+            update_data["delivered_at"] = now_iso
+
+        await supabase.update("orders", order_id, update_data)
+
+        # Add to history
+        history_entry = {
+            "id": str(uuid.uuid4()),
+            "order_id": order_id,
+            "status": new_status,
+            "previous_status": old_status,
+            "duration_seconds": duration_seconds,
+            "comment": req.comment,
+            "changed_by": session_check.get("email"),
+            "created_at": now_iso,
+        }
+        await supabase.insert("order_status_history", history_entry)
+
+        return {
+            "success": True,
+            "order_id": order_id,
+            "old_status": old_status,
+            "new_status": new_status,
+            "duration_seconds": duration_seconds
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error moving order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/production/orders/{order_id}/photo")
+async def production_upload_stage_photo(order_id: str, req: StagePhotoRequest, request: Request):
+    """Upload photo for a production stage"""
+    try:
+        # Verify production access
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        # Get order
+        order = await supabase.select_one("orders", order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # Upload image to storage
+        import base64
+        image_data = req.image_base64
+        if "," in image_data:
+            image_data = image_data.split(",")[1]
+        image_bytes = base64.b64decode(image_data)
+
+        filename = f"stage_{req.stage}_{uuid.uuid4().hex[:8]}.webp"
+        file_path = f"orders/{order_id}/{filename}"
+
+        url = await supabase.upload_file("pendants", file_path, image_bytes, content_type="image/webp")
+
+        if not url:
+            raise HTTPException(status_code=500, detail="Failed to upload image")
+
+        # Update stage_photos
+        stage_photos = order.get("stage_photos", {}) or {}
+        if req.stage not in stage_photos:
+            stage_photos[req.stage] = []
+        stage_photos[req.stage].append(url)
+
+        await supabase.update("orders", order_id, {"stage_photos": stage_photos})
+
+        return {
+            "success": True,
+            "url": url,
+            "stage": req.stage
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error uploading stage photo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/production/metrics")
+async def production_metrics(request: Request):
+    """Get production KPI metrics"""
+    try:
+        # Verify production access
+        session_check = await production_verify_session(request)
+        if not session_check.get("is_production"):
+            raise HTTPException(status_code=401, detail="Production access required")
+
+        # Get all orders
+        orders = await supabase.select("orders", limit=1000)
+
+        # Calculate metrics
+        total_orders = len(orders)
+        orders_by_status = {}
+        for status in ORDER_STATUSES:
+            orders_by_status[status["value"]] = 0
+
+        in_progress_statuses = ["design", "modeling", "printing", "casting", "polishing", "assembly"]
+        orders_in_progress = 0
+        orders_new = 0
+        orders_ready = 0
+        orders_completed = 0  # shipped + delivered
+
+        total_revenue = 0
+        total_cost = 0
+
+        for order in orders:
+            status = order.get("status", "new")
+            if status in orders_by_status:
+                orders_by_status[status] += 1
+
+            if status == "new":
+                orders_new += 1
+            elif status in in_progress_statuses:
+                orders_in_progress += 1
+            elif status == "ready":
+                orders_ready += 1
+            elif status in ["shipped", "delivered"]:
+                orders_completed += 1
+
+            # Revenue from final_price or quoted_price
+            price = order.get("final_price") or order.get("quoted_price") or 0
+            if status in ["ready", "shipped", "delivered"]:
+                total_revenue += price
+
+            # Cost
+            cost = order.get("total_cost") or 0
+            total_cost += cost
+
+        # Average time to complete (for delivered orders)
+        completed_orders = [o for o in orders if o.get("status") in ["shipped", "delivered"]]
+        avg_completion_time = 0
+        if completed_orders:
+            total_time = 0
+            count = 0
+            for o in completed_orders:
+                durations = o.get("status_durations", {}) or {}
+                order_time = sum(durations.values())
+                if order_time > 0:
+                    total_time += order_time
+                    count += 1
+            if count > 0:
+                avg_completion_time = total_time / count
+
+        return {
+            "total_orders": total_orders,
+            "orders_new": orders_new,
+            "orders_in_progress": orders_in_progress,
+            "orders_ready": orders_ready,
+            "orders_completed": orders_completed,
+            "orders_by_status": orders_by_status,
+            "total_revenue": total_revenue,
+            "total_cost": total_cost,
+            "profit": total_revenue - total_cost,
+            "avg_completion_time_seconds": avg_completion_time,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting production metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
